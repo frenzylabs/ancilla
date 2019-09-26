@@ -16,7 +16,7 @@ with io.open('./ancilla/__init__.py', encoding='utf8') as version_file:
         raise RuntimeError("Unable to find version string.")
 
 
-with io.open('README.rst', encoding='utf8') as readme:
+with io.open('README.md', encoding='utf8') as readme:
     long_description = readme.read()
 
 data_files = []
