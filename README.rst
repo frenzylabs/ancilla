@@ -3,13 +3,16 @@ Ancilla
 
 # Dev
 
-Setup: (Mac, linux unsure)
+## Setup: (Mac, linux unsure)
+
 ```
 $ git clone https://github.com/yyuu/pyenv.git ~/.pyenv
 $ git clone https://github.com/yyuu/pyenv-virtualenv.git ~/.pyenv/plugins/pyenv-virtualenv
 ```
 
-Add the following to your .zshrc/.bash_profile:
+
+## Add the following to your .zshrc/.bash_profile:
+
 ```
 ## Pyenv
 export PYENV_ROOT="$HOME/.pyenv"
@@ -22,12 +25,14 @@ if command -v pyenv 1>/dev/null 2>&1; then
 fi
 ```
 
-Then:
+## Then:
+
 ```
 $ env PYTHON_CONFIGURE_OPTS="--enable-shared" pyenv install 3.7.4
 ```
 
-After install, cd in to directory and do the following:
+## After install, cd in to directory and do the following:
+
 ```
 $ virtualenv .venv --no-site-packages
 $ source .venv/bin/activate
@@ -35,7 +40,8 @@ $ pip install -f requirements.txt
 $ make
 ```
 
-TO do the UI:
+## For the UI setup:
+
 ```
 $ cd ancilla/ui
 $ yarn install --check-files
