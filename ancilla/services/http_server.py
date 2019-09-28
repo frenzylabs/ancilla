@@ -8,8 +8,8 @@
 
 import os
 
-from flask import Flask, Response, send_from_directory
-from flask_cors import CORS
+from flask        import Flask, Response, send_from_directory
+from flask_cors   import CORS
 
 UI_FOLDER = os.path.abspath("{}/../ui/dist".format(os.path.dirname(__file__)))
 
@@ -28,12 +28,17 @@ class HttpServer(object):
     static_url_path="/app"
   )
 
+  @property
+  def manager(self):
+    return Manager(self.app)
+
   def index(self, *args, **kwargs):
-    return ""
+    return self.app.send_static_file('index.html')
 
   def start(self):
-    self.app.add_url_rule('/', '/', HttpServer.Action(self.index))
+    self.app.add_url_rule('/', 'index', HttpServer.Action(self.index))
 
     CORS(self.app)
 
     self.app.run(host='0.0.0.0', port=5000)
+

@@ -11,6 +11,8 @@
 # UI
 ancilla/ui/dist
 ancilla/ui/node_modules
+ui/dist
+ui/.cache
 
 ### Python ###
 # Byte-compiled / optimized / DLL files

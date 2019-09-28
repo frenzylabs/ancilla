@@ -1,0 +1,4 @@
+title: "drop"
+description: "Dropdowns for Tether"
+examples: "docs/**/*.md"
+assets: "{bower_components/*,dist/js/*.js,dist/css/*.css,docs/css/*.css,docs/js/*,js,docs/welcome/*}"

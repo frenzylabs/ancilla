@@ -1,0 +1,36 @@
+{
+  "name": "ancilla",
+  "version": "0.0.1",
+  "main": "index.js",
+  "license": "MIT",
+  "scripts": {
+    "start": "parcel index.html --no-cache --public-url '/app'",
+    "build": "parcel build index.html --public-url '/app' --out-dir ../ancilla/ui/dist"
+  },
+  "dependencies": {
+    "@babel/polyfill": "^7.6.0",
+    "jquery": "^3.4.1",
+    "react": "^16.8.0",
+    "react-dom": "^16.8.0",
+    "react-redux": "^7.1.1",
+    "react-router-dom": "^5.1.0",
+    "react-scroll": "^1.7.14",
+    "react-tether": "^2.0.4",
+    "react-text-truncate": "^0.15.0",
+    "redux": "^4.0.4",
+    "semantic-ui-css": "^2.4.1",
+    "semantic-ui-react": "^0.88.1",
+    "tether-drop": "^1.4.2"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.6.2",
+    "@babel/plugin-proposal-class-properties": "^7.5.5",
+    "@babel/preset-env": "^7.6.2",
+    "@babel/preset-react": "^7.0.0",
+    "babel-core": "^6.26.3",
+    "babel-preset-env": "^1.7.0",
+    "babel-preset-react": "^6.24.1",
+    "cssnano": "^4.1.10",
+    "node-sass": "^4.12.0"
+  }
+}

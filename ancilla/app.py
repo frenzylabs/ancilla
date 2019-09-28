@@ -8,6 +8,8 @@
 
 import toga
 import threading
+import pathlib
+import os
 
 from .services.http_server        import HttpServer
 from .services.serial_connection  import SerialConnection
@@ -19,8 +21,8 @@ class Application(toga.App):
   @property
   def webview(self):
     _webview      = toga.WebView()
-    _webview.url  = "http://127.0.0.1:5000/app/index.html"
-
+    _webview.url  = "http://127.0.0.1:5000/"
+  
     return _webview
 
   @property
@@ -40,3 +42,4 @@ class Application(toga.App):
 
     # self.serial_connection.start()
     self.window.show()
+    

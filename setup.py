@@ -51,6 +51,7 @@ setup(
         'License :: OSI Approved :: Other',
     ],
     install_requires= [r for r in map(str.strip, open("requirements.txt").readlines())],
+    python_requires='>3.7',
     options={
         'app': {
             'formal_name': 'Ancilla',

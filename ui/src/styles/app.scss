@@ -1,0 +1,80 @@
+//
+//  app.scss
+//  ancilla
+// 
+//  Created by Wess Cope (me@wess.io) on 09/26/19
+//  Copyright 2019 Wess Cope
+//
+
+
+body {
+  position: absolute;
+  width:100%;
+  height: 100%;
+  min-height: 100%;
+  margin: 0;
+  padding: 0;
+  background: #343434;
+  display: flex;
+}
+
+#app {
+  background: #343434 !important;
+  height:100%;
+  min-height: 100%;
+  margin:0;
+  padding:0;
+  display: flex;
+  flex-grow: 1;
+}
+
+#main-view {
+  margin: 0         !important;
+  padding: 0        !important;
+  height: 100%      !important;
+  min-height: 100%  !important;
+  max-height: 100%  !important;
+
+  #master-column {
+    background: white !important;
+    flex: 0 0 200px !important;
+  }
+
+  #detail-column {
+    display: 'flex'   !important;
+    flex: 1           !important;
+    padding: 0        !important;
+    height: 100%      !important;
+    min-height: 100%  !important;
+    max-height: 100%  !important;
+    overflow: none    !important;
+  }
+}
+
+#terminal {
+  position: absolute      !important;
+  display: flex           !important;
+  flex: 1 1 auto          !important;
+  flex-direction: column  !important;
+  width: 100%             !important;
+  max-width: 100%         !important;
+  min-width: 100%         !important;
+  height: 100%            !important;
+  max-height: 100%        !important;
+  min-height: 100%        !important;
+
+  #terminal-header {
+    display: flex   !important;
+    flex: 1 1 5%    !important;
+    min-height: 3em !important;
+    max-height: 3em !important;
+  }
+
+  #terminal-body {
+    display: flex             !important;
+    flex: 1 1 85%             !important;
+    align-items: flex-start   !important;
+    align-content: flex-start !important;
+    overflow: hidden auto     !important;
+  }
+}
