@@ -9,6 +9,9 @@
 
 export default {
   printer: {
-    list: "PRINTER.LIST"
+    create:     "PRINTER.CREATE",
+    list:       "PRINTER.LIST",
+    ports:      "PRINTER.PORTS",
+    error:      "PRINTER.ERROR"
   }
 }

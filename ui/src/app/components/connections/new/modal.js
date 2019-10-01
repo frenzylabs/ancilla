@@ -7,6 +7,7 @@
 //
 
 import React from 'react'
+import {connect}    from 'react-redux'
 
 import {
   Icon,
@@ -16,7 +17,7 @@ import {
 
 import ConnectionForm from './form'
 
-export default class NewConnectionModal extends React.Component {
+class NewConnectionModal extends React.Component {
   constructor(props) {
     super(props)
 
@@ -62,3 +63,11 @@ export default class NewConnectionModal extends React.Component {
     )
   }
 }
+
+const mapStateToProps = (state) => {
+  return {
+    error: state.printer.error
+  }
+}
+
+export default connect(mapStateToProps)(NewConnectionModal)

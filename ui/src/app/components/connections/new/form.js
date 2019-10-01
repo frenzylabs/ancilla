@@ -6,7 +6,8 @@
 //  Copyright 2019 Wess Cope
 //
 
-import React from 'react'
+import React      from 'react'
+import {connect}  from 'react-redux'
 
 import {
   Form,
@@ -16,17 +17,15 @@ import {
   Icon
 } from 'semantic-ui-react'
 
-import {default as Printer} from '../../../network/printer'
+import printer from '../../../network/printer'
 
-export default class ConnectionForm extends React.Component {
+class ConnectionForm extends React.Component {
   constructor(props) {
     super(props)
 
     this.state = {
       name: null,
       port: null,
-      ports: [],
-      baudrates: [],
       baudrate: 115200,
       hasError: false,
       isSaving: false
@@ -50,7 +49,7 @@ export default class ConnectionForm extends React.Component {
   }
 
   portOptions() {
-    return (this.state.ports || []).map((port, idx) => { 
+    return (this.props.ports || []).map((port, idx) => { 
       return {
         key:    `${port}-${idx + 1}`, 
         value:  port, 
@@ -60,7 +59,7 @@ export default class ConnectionForm extends React.Component {
   }
 
   baudrateOptions() {
-    return (this.state.baudrates || []).map((rate, idx) => {
+    return (this.props.baudrates || []).map((rate, idx) => {
       return {
         key:    `RATE-${rate}-${idx + 1}`,
         value:  rate,
@@ -72,13 +71,11 @@ export default class ConnectionForm extends React.Component {
   submitAction(e) {
     e.preventDefault()
 
-    Printer.create({name: this.state.name, port: this.state.port, baud_rate: this.state.baudrate})
-    .then((res) => {
-      console.log("RES: ", res)
-    })
-    .catch((err) => {
-      console.log("ERR: ", err)
-    })
+    this.props.dispatch(printer.create({
+      name:       this.state.name || this.state.port,
+      port:       this.state.port,
+      baud_rate:  this.state.baudrate
+    }))
   }
 
   renderSpinner() {
@@ -121,7 +118,7 @@ export default class ConnectionForm extends React.Component {
                 label="Port"
                 options={this.portOptions()}
                 placeholder='Select Port'
-                onChange={(e, element) => {this.setState({port: element.value})}}
+                onChange={(e, element) => { this.setState({port: element.value})}}
               />
             </Form.Field>
 
@@ -145,3 +142,13 @@ export default class ConnectionForm extends React.Component {
     )
   }
 }
+
+const mapStateToProps = (state) => {
+  return {
+    ...state,
+    ports:      state.printer.ports,
+    baudrates:  state.printer.baudrates
+  }
+}
+
+export default connect(mapStateToProps)(ConnectionForm)

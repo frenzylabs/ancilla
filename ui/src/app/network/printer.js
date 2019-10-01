@@ -6,18 +6,18 @@
 //  Copyright 2019 Wess Cope
 //
 
-import Request from './request'
-import {printer} from '../store/actions'
+import Request    from './request'
+import {printer}  from '../store/actions'
 
-export default {
+const _printer = {
   create: (printer) => {
     return (dispatch) => {
       return Request.post('/printers', printer)
         .then(response => {
-          dispatch(actions.connection.create())
+          dispatch(_printer.list())
         })
         .catch(error => {
-          throw(error)
+          dispatch(printer.error(error))
         })
     }
   },
@@ -29,18 +29,22 @@ export default {
           dispatch(printer.list(response.data))
         })
         .catch(error => {
-          throw(error)
+          dispatch(printer.error(error))
         })
     }
   },
 
-  // ports: () => {
-  //   return Request.get('/ports')
-  //     .then(response => {
-  //       dispatch(actions.connection.ports(response.data))
-  //     })
-  //     .catch(error => {
-  //       throw(error)
-  //     })
-  // }
+  ports: () => {
+    return (dispatch) => {
+      return Request.get('/ports')
+        .then(response => {
+          dispatch(printer.ports(response.data))
+        })
+        .catch((error) => {
+          dispatch(printer.error(error))
+        })
+    }
+  }
 }
+
+export default _printer

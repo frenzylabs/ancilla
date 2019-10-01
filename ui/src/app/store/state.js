@@ -7,5 +7,8 @@
 //
 
 export const initialState = {
-  printers: []
+  printers:   [],
+  ports:      [],
+  baudrates:  [],
+  errors:     null,
 }

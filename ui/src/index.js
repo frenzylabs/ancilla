@@ -18,6 +18,7 @@ import {printer}  from './app/network'
 import store      from './app/store'
 
 store.dispatch(printer.list())
+store.dispatch(printer.ports())
 
 window.onload = () => {
   ReactDOM.render(
