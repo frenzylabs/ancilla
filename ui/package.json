@@ -32,9 +32,12 @@
     "babel-preset-env": "^1.7.0",
     "babel-preset-react": "^6.24.1",
     "cssnano": "^4.1.10",
-    "node-sass": "^4.12.0"
+    "node-sass": "^4.12.0",
+    "parcel-bundler": "^1.12.3"
   },
   "proxy": {
-    "*": {"target" : "http://localhost"}
+    "*": {
+      "target": "http://localhost"
+    }
   }
 }
