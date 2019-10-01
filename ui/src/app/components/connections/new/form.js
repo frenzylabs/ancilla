@@ -17,7 +17,6 @@ import {
 } from 'semantic-ui-react'
 
 import {default as Printer} from '../../../network/printer'
-import {default as Ports}   from '../../../network/ports'
 
 export default class ConnectionForm extends React.Component {
   constructor(props) {
@@ -38,21 +37,6 @@ export default class ConnectionForm extends React.Component {
     this.baudrateOptions  = this.baudrateOptions.bind(this)
     this.cancelAction     = this.cancelAction.bind(this)
     this.submitAction     = this.submitAction.bind(this)
-  }
-
-  componentDidMount() {
-    Ports.list()
-    .then((res) => {
-      console.log(res.data)
-      this.setState({
-        ...this.state,
-        ports: res.data['ports'] || [],
-        baudrates: res.data['baud_rates'] || []
-      })
-    })
-    .catch((err) => {
-      console.log("Err: ", err)
-    })
   }
 
   cancelAction(e) {

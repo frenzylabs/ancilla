@@ -8,7 +8,7 @@
 
 import axios from 'axios'
 
-const Request = axios.create({
+export default axios.create({
   baseURL: 'http://localhost:5000',
   responseType: 'json',
   headers: {
@@ -18,8 +18,3 @@ const Request = axios.create({
     'Access-Control-Allow-Origin' : '*'
   }
 })
-
-
-
-
-export default Request

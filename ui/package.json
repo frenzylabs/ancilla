@@ -19,6 +19,7 @@
     "react-tether": "^2.0.4",
     "react-text-truncate": "^0.15.0",
     "redux": "^4.0.4",
+    "redux-thunk": "^2.3.0",
     "semantic-ui-css": "^2.4.1",
     "semantic-ui-react": "^0.88.1",
     "tether-drop": "^1.4.2"

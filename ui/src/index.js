@@ -9,13 +9,21 @@
 import 'semantic-ui-css/semantic.min.css'
 import './styles/app.scss'
 
-import React    from "react"
-import ReactDOM from "react-dom"
-import App      from './app'
+import React      from "react"
+import ReactDOM   from "react-dom"
+import {Provider} from 'react-redux'
+
+import App        from './app'
+import {printer}  from './app/network'
+import store      from './app/store'
+
+store.dispatch(printer.list())
 
 window.onload = () => {
   ReactDOM.render(
-    <App />,
+    <Provider store={store}>
+      <App />
+      </Provider>,
     document.getElementById('app')
   )
 }
