@@ -37,7 +37,6 @@ $ env PYTHON_CONFIGURE_OPTS="--enable-shared" pyenv install 3.7.4
 $ virtualenv .venv --no-site-packages
 $ source .venv/bin/activate
 $ pip install -f requirements.txt
-$ make
 ```
 
 ## For the UI setup:
@@ -46,4 +45,16 @@ $ make
 $ cd ancilla/ui
 $ yarn install --check-files
 $ npm start
+```
+
+## Running Dev
+
+```
+$ make
+```
+
+## Packaging
+
+```
+$ make package
 ```
