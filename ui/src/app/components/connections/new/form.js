@@ -16,6 +16,9 @@ import {
   Icon
 } from 'semantic-ui-react'
 
+import {default as Printer} from '../../../network/printer'
+import {default as Ports}   from '../../../network/ports'
+
 export default class ConnectionForm extends React.Component {
   constructor(props) {
     super(props)
@@ -23,8 +26,8 @@ export default class ConnectionForm extends React.Component {
     this.state = {
       name: null,
       port: null,
-      ports: ['/some/port/here'],
-      baudrates: ['115200'],
+      ports: [],
+      baudrates: [],
       baudrate: 115200,
       hasError: false,
       isSaving: false
@@ -34,6 +37,22 @@ export default class ConnectionForm extends React.Component {
     this.portOptions      = this.portOptions.bind(this)
     this.baudrateOptions  = this.baudrateOptions.bind(this)
     this.cancelAction     = this.cancelAction.bind(this)
+    this.submitAction     = this.submitAction.bind(this)
+  }
+
+  componentDidMount() {
+    Ports.list()
+    .then((res) => {
+      console.log(res.data)
+      this.setState({
+        ...this.state,
+        ports: res.data['ports'] || [],
+        baudrates: res.data['baud_rates'] || []
+      })
+    })
+    .catch((err) => {
+      console.log("Err: ", err)
+    })
   }
 
   cancelAction(e) {
@@ -57,12 +76,24 @@ export default class ConnectionForm extends React.Component {
   }
 
   baudrateOptions() {
-    return (this.props.baudrates || []).map((rate, idx) => {
+    return (this.state.baudrates || []).map((rate, idx) => {
       return {
         key:    `RATE-${rate}-${idx + 1}`,
         value:  rate,
-        text:   rate
+        text:   `${rate}`
       }
+    })
+  }
+
+  submitAction(e) {
+    e.preventDefault()
+
+    Printer.create({name: this.state.name, port: this.state.port, baud_rate: this.state.baudrate})
+    .then((res) => {
+      console.log("RES: ", res)
+    })
+    .catch((err) => {
+      console.log("ERR: ", err)
     })
   }
 
@@ -83,7 +114,7 @@ export default class ConnectionForm extends React.Component {
     }
 
     return (
-      <Form error>
+      <Form error onSubmit={this.submitAction}>
         <Segment.Group>
           <Segment>
             {this.state.hasError && (
@@ -92,7 +123,12 @@ export default class ConnectionForm extends React.Component {
 
             <Form.Field>
               <label>Name</label>
-              <input id="conn_name" placeholder="Connection name" defaultValue={this.state.port}/>
+              <input 
+                id="conn_name" 
+                placeholder="Connection name" 
+                defaultValue={this.state.port}
+                onChange={(e) => {this.setState({name: e.target.value})}}
+              />
             </Form.Field>
 
             <Form.Field>
@@ -101,6 +137,7 @@ export default class ConnectionForm extends React.Component {
                 label="Port"
                 options={this.portOptions()}
                 placeholder='Select Port'
+                onChange={(e, element) => {this.setState({port: element.value})}}
               />
             </Form.Field>
 
@@ -110,8 +147,7 @@ export default class ConnectionForm extends React.Component {
                 label="Baudrate"
                 options={this.baudrateOptions()}
                 placeholder='Select Baudrate'
-                defaultValue={this.state.baudrate}
-                onChange={this.baudrateAction}
+                onChange={(e, element) => {this.setState({baudrate: element.value})}}
               />
             </Form.Field>
           </Segment>

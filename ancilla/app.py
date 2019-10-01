@@ -11,8 +11,18 @@ import threading
 import pathlib
 import os
 
-from .services.http_server        import HttpServer
-from .services.serial_connection  import SerialConnection
+from .foundation.env import Env
+
+from .foundation import (
+  HttpServer,
+  SerialConnection
+)
+
+from .foundation.data.db      import Database
+from .foundation.data.models  import (
+  Printer, 
+  PrinterLog
+)
 
 class Application(toga.App):
   http_server       = HttpServer()
@@ -27,7 +37,7 @@ class Application(toga.App):
 
   @property
   def window(self):
-    _window         = toga.MainWindow(title="Ancilla")
+    _window         = toga.MainWindow(title="Ancilla", size=(1000, 680))
     _window.app     = self
     _window.content = self.webview
 
@@ -36,10 +46,30 @@ class Application(toga.App):
   def open_document(self, url):
     pass
   
-  def startup(self):
-    th = threading.Thread(target=self.http_server.start)
-    th.start()
+  def setup_env(self):
+    Env.setup()
 
-    # self.serial_connection.start()
+  def start_db(self):
+    Database.connect()
+    Database.create_tables([
+      Printer,
+      PrinterLog
+    ])
+
+  def _start_dev(self):
+    self.http_server.start()
+  
+  def _start_prod(self):
+    self.th = threading.Thread(target=self.http_server.start)
+    self.th.start()
+
     self.window.show()
-    
+
+  def startup(self):
+    self.setup_env()
+    self.start_db()
+
+    if Env.get('RUN_ENV') == 'DEV':
+      self._start_dev()
+    else:
+      self._start_prod()    

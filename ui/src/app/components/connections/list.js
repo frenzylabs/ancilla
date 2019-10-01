@@ -6,16 +6,60 @@
 //  Copyright 2019 Wess Cope
 //
 
-import React from 'react'
+import React        from 'react'
+import TextTruncate from 'react-text-truncate'
 
 import {
   Menu,
-  Header
+  Header,
+  Button
 } from 'semantic-ui-react'
 
-import NewConnectionModal from './new/modal'
+import {default as PrinterRequest}  from '../../network/printer'
+import NewConnectionModal           from './new/modal'
 
 export default class ConnectionList extends React.Component {
+  constructor(props) {
+    super(props)
+
+    this.state = {
+      printers: []
+    }
+
+    this.renderList = this.renderList.bind(this)
+  }
+
+  componentDidMount() {
+    PrinterRequest.list()
+    .then((res) => {
+      this.setState({
+        ...this.state,
+        printers: res.data
+      })
+    })
+    .catch((error) => {
+      console.log("Error: ", error)
+    })
+  }
+
+  renderList() {
+    if(this.state.printers.length < 1) {
+      return (
+        <Button key="-1" style={{background: 'none', width: '100%', textAlign: 'left', padding:'0 0 0 0.5em'}} disabled>
+          <TextTruncate line={1} truncateText="…" text="No connections." />
+        </Button>
+      )
+    }
+
+    return this.state.printers.map((item) => {
+      return (
+        <Button key={item.id} style={{background: 'none', width: '100%', textAlign: 'left', padding:'0 0 10px 0.5em'}}>
+          <TextTruncate line={1} truncateText="…" text={item.name} />
+        </Button>
+      )
+    })
+  }
+
   render() {
     return (
       <Menu.Item>
@@ -32,8 +76,10 @@ export default class ConnectionList extends React.Component {
               </Menu.Menu>
             </Menu>
           </Menu.Header>
-
-          <Menu.Item>No connections.</Menu.Item>
+          
+          <Menu.Item>
+            {this.renderList()}
+          </Menu.Item>
         </Menu.Item>
     )
   }

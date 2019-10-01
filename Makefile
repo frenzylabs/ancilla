@@ -12,10 +12,11 @@ clean:
 	@rm -rf dist \
 	&& rm -rf __pycache__ \
 	&& rm -rf ui/dist \
+	&& rm -rf macOS \
 	&& rm -rf ui/.cache
 
 run: bundle_js
-	@python -m ancilla
+	@RUN_ENV=DEV python -m ancilla
 
 bundle_js:
 	@cd ui \

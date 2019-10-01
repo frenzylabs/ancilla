@@ -34,15 +34,22 @@ setup(
     version=version,
     description='3D printer utilities',
     long_description=long_description,
+    long_description_content_type="text/markdown",
     author='LayerKeep',
     author_email='hi@layerkeep.com',
     license='Other',
     packages=find_packages(
         exclude=[
-            'docs', 'tests',
-            'windows', 'macOS', 'linux',
-            'iOS', 'android',
-            'django'
+            'docs', 
+            'tests',
+            'tests.*',
+            'windows', 
+            'macOS', 
+            'linux',
+            'iOS', 
+            'android',
+            'django',
+            'share',
         ]
     ),
     data_files=data_files,
