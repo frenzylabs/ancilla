@@ -6,5 +6,6 @@
 //  Copyright 2019 Wess Cope
 //
 
-export {default as Connections} from './connections'
-export {default as Terminal}    from './terminal'
+export {default as Connections}   from './connections'
+export {default as Terminal}      from './terminal'
+export {default as Notification}  from './notification'

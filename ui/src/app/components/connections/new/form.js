@@ -17,7 +17,8 @@ import {
   Icon
 } from 'semantic-ui-react'
 
-import printer from '../../../network/printer'
+import {notification} from '../../../store/actions'
+import printer        from '../../../network/printer'
 
 class ConnectionForm extends React.Component {
   constructor(props) {
@@ -27,7 +28,7 @@ class ConnectionForm extends React.Component {
       name: null,
       port: null,
       baudrate: 115200,
-      hasError: false,
+      error: null,
       isSaving: false
     }
 
@@ -70,12 +71,37 @@ class ConnectionForm extends React.Component {
 
   submitAction(e) {
     e.preventDefault()
+    
+    this.setState({...this.state, isSaving: true})
 
-    this.props.dispatch(printer.create({
-      name:       this.state.name || this.state.port,
+    let name = this.state.name || this.state.port
+
+    printer.create({
+      name:       name,
       port:       this.state.port,
       baud_rate:  this.state.baudrate
-    }))
+    })
+    .then((response) => {
+      this.props.dispatch(printer.list())
+      this.props.closeAction()
+      this.props.dispatch(notification.success(`Successfully added ${name}`))
+    })
+    .catch((error) => {
+
+      var errors = Object.keys(error.response.data.errors).map((key, index) => {
+        return (
+          <Message.Item key={`error-${index}`}>
+            {key} : {error.response.data.errors[key]}
+          </Message.Item>
+        )
+      })
+
+      this.setState({
+        ...this.state, 
+        isSaving: false,
+        error:    errors
+      })
+    })
   }
 
   renderSpinner() {
@@ -98,8 +124,13 @@ class ConnectionForm extends React.Component {
       <Form error onSubmit={this.submitAction}>
         <Segment.Group>
           <Segment>
-            {this.state.hasError && (
-              <Message error content='A name and port is required'/>
+            {this.state.error && (
+              <Message error>
+                <Message.Header>Errors</Message.Header>
+                <Message.List>
+                  {this.state.error}
+                </Message.List>
+              </Message>
             )}
 
             <Form.Field>

@@ -13,5 +13,12 @@ export default {
     list:       "PRINTER.LIST",
     ports:      "PRINTER.PORTS",
     error:      "PRINTER.ERROR"
+  },
+  notification: {
+    info:     "NOTIFICATION.info",
+    success:  "NOTIFICATION.success",
+    warning:  "NOTIFICATION.warning",
+    failure:  "NOTIFICATION.failure",
+    dismiss:  "NOTIFICATION.dismiss"
   }
 }

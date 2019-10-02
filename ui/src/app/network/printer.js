@@ -11,15 +11,7 @@ import {printer}  from '../store/actions'
 
 const _printer = {
   create: (printer) => {
-    return (dispatch) => {
-      return Request.post('/printers', printer)
-        .then(response => {
-          dispatch(_printer.list())
-        })
-        .catch(error => {
-          dispatch(printer.error(error))
-        })
-    }
+    return Request.post('/printers', printer)
   },
 
   list: () => {

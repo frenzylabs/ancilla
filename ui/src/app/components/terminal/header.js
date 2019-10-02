@@ -7,6 +7,7 @@
 //
 
 import React      from 'react'
+import {connect}  from 'react-redux'
 
 import { 
   Button, 
@@ -14,7 +15,9 @@ import {
   Menu
 } from 'semantic-ui-react'
 
-export default class TerminalHeader extends React.Component {
+import {notification} from '../../store/actions'
+
+class TerminalHeader extends React.Component {
   constructor(props) {
     super(props)
 
@@ -37,6 +40,8 @@ export default class TerminalHeader extends React.Component {
 
   trashAction(e) {
     console.log("Trash")
+
+    this.props.dispatch(notification.info("Hello World"))
   }
 
   render() {
@@ -58,10 +63,12 @@ export default class TerminalHeader extends React.Component {
           <Button.Group size='small'>
             <Button disabled={!this.props.connected} icon style={{background: 'none', color: '#fff'}} onClick={this.powerAction}><Icon name='power' /></Button>
             <Button disabled={!this.props.connected} icon style={{background: 'none', color: '#fff'}} onClick={this.cogAction}><Icon name='cog' /></Button>
-            <Button disabled={!this.props.connected} icon style={{background: 'none', color: '#fff'}} onClick={this.trashAction}><Icon name='trash alternate outline' /></Button>
+            <Button icon style={{background: 'none', color: '#fff'}} onClick={this.trashAction}><Icon name='trash alternate outline' /></Button>
           </Button.Group>
         </Menu.Menu>
       </Menu>
     )
   }
 }
+
+export default connect()(TerminalHeader)

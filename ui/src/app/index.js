@@ -13,6 +13,7 @@ import {
 } from 'semantic-ui-react'
 
 import {
+  Notification,
   Connections,
   Terminal
 } from './components'

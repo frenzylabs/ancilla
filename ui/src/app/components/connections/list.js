@@ -9,7 +9,6 @@
 import React        from 'react'
 import TextTruncate from 'react-text-truncate'
 import {connect}    from 'react-redux'
-import {printer}    from '../../network'
 
 import {
   Menu,

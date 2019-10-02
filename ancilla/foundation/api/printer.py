@@ -21,7 +21,7 @@ class PrinterResource(Resource):
     printer = Printer(**request.json)
 
     if not printer.is_valid:
-      return dict(status="errors", errors=printer.errors)
+      return dict(status="errors", errors=printer.errors), 400
 
     printer.save()
     

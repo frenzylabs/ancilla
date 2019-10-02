@@ -78,3 +78,12 @@ body {
     overflow: hidden auto     !important;
   }
 }
+
+#notification-element {
+  position: absolute  !important;
+  top: 0              !important;
+  right: 0            !important;
+  left: 0             !important;
+  z-index: 99999      !important;
+  border-radius: 0    !important;
+}

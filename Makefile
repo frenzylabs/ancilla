@@ -13,7 +13,8 @@ clean:
 	&& rm -rf __pycache__ \
 	&& rm -rf ui/dist \
 	&& rm -rf macOS \
-	&& rm -rf ui/.cache
+	&& rm -rf ui/.cache \
+	&& rm -rf ~/.ancilla
 
 run: bundle_js
 	@RUN_ENV=DEV python -m ancilla
