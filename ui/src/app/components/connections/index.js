@@ -20,12 +20,6 @@ class Connections extends React.Component {
   render() {
     return(
       <Menu vertical compact borderless fluid style={{border: 'none', boxShadow: 'none'}}>
-        <Menu.Item>
-          <Header disabled dividing style={{margin:0}}>
-            Ancilla
-          </Header>
-        </Menu.Item>
-
         <ConnectionList/>
       </Menu>
     )

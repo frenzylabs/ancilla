@@ -33,18 +33,17 @@ class NewConnectionModal extends React.Component {
   handleClose() {
     this.setState({opened: false})
   }
-
+add
   handleOpen() {
     this.setState({opened: true})
   }
 
   renderTrigger() {
     return (
-      <Button 
-        icon='add' 
-        size='mini' 
-        onClick={this.handleOpen} 
-        style={{background: 'none', border: 'none'}} 
+      <Icon
+        link
+        name="add"
+        onClick={this.handleOpen}
       />
     )
   }

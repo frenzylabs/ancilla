@@ -29,7 +29,7 @@ class Notification extends React.Component {
   }
 
   generateProperties() {
-    var props = {
+    var _props = {
       floating:   true,
       id:         'notification-element',
       attached:   'top',
@@ -37,35 +37,32 @@ class Notification extends React.Component {
     }
 
     if(this.props.details == null) {
-      delete props['color']
-      delete props['data-notification-type']
+      delete _props['color']
+      delete _props['data-notification-type']
 
-      props['hidden'] = true
+      _props['hidden'] = true
 
-      return props
+      return _props
     }
 
-    console.log("type: ", this.props.details)
-    props['data-notification-type'] = this.props.details.type
-
+    _props['data-notification-type'] = this.props.details.type
+    
     switch(this.props.details.type) {
       case types.notification.warning:
-        props['color'] = 'yellow'
+        _props['color'] = 'yellow'
+        break
       case types.notification.success:
-        props['color'] = 'green'
+        _props['color'] = 'green'
+        break
       case types.notification.failure:
-        props['color'] = 'red'
+        _props['color'] = 'red'
+        break
       case types.notification.info:
-        props['color'] = 'blue'
-    }
+        _props['color'] = 'blue'
+        break
+      }
 
-    return props
-  }
-
-  componentDidMount() {
-    setTimeout(() => {
-      this.dismissAction()
-    }, 6000)
+    return _props
   }
 
   render() {

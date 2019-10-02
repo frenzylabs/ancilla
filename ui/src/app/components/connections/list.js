@@ -13,7 +13,8 @@ import {connect}    from 'react-redux'
 import {
   Menu,
   Header,
-  Button
+  Button,
+  Icon
 } from 'semantic-ui-react'
 
 import NewConnectionModal from './new/modal'
@@ -28,17 +29,17 @@ class ConnectionList extends React.Component {
   renderList() {
     if(this.props.printers.length < 1) {
       return (
-        <Button key="-1" style={{background: 'none', width: '100%', textAlign: 'left', padding:'0 0 0 0.5em'}} disabled>
+        <Menu.Item key="-1" disabled>
           <TextTruncate line={1} truncateText="…" text="No connections." />
-        </Button>
+        </Menu.Item>
       )
     }
 
     return this.props.printers.map((item) => {
       return (
-        <Button key={item.id} style={{background: 'none', width: '100%', textAlign: 'left', padding:'0 0 10px 0.5em'}}>
+        <Menu.Item key={item.id} data-port-id={item.id} link>
           <TextTruncate line={1} truncateText="…" text={item.name} />
-        </Button>
+        </Menu.Item>
       )
     })
   }
@@ -46,24 +47,13 @@ class ConnectionList extends React.Component {
   render() {
     return (
       <Menu.Item>
-          <Menu.Header>
-            <Menu secondary compact>
-              <Menu.Item position='left' style={{padding: 0}}>
-                <Header textAlign='left' size='medium'>Connections</Header>
-              </Menu.Item>
-              
-              <Menu.Menu position='right'>
-                <Menu.Item>
-                  <NewConnectionModal />
-                </Menu.Item>
-              </Menu.Menu>
-            </Menu>
-          </Menu.Header>
-          
-          <Menu.Item>
-            {this.renderList()}
-          </Menu.Item>
-        </Menu.Item>
+        <NewConnectionModal />
+        Connections
+
+        <Menu.Menu>
+          {this.renderList()}
+        </Menu.Menu>
+      </Menu.Item>
     )
   }
 }
@@ -75,3 +65,4 @@ const mapStateToProps = (state) => {
 }
 
 export default connect(mapStateToProps)(ConnectionList)
+
