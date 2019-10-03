@@ -15,7 +15,8 @@ from .foundation.env import Env
 
 from .foundation import (
   HttpServer,
-  SerialConnection
+  SerialConnection,
+  WSServer
 )
 
 from .foundation.data.db      import Database
@@ -25,8 +26,12 @@ from .foundation.data.models  import (
 )
 
 class Application(toga.App):
-  http_server       = HttpServer()
-  serial_connection = SerialConnection(port="/dev/cu.usbserial-A107ZAQK", baudrate="115_200")
+  
+  def __init__(self, *args, **kwargs):
+    super().__init__(*args, **kwargs)
+
+    self.http_server  = HttpServer()
+    self.ws_server    = WSServer(self.http_server.app)
 
   @property
   def webview(self):
@@ -58,6 +63,7 @@ class Application(toga.App):
 
   def _start_dev(self):
     self.http_server.start()
+    
   
   def _start_prod(self):
     self.th = threading.Thread(target=self.http_server.start)

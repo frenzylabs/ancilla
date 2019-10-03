@@ -48,16 +48,19 @@ class TerminalHeader extends React.Component {
     return(
       <Menu borderless={true} fluid size='tiny' compact inverted style={{border: 'none', borderRadius: '0'}}>
         <Menu.Item header>
-            Connection:
+            Connection: &nbsp;
+
+            {this.props.connection && (this.props.connection.name != this.props.connection.path) && 
+                <span>{this.props.connection.name}</span>
+            }
+
         </Menu.Item>
 
-        <Menu.Item>
-          None &nbsp;
-        </Menu.Item>
-
-        <Menu.Item>
-          /example/path/here
-        </Menu.Item>
+        { this.props.connection && 
+            <Menu.Item>              
+              {this.props.connection.path}
+            </Menu.Item>
+        }
 
         <Menu.Menu position="right">
           <Button.Group size='small'>
@@ -71,4 +74,10 @@ class TerminalHeader extends React.Component {
   }
 }
 
-export default connect()(TerminalHeader)
+const mapStateToProps = (state) => {
+  return {
+    connection: state.connection.currentConnection
+  }
+}
+
+export default connect(mapStateToProps)(TerminalHeader)

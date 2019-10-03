@@ -8,3 +8,4 @@
 
 from .http_server       import HttpServer
 from .serial_connection import SerialConnection
+from .ws_server         import WSServer

@@ -6,10 +6,13 @@
 //  Copyright 2019 Wess Cope
 //
 
+
 export const initialState = {
-  printers:     [],
-  ports:        [],
-  baudrates:    [],
-  errors:       null,
-  notification: null
+  printers:           [],
+  ports:              [],
+  baudrates:          [],
+  errors:             null,
+  notification:       null,
+  currentConnection:  null,
+  connections:        [/* Connection */]   
 }

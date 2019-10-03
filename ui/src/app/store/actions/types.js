@@ -15,10 +15,16 @@ export default {
     error:      "PRINTER.ERROR"
   },
   notification: {
-    info:     "NOTIFICATION.info",
-    success:  "NOTIFICATION.success",
-    warning:  "NOTIFICATION.warning",
-    failure:  "NOTIFICATION.failure",
-    dismiss:  "NOTIFICATION.dismiss"
+    info:     "NOTIFICATION.INFO",
+    success:  "NOTIFICATION.SUCCESS",
+    warning:  "NOTIFICATION.WARNING",
+    failure:  "NOTIFICATION.FAILURE",
+    dismiss:  "NOTIFICATION.DISMISS"
+  },
+  connection: {
+    connect:      "SOCKET.CONNECT",
+    connected:    "SOCKET.CONNECTED",
+    disconnected: "SOCKET.DISCONNECTED",
+    received:     "SOCKET.RECEIVED"
   }
 }

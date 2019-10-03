@@ -11,7 +11,8 @@ import os
 from flask          import Flask, Response, send_from_directory
 from flask_restful  import Api
 from flask_cors     import CORS
-from .env import Env
+from .env           import Env
+from .ws_server     import WSServer
 
 from .api import (
   PrinterResource,
@@ -29,14 +30,26 @@ class HttpServer(object):
       return self.handler()
 
 
-  def __init__(self, *args, **kwargs):
-    self.app = Flask(
-      "ancilla",
-      static_folder=UI_FOLDER,
-      static_url_path="/app"
-    )
+  @property
+  def app(self):
+    _app = Flask("ancilla", static_folder=UI_FOLDER, static_url_path="/app")
+    _app.config['SECRET_KEY'] = 'wanker'
 
-    self.api = Api(self.app)
+    _app.add_url_rule('/', 'index', HttpServer.Action(self.index))
+    
+    self.api = Api(_app)
+
+    self.api.add_resource(PrinterResource, '/printers')
+    self.api.add_resource(PortsResource,    '/ports')
+
+    CORS(_app)
+    return _app
+
+  @property
+  def ws(self):
+    _ws = WSServer(self.app)
+
+    return _ws
 
   @property
   def manager(self):
@@ -46,13 +59,7 @@ class HttpServer(object):
     return self.app.send_static_file('index.html')
 
   def start(self):
-    self.app.add_url_rule('/', 'index', HttpServer.Action(self.index))
-    self.api.add_resource(PrinterResource, '/printers')
-    self.api.add_resource(PortsResource,    '/ports')
+    # self.app.run(host='127.0.0.1', port=5000, debug=(Env.get('RUN_ENV') == 'DEV'))
+    
+    self.ws.run(host='0.0.0.0', port=5000, debug=(Env.get('RUN_ENV') == 'DEV'))
 
-    CORS(self.app)
-
-    if Env.get('RUN_ENV') == 'DEV':
-      self.app.run(host='localhost', port=5000, debug=True)
-    else:
-      self.app.run(host='localhost', port=5000)

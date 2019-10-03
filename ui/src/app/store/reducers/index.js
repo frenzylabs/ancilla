@@ -9,8 +9,10 @@
 import {combineReducers}  from 'redux'
 import printer            from './printer'
 import notification       from './notification'
+import connection         from './connection'
 
 export default combineReducers({
   printer,
-  notification
+  notification,
+  connection
 })

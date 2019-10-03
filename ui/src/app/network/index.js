@@ -6,5 +6,6 @@
 //  Copyright 2019 Wess Cope
 //
 
-export {default as request} from './request'
-export {default as printer} from './printer'
+export {default as request}     from './request'
+export {default as printer}     from './printer'
+export {default as Connection}  from './connection'
