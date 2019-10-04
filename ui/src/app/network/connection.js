@@ -24,7 +24,7 @@ export default class Connection {
     this.path     = props.path
     this.baudrate = props.baudrate
 
-    this.manager = io(`http://${this.host}:${this.port}`, {
+    this.manager = io(`http://${this.host}:${this.port}/connection`, {
       autoConnect: false,
       transports: ['websocket']
     })
@@ -34,9 +34,9 @@ export default class Connection {
     this.onMessage    = this.onMessage.bind(this)
     this.send         = this.send.bind(this)
 
-    this.manager.on('connect',  this.onConnect)
-    this.manager.on('disconnect',  this.onDisconnect)
-    this.manager.on('message',     this.onMessage)
+    this.manager.on('connect',    this.onConnect)
+    this.manager.on('disconnect', this.onDisconnect)
+    this.manager.on('message',    this.onMessage)
   }
 
   connect() {
@@ -51,16 +51,21 @@ export default class Connection {
     this.socket.close()
   }
 
+  onConnection(socket) {
+    console.log("SSSS")
+  }
+
   onConnect(socket) {
-    console.log("Connected")
-    
     this.connected  = true
     this.socket     = socket
 
     store.dispatch(actions.connected(this))
 
-    this.manager.emit('message', 'im here!!', (res) => {
+    var port = this.path
+
+    this.manager.emit('open', {name: this.name, port: port, baudrate: this.baudrate}, (res) => {
       console.log("RES: ", res)
+       
     })
   }
 

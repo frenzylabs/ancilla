@@ -6,5 +6,4 @@
  Copyright 2019 Wess Cope
 '''
 
-from .printer import PrinterResource
-from .ports   import PortsResource
+from .server import APIServer

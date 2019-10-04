@@ -8,7 +8,7 @@
 
 from flask          import Flask, request
 from flask_restful  import Resource, Api
-from ..data.models  import Printer
+from ...data.models import Printer
 
 class PrinterResource(Resource):
   def get(self, id=None):

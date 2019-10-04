@@ -14,7 +14,8 @@ import os
 from .foundation.env import Env
 
 from .foundation import (
-  HttpServer,
+  Beacon,
+  APIServer,
   SerialConnection,
   WSServer
 )
@@ -29,9 +30,9 @@ class Application(toga.App):
   
   def __init__(self, *args, **kwargs):
     super().__init__(*args, **kwargs)
-
-    self.http_server  = HttpServer()
-    self.ws_server    = WSServer(self.http_server.app)
+    self.beacon     = Beacon()
+    self.api_server = APIServer()
+    self.ws_server  = WSServer(self.api_server.app)
 
   @property
   def webview(self):
@@ -62,11 +63,11 @@ class Application(toga.App):
     ])
 
   def _start_dev(self):
-    self.http_server.start()
+    self.api_server.start()
     
   
   def _start_prod(self):
-    self.th = threading.Thread(target=self.http_server.start)
+    self.th = threading.Thread(target=self.api_server.start)
     self.th.start()
 
     self.window.show()
@@ -74,6 +75,7 @@ class Application(toga.App):
   def startup(self):
     self.setup_env()
     self.start_db()
+    self.beacon.register()
 
     if Env.get('RUN_ENV') == 'DEV':
       self._start_dev()
