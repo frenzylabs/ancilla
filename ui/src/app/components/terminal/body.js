@@ -43,7 +43,7 @@ export default class TerminalBody extends React.Component {
   }
 
   renderLines() {
-    return (this.props.output || []).map((line, idx) => {
+    return (this.props.buffer || []).map((line, idx) => {
       return this.renderLineItem(line, `output-line-${idx}`)
     })
   }

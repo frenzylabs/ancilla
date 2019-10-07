@@ -5,7 +5,10 @@
  Created by Wess Cope (me@wess.io) on 10/04/19
  Copyright 2019 Wess Cope
 '''
-import asyncio
+import time
+import threading
+
+from queue import Queue
 
 from flask_socketio import (
   Namespace,
@@ -15,23 +18,55 @@ from flask_socketio import (
   leave_room
 )
 
-from ...serial      import SerialConnection
+from ...serial import SerialConnection
 
 class ConnectionNamespace(Namespace):
-  _connections = dict()
+  websocket = None
+
+  _connections  = dict()
+  _queue        = Queue()
 
   def on_connect(self):
     print("Connection made")
 
   def on_disconnect(self):
+    print("Disconnect")
     pass
 
   def on_open(self, data):
-    print("data: ", data)
+    print("Opened")
 
-    _conn = SerialConnection(**data)
-    _conn.start()
+    try:
+      _conn             = SerialConnection(**data)
+      _conn.websocket   = self.websocket
+      _conn.on_message  = self.serial_incoming
 
-    self._connections[data['name']] = _conn
-    join_room(data['name'])
+      self._conn = _conn
 
+      _conn.start()
+
+      # _thread = threading.Thread(target=_conn.start)
+      # _thread.start()
+
+      # self._connections[data['name']] = _conn
+
+      # print(threading.current_thread().__class__.__name__)
+      print(threading.current_thread())
+      print(threading.main_thread())
+      print(self.websocket)
+      self.websocket.emit('message', "Connected")
+      # _conn
+    except:
+      self.emit('message', "Unable to connect to {}".format(data["name"]))
+      
+
+
+  def on_message(self, data):
+    print("my on message")
+    pass
+
+  def serial_incoming(self, data):
+    if len(data) > 0:
+      print("Data: ", data)
+      print(threading.current_thread())
+      self.emit('message', data=data)

@@ -10,13 +10,14 @@ import React        from 'react'
 import TextTruncate from 'react-text-truncate'
 import {connect}    from 'react-redux'
 
+import {
+  Link
+} from 'react-router-dom'
+
 import $ from 'jquery/dist/jquery'
 
 import {
-  Menu,
-  Header,
-  Button,
-  Icon
+  Menu
 } from 'semantic-ui-react'
 
 import {default as actions}            from '../../store/actions/connection'
@@ -53,14 +54,22 @@ class ConnectionList extends React.Component {
     }
 
     return this.props.printers.map((item) => {
+      let name      = item.name
+      let baudrate  = item.baud_rate
+      let port      = item.port.split('/').join('_')
+
       return (
-        <Menu.Item key={item.id} id={`port-${item.id}`} data-name={item.name} data-port={item.port} data-baudrate={item.baud_rate} link onClick={this.connectionSelect}>
-          <TextTruncate line={1} truncateText="…" text={item.name} />
+        <Menu.Item key={item.id}>
+          <Link 
+            id={`port-${item.id}`} 
+            to={`/terminal/${name}/${baudrate}/${port}`}>
+            <TextTruncate line={1} truncateText="…" text={item.name} />
+          </Link>
         </Menu.Item>
       )
     })
   }
-
+  
   render() {
     return (
       <Menu.Item>

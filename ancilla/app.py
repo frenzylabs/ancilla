@@ -7,11 +7,11 @@
 '''
 
 import toga
-import threading
 import pathlib
 import os
+import threading
 
-from .foundation.env import Env
+from .foundation.env  import Env
 
 from .foundation import (
   Beacon,

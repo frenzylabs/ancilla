@@ -51,10 +51,6 @@ export default class Connection {
     this.socket.close()
   }
 
-  onConnection(socket) {
-    console.log("SSSS")
-  }
-
   onConnect(socket) {
     this.connected  = true
     this.socket     = socket
@@ -63,9 +59,8 @@ export default class Connection {
 
     var port = this.path
 
-    this.manager.emit('open', {name: this.name, port: port, baudrate: this.baudrate}, (res) => {
-      console.log("RES: ", res)
-       
+    this.manager.emit('open', {name: this.name, port: port, baudrate: this.baudrate}, () => {
+
     })
   }
 
@@ -78,6 +73,10 @@ export default class Connection {
   }
 
   onMessage(msg) {
+    if(this.messageCallback) {
+      this.messageCallback(msg)
+    }
+
     this.buffer.push(msg)
   }
 
