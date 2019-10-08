@@ -9,7 +9,8 @@
 import React, {useEffect, useRef} from 'react'
 
 import { 
-  Table
+  Table,
+  Feed
 } from 'semantic-ui-react'
 
 export default class TerminalBody extends React.Component {
@@ -33,12 +34,14 @@ export default class TerminalBody extends React.Component {
   }
 
   renderLineItem(item, index) {
-    return(
-      <Table.Row key={index}>
-        <Table.Cell colSpan={3} style={{paddingLeft: '8px'}}>
-          {item.replace("echo:", "") || "No output"}
-        </Table.Cell>
-      </Table.Row>
+    return (
+      <Feed.Event key={index}>
+        <Feed.Content>
+          <Feed.Summary>
+            {item.replace("echo:", "") || "No output"}
+          </Feed.Summary>
+        </Feed.Content>
+      </Feed.Event>
     )
   }
 
@@ -49,13 +52,11 @@ export default class TerminalBody extends React.Component {
   }
 
   render() {
-    return(
-      <Table.Body>
+    return (
+      <Feed style={{width: '100%', height: '100%', overflow: 'auto hidden'}}>
         {this.renderLines()}
-        <tr>
-          <td ref={(el) => { this.outputEnd = el }}></td>
-        </tr>
-      </Table.Body>
+        <Feed.Event><span ref={(el) => {this.outputEnd = el }}></span></Feed.Event>
+      </Feed>
     )
   }
 }

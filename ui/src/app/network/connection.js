@@ -8,7 +8,6 @@
 
 import React      from 'react'
 import {connect}  from 'react-redux'
-import io         from 'socket.io-client'
 
 import {default as actions} from '../store/actions/connection'
 
@@ -17,71 +16,69 @@ export default class Connection {
   sent    = []
 
   constructor(props) {
-
     this.name     = props.name
     this.host     = 'localhost'
     this.port     = 5000
     this.path     = props.path
     this.baudrate = props.baudrate
 
-    this.manager = io(`http://${this.host}:${this.port}/connection`, {
-      autoConnect: false,
-      transports: ['websocket']
-    })
-
+    this.connect      = this.connect.bind(this)
+    this.send         = this.send.bind(this)
     this.onConnect    = this.onConnect.bind(this)
     this.onDisconnect = this.onDisconnect.bind(this)
+    this.onError      = this.onError.bind(this)
     this.onMessage    = this.onMessage.bind(this)
-    this.send         = this.send.bind(this)
 
-    this.manager.on('connect',    this.onConnect)
-    this.manager.on('disconnect', this.onDisconnect)
-    this.manager.on('message',    this.onMessage)
   }
 
   connect() {
-    console.log("Starting connection")
+    console.log("Connecting")
 
-    this.manager.open()
+    this.socket = new WebSocket(`ws://${this.host}:${this.port}/serial`)
 
-    return this
-  }
-
-  disconnect() {
-    this.socket.close()
-  }
-
-  onConnect(socket) {
-    this.connected  = true
-    this.socket     = socket
-
-    store.dispatch(actions.connected(this))
-
-    var port = this.path
-
-    this.manager.emit('open', {name: this.name, port: port, baudrate: this.baudrate}, () => {
-
-    })
-  }
-
-  onDisconnect() {
-    console.log("Disconnected")
-
-    this.connected = false
-    
-    store.dispatch(actions.disconnected(this))
-  }
-
-  onMessage(msg) {
-    if(this.messageCallback) {
-      this.messageCallback(msg)
+    this.socket.onopen = (e) => {
+      this.onConnect(e)
     }
 
-    this.buffer.push(msg)
+    this.socket.onclose = (e) => {
+      this.onDisconnect(e)
+    }
+
+
+    this.socket.onerror = (err) => {
+      this.onerror(err)
+    }
+    
+    this.socket.onmessage = (e) => {
+      this.onMessage(e)
+    }
   }
 
-  send(msg) {
-    this.sent.push(msg)
-    io.emit('message', msg)
+  send(message) {
+    this.socket.send(message)
+  }
+
+  onConnect(event) {
+    let message = JSON.stringify({
+      action:   'connect',
+      port:     this.path,
+      baudrate: this.baudrate
+    })
+
+    this.send(message)
+  }
+
+  onDisconnect(event) {
+    console.log("Disconnect: ", event)
+  }
+
+  onError(error) {
+    console.log("Error: ", error)
+  }
+
+  onMessage(event) {
+    if(this.onMessageHandler) {
+      this.onMessageHandler(event.data)
+    }
   }
 }

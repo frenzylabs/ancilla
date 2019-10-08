@@ -18,9 +18,12 @@ const _printer = {
     return (dispatch) => {
       return Request.get('/printers')
         .then(response => {
-          dispatch(printer.list(response.data))
+          let printers = response.data['printers'] || []
+
+          dispatch(printer.list(printers))
         })
         .catch(error => {
+          console.log(error)
           dispatch(printer.error(error))
         })
     }

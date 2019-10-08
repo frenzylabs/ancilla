@@ -53,16 +53,20 @@ class ConnectionList extends React.Component {
       )
     }
 
-    return this.props.printers.map((item) => {
-      let name      = item.name
-      let baudrate  = item.baud_rate
-      let port      = item.port.split('/').join('_')
-
+    return (this.props.printers || []).map((item) => {
       return (
         <Menu.Item key={item.id}>
           <Link 
             id={`port-${item.id}`} 
-            to={`/terminal/${name}/${baudrate}/${port}`}>
+            to={{
+              pathname: "/terminal",
+              connectionProps: {
+                name: item.name,
+                baudrate: item.baud_rate,
+                path: item.port
+              }
+            }}
+            >
             <TextTruncate line={1} truncateText="…" text={item.name} />
           </Link>
         </Menu.Item>

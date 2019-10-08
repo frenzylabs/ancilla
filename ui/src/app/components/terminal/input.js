@@ -35,7 +35,7 @@ export default class TerminalInput extends React.Component {
   keyAction(e) {
     if(e.keyCode === 13 && this.state.entry.length > 0) { 
     
-
+      this.props.connection.send(this.state.entry)
       $('#terminal-input').val('')
     }
   }
@@ -52,7 +52,7 @@ export default class TerminalInput extends React.Component {
   render() {
     return (
       <Form ref={(el) => this.formRef = el } size='tiny'>
-        <Form.Input id="terminal-input" disabled={!this.props.connected} placeholder="Ender GCode" name="cmd" width={16} onChange={this.inputAction} />
+        <Form.Input id="terminal-input" disabled={!this.props.connection} placeholder="Ender GCode" name="cmd" width={16} onChange={this.inputAction} />
       </Form>
     )
   }

@@ -24,6 +24,8 @@ class Terminal extends React.Component {
   constructor(props) {
     super(props)
 
+    console.log("mount")
+
     this.state = {
       connection: null,
       buffer:     []
@@ -41,16 +43,17 @@ class Terminal extends React.Component {
   componentDidMount() {
     if(this.state.connection) { return }
 
-    const name      = this.props.match.params.name
-    const baudrate  = this.props.match.params.baudrate
-    const path      = this.props.match.params.path.split('_').join('/')
+    const name      = this.props.location.connectionProps.name
+    const baudrate  = this.props.location.connectionProps.baudrate
+    const path      = this.props.location.connectionProps.path
+
     const conn      = new Connection({
       name:     name,
       path:     path,
       baudrate: baudrate
     })
 
-    conn.messageCallback = this.onMessage
+    conn.onMessageHandler = this.onMessage
 
     conn.connect()
 
@@ -60,21 +63,21 @@ class Terminal extends React.Component {
   }
 
   render() {
+    console.log("Rendering terminal")
+    
     return (
       <Segment.Group id="terminal">
         <Segment.Inline id="terminal-header">
           <TerminalHeader connection={this.state.connection}/>
         </Segment.Inline>
 
-        <Segment.Inline id='terminal-body'>
-          <Table singleLine inverted>
-            <TerminalBody buffer={this.state.buffer}/>
-          </Table>
+        <Segment.Inline id='terminal-body' style={{overflow: 'hidden'}}>
+          <TerminalBody buffer={this.state.buffer}/>
         </Segment.Inline>
 
-        <Segment compact inverted id="terminal-input">
+        <Segment.Inline id="terminal-input">
           <TerminalInput connection={this.state.connection}/>
-        </Segment>
+        </Segment.Inline>
 
       </Segment.Group>
     )

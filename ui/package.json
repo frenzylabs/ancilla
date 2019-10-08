@@ -4,8 +4,8 @@
   "main": "index.js",
   "license": "MIT",
   "scripts": {
-    "start": "parcel index.html --no-cache --public-url '/app'",
-    "build": "parcel build index.html --public-url '/app' --out-dir ../ancilla/ui/dist"
+    "start": "parcel index.html --no-cache --public-url '/static'",
+    "build": "parcel build index.html --public-url '/static' --out-dir ../ancilla/ui/dist"
   },
   "dependencies": {
     "@babel/polyfill": "^7.6.0",

@@ -10,6 +10,5 @@ from .env               import Env
 from .beacon            import Beacon
 from .server            import Server
 from .api.server        import APIServer
-from .socket.server     import WSServer
 from .serial            import SerialConnection
 
