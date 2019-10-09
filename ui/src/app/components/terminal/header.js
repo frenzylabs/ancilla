@@ -39,9 +39,9 @@ class TerminalHeader extends React.Component {
   }
 
   trashAction(e) {
-    console.log("Trash")
-
-    this.props.dispatch(notification.info("Hello World"))
+    if(this.props.trashAction) {
+      this.props.trashAction(e)
+    }
   }
 
   render() {
@@ -64,8 +64,8 @@ class TerminalHeader extends React.Component {
 
         <Menu.Menu position="right">
           <Button.Group size='small'>
-            <Button disabled={!this.props.connected} icon style={{background: 'none', color: '#fff'}} onClick={this.powerAction}><Icon name='power' /></Button>
-            <Button disabled={!this.props.connected} icon style={{background: 'none', color: '#fff'}} onClick={this.cogAction}><Icon name='cog' /></Button>
+            <Button disabled={!this.props.connection} icon style={{background: 'none', color: '#fff'}} onClick={this.powerAction}><Icon name='power' /></Button>
+            <Button disabled={!this.props.connection} icon style={{background: 'none', color: '#fff'}} onClick={this.cogAction}><Icon name='cog' /></Button>
             <Button icon style={{background: 'none', color: '#fff'}} onClick={this.trashAction}><Icon name='trash alternate outline' /></Button>
           </Button.Group>
         </Menu.Menu>
@@ -74,10 +74,4 @@ class TerminalHeader extends React.Component {
   }
 }
 
-const mapStateToProps = (state) => {
-  return {
-    connection: state.connection.currentConnection
-  }
-}
-
-export default connect(mapStateToProps)(TerminalHeader)
+export default connect()(TerminalHeader)

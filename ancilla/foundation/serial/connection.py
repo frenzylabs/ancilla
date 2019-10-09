@@ -10,6 +10,7 @@ import traceback
 import asyncio
 import serial_asyncio
 
+from concurrent   import futures
 from serial.tools import list_ports
 
 
@@ -30,7 +31,7 @@ class SerialConnection(object):
     self.loop.close()
 
   async def write(self, msg):
-    self.writer.write(msg)
+    self.writer.write((msg + '\n').encode())
 
   async def open(self):
     print(f'Opening connection to {self.port}...')
@@ -47,7 +48,7 @@ class SerialConnection(object):
     print(f'Connected to {self.port}.')
 
   async def close(self):
-    printf(f'Closing connection to {self.port}...')
+    print(f'Closing connection to {self.port}...')
 
     for task in self.tasks:
       task.cancel()

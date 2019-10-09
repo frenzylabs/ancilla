@@ -38,7 +38,7 @@ export default class TerminalBody extends React.Component {
       <Feed.Event key={index}>
         <Feed.Content>
           <Feed.Summary>
-            {item.replace("echo:", "") || "No output"}
+            <p style={{padding: '4px 10px'}}>{item.replace("echo:", "") || "No output"}</p>
           </Feed.Summary>
         </Feed.Content>
       </Feed.Event>
@@ -46,7 +46,23 @@ export default class TerminalBody extends React.Component {
   }
 
   renderLines() {
-    return (this.props.buffer || []).map((line, idx) => {
+    let output = (this.props.buffer || [])
+    .map((item) => {
+      return JSON.parse(item)
+    })
+    .filter((item) => {
+      return Object.keys(item).includes('response')
+    })
+    .map((item) => {
+      return item['response']
+      .replace('\n', '')
+      .replace('echo:', '')
+    })
+    .filter((item) => {
+      return item.length > 0 && item != "start"
+    })
+
+    return output.map((line, idx) => {
       return this.renderLineItem(line, `output-line-${idx}`)
     })
   }

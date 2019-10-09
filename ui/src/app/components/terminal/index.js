@@ -6,9 +6,9 @@
 //  Copyright 2019 Wess Cope
 //
 
-import React      from 'react'
-import {connect}  from 'react-redux'
-
+import React        from 'react'
+import queryString  from 'query-string'
+import {connect}    from 'react-redux'
 import {Connection} from '../../network'
 
 import { 
@@ -41,11 +41,14 @@ class Terminal extends React.Component {
   }
 
   componentDidMount() {
-    if(this.state.connection) { return }
+    if(this.state.connection) { 
+      this.state.connection.disconnect()
+    }
 
-    const name      = this.props.location.connectionProps.name
-    const baudrate  = this.props.location.connectionProps.baudrate
-    const path      = this.props.location.connectionProps.path
+    const query     = queryString.parse(this.props.location.search)
+    const name      = query.name
+    const baudrate  = query.baudrate
+    const path      = query.path
 
     const conn      = new Connection({
       name:     name,
@@ -60,6 +63,12 @@ class Terminal extends React.Component {
     this.setState({
       connection: conn
     })
+  }
+
+  componentWillUnmount() {
+    if(!this.state.connection) { return }
+
+    this.state.connection.disconnect()
   }
 
   render() {

@@ -18,6 +18,7 @@ export default class TerminalInput extends React.Component {
     super(props)
 
     this.state = {
+      history: [],
       entry: ''
     }
 
@@ -35,8 +36,15 @@ export default class TerminalInput extends React.Component {
   keyAction(e) {
     if(e.keyCode === 13 && this.state.entry.length > 0) { 
     
-      this.props.connection.send(this.state.entry)
-      $('#terminal-input').val('')
+      this.props.connection.send(JSON.stringify({
+        action: 'command',
+        code: this.state.entry
+      }))
+
+      this.setState({
+        history: this.state.history.concat([this.state.entry])
+      })
+      $('#terminal-input-field').val('')
     }
   }
 
@@ -44,7 +52,6 @@ export default class TerminalInput extends React.Component {
     const target = $(e.currentTarget)
 
     this.setState({
-      ...this.state,
       entry: target.val()
     })
   }
@@ -52,7 +59,7 @@ export default class TerminalInput extends React.Component {
   render() {
     return (
       <Form ref={(el) => this.formRef = el } size='tiny'>
-        <Form.Input id="terminal-input" disabled={!this.props.connection} placeholder="Ender GCode" name="cmd" width={16} onChange={this.inputAction} />
+        <Form.Input id="terminal-input-field" disabled={!this.props.connection} placeholder="Enter command or GCode" name="cmd" width={16} onChange={this.inputAction} />
       </Form>
     )
   }

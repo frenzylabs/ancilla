@@ -21,22 +21,35 @@ class SerialResource(SocketResource):
   dispatch  = None
   buffer    = Queue()
 
-  def connect(self, port=None, baudrate=None, *args, **kwargs):
+  async def connect(self, port=None, baudrate=None, *args, **kwargs):
     if not port and not baudrate:
       self.write_error({'error':'Connect requires a port and baudrate'})
       return
 
     self._serial_connect(port, baudrate)
 
+  async def command(self, code, *args, **kwargs):
+    if not self.dispatch:
+      self.write_error({'error':'Nothing connected.'})
+      return
+
+    print("Writing command: ", code)
+    self.write_message({'cmd': f'Running code: {code}'})
+    await self.dispatch.write(code)
+
+  async def disconnect(self):
+    if not self.dispatch:
+      return
+
+    print("Disconnecting")
+    await self.dispatch.close()
+
   async def _process_buffer(self):
     async for msg in self.buffer:
-      msg = msg.decode("utf-8")
-
-      self.write_message(msg)
+      self.write_message({"response" : msg.decode("utf-8")})
       await sleep(0.01)
 
   async def _buffer_output(self, msg):
-    print("From Serial: ", msg)
     await self.buffer.put(msg)
 
   def _serial_connect(self, port, baudrate):

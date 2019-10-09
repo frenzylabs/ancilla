@@ -54,6 +54,14 @@ export default class Connection {
     }
   }
 
+  disconnect() {
+    this.socket.send(JSON.stringify({
+      action: 'disconnect'
+    }))
+
+    this.socket.disconnect()
+  }
+
   send(message) {
     this.socket.send(message)
   }

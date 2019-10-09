@@ -74,20 +74,28 @@ body {
 }
 
 #terminal-body {
-  background: #fff !important;
-  display: flex             !important;
-  flex: 1 1 85%             !important;
+  background: #f0f0f0     !important;
+  display: flex           !important;
+  flex: 1 1 auto          !important;
   overflow: hidden auto   !important;
 }
 
 #terminal-input { 
-  // display: flex;
-  // flex: 1 1 10%         !important;
-  // width: 100%             !important;
-  // max-width: 100%         !important;
-  // min-width: 100%         !important;
-  // min-height: 4.2em         !important;
-  // max-height: 4.2em         !important;
+  position: absolute  !important;
+  background: #fff    !important;
+  border-top: 1px solid #c0c0c0 !important;
+  bottom: 0           !important;
+  width: 100%         !important;
+  max-width: 100%     !important;
+  min-width: 100%     !important;
+  min-height: 3.6em   !important;
+  max-height: 3.6em   !important;
+
+  input[type=text] {
+    margin-top: 0.67em  !important;
+    border-radius: 0    !important;
+    border: none        !important;
+  }
 }
 
 #notification-element {
@@ -96,5 +104,4 @@ body {
   right: 0            !important;
   left: 0             !important;
   z-index: 99999      !important;
-  border-radius: 0    !important;
 }

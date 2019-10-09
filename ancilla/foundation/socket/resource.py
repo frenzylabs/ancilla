@@ -26,9 +26,7 @@ class SocketResource(WebSocketHandler):
   def on_close(self):
     self.clients.remove(self)    
 
-  def on_message(self, message):
-    print("MESSAGE: ", message)
-    
+  async def on_message(self, message):
     try:
       msg     = json.loads(message)
       action  = msg.get('action')
@@ -45,9 +43,9 @@ class SocketResource(WebSocketHandler):
         return
 
       if len(params) > 0:
-        method(**params)
+        await method(**params)
       else:
-        method()
+        await method()
 
     except json.JSONDecodeError as err:
       self.write_error({'error':"{}".format(err)})
