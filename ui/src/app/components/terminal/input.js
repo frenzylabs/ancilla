@@ -123,9 +123,6 @@ export default class TerminalInput extends React.Component {
       default: 
         return
     }
-
-    console.log("keycode: ", e.keyCode)
-
   }
 
   inputAction(e) {
