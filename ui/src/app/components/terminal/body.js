@@ -69,9 +69,10 @@ export default class TerminalBody extends React.Component {
 
   render() {
     return (
-      <Feed style={{width: '100%', height: '100%', overflow: 'auto hidden'}}>
+      <Feed>
+        <Feed.Event>&nbsp;</Feed.Event>
         {this.renderLines()}
-        <Feed.Event><span ref={(el) => {this.outputEnd = el }}></span></Feed.Event>
+        <Feed.Event><span ref={(el) => {this.outputEnd = el }}>&nbsp;</span></Feed.Event>
       </Feed>
     )
   }

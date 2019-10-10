@@ -74,27 +74,26 @@ body {
 }
 
 #terminal-body {
-  background: #f0f0f0     !important;
-  display: flex           !important;
-  flex: 1 1 auto          !important;
-  overflow: hidden auto   !important;
+  background: #f0f0f0;
+  display: flex;
+  flex: 1 1 85%;
+  overflow: scroll;    
+  overflow-x: hidden;
 }
 
 #terminal-input { 
-  position: absolute  !important;
-  background: #fff    !important;
-  border-top: 1px solid #c0c0c0 !important;
-  bottom: 0           !important;
-  width: 100%         !important;
-  max-width: 100%     !important;
-  min-width: 100%     !important;
-  min-height: 3.6em   !important;
-  max-height: 3.6em   !important;
+  background: #fff;
+  border-top: 1px solid #c0c0c0;
+  width: 100%;
+  max-width: 100%;
+  min-width: 100%;
+  min-height: 3.6em;
+  max-height: 3.6em;
 
   input[type=text] {
-    margin-top: 0.67em  !important;
-    border-radius: 0    !important;
-    border: none        !important;
+    margin-top: 0.67em;
+    border-radius: 0;
+    border: none;
   }
 }
 

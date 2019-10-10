@@ -24,16 +24,21 @@ class Terminal extends React.Component {
   constructor(props) {
     super(props)
 
-    console.log("mount")
-
     this.state = {
       connection: null,
       buffer:     []
     }
 
-    this.onMessage = this.onMessage.bind(this)
+    this.trashAction  = this.trashAction.bind(this)
+    this.onMessage    = this.onMessage.bind(this)
   }
 
+  trashAction(e) {
+    this.setState({
+      buffer: []
+    })
+  }
+  
   onMessage(msg) {
     this.setState({
       buffer: this.state.buffer.concat([msg])
@@ -72,15 +77,16 @@ class Terminal extends React.Component {
   }
 
   render() {
-    console.log("Rendering terminal")
-    
     return (
       <Segment.Group id="terminal">
         <Segment.Inline id="terminal-header">
-          <TerminalHeader connection={this.state.connection}/>
+          <TerminalHeader 
+            connection={this.state.connection}
+            trashAction={this.trashAction}
+          />
         </Segment.Inline>
 
-        <Segment.Inline id='terminal-body' style={{overflow: 'hidden'}}>
+        <Segment.Inline id='terminal-body'>
           <TerminalBody buffer={this.state.buffer}/>
         </Segment.Inline>
 
