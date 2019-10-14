@@ -4,13 +4,14 @@
   "main": "index.js",
   "license": "MIT",
   "scripts": {
-    "start": "parcel index.html --no-cache --public-url '/app'",
-    "build": "parcel build index.html --public-url '/app' --out-dir ../ancilla/ui/dist"
+    "start": "parcel index.html --no-cache --public-url '/static'",
+    "build": "parcel build index.html --public-url '/static' --out-dir ../ancilla/ui/dist"
   },
   "dependencies": {
     "@babel/polyfill": "^7.6.0",
     "axios": "^0.19.0",
     "jquery": "^3.4.1",
+    "query-string": "^6.8.3",
     "react": "^16.8.0",
     "react-dom": "^16.8.0",
     "react-redux": "^7.1.1",

@@ -6,9 +6,9 @@
 //  Copyright 2019 Wess Cope
 //
 
-import React      from 'react'
-import {connect}  from 'react-redux'
-
+import React        from 'react'
+import queryString  from 'query-string'
+import {connect}    from 'react-redux'
 import {Connection} from '../../network'
 
 import { 
@@ -29,9 +29,16 @@ class Terminal extends React.Component {
       buffer:     []
     }
 
-    this.onMessage = this.onMessage.bind(this)
+    this.trashAction  = this.trashAction.bind(this)
+    this.onMessage    = this.onMessage.bind(this)
   }
 
+  trashAction(e) {
+    this.setState({
+      buffer: []
+    })
+  }
+  
   onMessage(msg) {
     this.setState({
       buffer: this.state.buffer.concat([msg])
@@ -39,18 +46,22 @@ class Terminal extends React.Component {
   }
 
   componentDidMount() {
-    if(this.state.connection) { return }
+    if(this.state.connection) { 
+      this.state.connection.disconnect()
+    }
 
-    const name      = this.props.match.params.name
-    const baudrate  = this.props.match.params.baudrate
-    const path      = this.props.match.params.path.split('_').join('/')
+    const query     = queryString.parse(this.props.location.search)
+    const name      = query.name
+    const baudrate  = query.baudrate
+    const path      = query.path
+
     const conn      = new Connection({
       name:     name,
       path:     path,
       baudrate: baudrate
     })
 
-    conn.messageCallback = this.onMessage
+    conn.onMessageHandler = this.onMessage
 
     conn.connect()
 
@@ -59,22 +70,29 @@ class Terminal extends React.Component {
     })
   }
 
+  componentWillUnmount() {
+    if(!this.state.connection) { return }
+
+    this.state.connection.disconnect()
+  }
+
   render() {
     return (
       <Segment.Group id="terminal">
         <Segment.Inline id="terminal-header">
-          <TerminalHeader connection={this.state.connection}/>
+          <TerminalHeader 
+            connection={this.state.connection}
+            trashAction={this.trashAction}
+          />
         </Segment.Inline>
 
         <Segment.Inline id='terminal-body'>
-          <Table singleLine inverted>
-            <TerminalBody buffer={this.state.buffer}/>
-          </Table>
+          <TerminalBody buffer={this.state.buffer}/>
         </Segment.Inline>
 
-        <Segment compact inverted id="terminal-input">
+        <Segment.Inline id="terminal-input">
           <TerminalInput connection={this.state.connection}/>
-        </Segment>
+        </Segment.Inline>
 
       </Segment.Group>
     )

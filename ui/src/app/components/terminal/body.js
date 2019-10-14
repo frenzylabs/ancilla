@@ -9,7 +9,8 @@
 import React, {useEffect, useRef} from 'react'
 
 import { 
-  Table
+  Table,
+  Feed
 } from 'semantic-ui-react'
 
 export default class TerminalBody extends React.Component {
@@ -33,29 +34,46 @@ export default class TerminalBody extends React.Component {
   }
 
   renderLineItem(item, index) {
-    return(
-      <Table.Row key={index}>
-        <Table.Cell colSpan={3} style={{paddingLeft: '8px'}}>
-          {item.replace("echo:", "") || "No output"}
-        </Table.Cell>
-      </Table.Row>
+    return (
+      <Feed.Event key={index}>
+        <Feed.Content>
+          <Feed.Summary>
+            <p style={{padding: '4px 10px'}}>{item.replace("echo:", "") || "No output"}</p>
+          </Feed.Summary>
+        </Feed.Content>
+      </Feed.Event>
     )
   }
 
   renderLines() {
-    return (this.props.buffer || []).map((line, idx) => {
+    let output = (this.props.buffer || [])
+    .map((item) => {
+      return JSON.parse(item)
+    })
+    .filter((item) => {
+      return Object.keys(item).includes('response')
+    })
+    .map((item) => {
+      return item['response']
+      .replace('\n', '')
+      .replace('echo:', '')
+    })
+    .filter((item) => {
+      return item.length > 0 && item != "start"
+    })
+
+    return output.map((line, idx) => {
       return this.renderLineItem(line, `output-line-${idx}`)
     })
   }
 
   render() {
-    return(
-      <Table.Body>
+    return (
+      <Feed>
+        <Feed.Event>&nbsp;</Feed.Event>
         {this.renderLines()}
-        <tr>
-          <td ref={(el) => { this.outputEnd = el }}></td>
-        </tr>
-      </Table.Body>
+        <Feed.Event><span ref={(el) => {this.outputEnd = el }}>&nbsp;</span></Feed.Event>
+      </Feed>
     )
   }
 }

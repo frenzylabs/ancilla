@@ -6,23 +6,23 @@
  Copyright 2019 Wess Cope
 '''
 
-from flask          import Flask, request
-from flask_restful  import Resource, Api
+from .base          import BaseHandler
 from ...data.models import Printer
 
-class PrinterResource(Resource):
-  def get(self, id=None):
-    if id:
-      return Printer.get(Printer.id == id)
-
-    return [printer.json for printer in Printer.select()] or []
+class PrinterResource(BaseHandler):
+  def get(self, *args, **kwargs):
+    self.write(
+      {'printers': [printer.json for printer in Printer.select()]}
+    )
+    self.finish()
 
   def post(self):
-    printer = Printer(**request.json)
+    printer = Printer(**self.params)
 
     if not printer.is_valid:
-      return dict(status="errors", errors=printer.errors), 400
+      self.write_error(400, errors=printer.errors)
 
     printer.save()
-    
-    return printer.json
+    self.write(printer.json)
+
+    self.finish()

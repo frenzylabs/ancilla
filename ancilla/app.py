@@ -16,8 +16,6 @@ from .foundation.env  import Env
 from .foundation import (
   Beacon,
   APIServer,
-  SerialConnection,
-  WSServer
 )
 
 from .foundation.data.db      import Database
@@ -32,7 +30,6 @@ class Application(toga.App):
     super().__init__(*args, **kwargs)
     self.beacon     = Beacon()
     self.api_server = APIServer()
-    self.ws_server  = WSServer(self.api_server.app)
 
   @property
   def webview(self):

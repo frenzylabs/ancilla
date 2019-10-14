@@ -6,20 +6,72 @@
  Copyright 2019 Wess Cope
 '''
 
-import serial
-import time
-import threading
+import traceback
+import asyncio
+import serial_asyncio
 
-from queue        import Queue
-from types        import SimpleNamespace
+from concurrent   import futures
 from serial.tools import list_ports
 
 
 class SerialConnection(object):
-  _queue  = Queue()
-  _thread = None
-  websocket = None
 
+  def __init__(self, port, baudrate, *args, **kwargs):
+    self.port     = port
+    self.baudrate = baudrate
+    self.tasks    = []
+
+  def run(self, reader=None):
+    self.readerCallback = reader
+    self.loop           = asyncio.get_event_loop()
+
+    self.loop.create_task(self.open())
+
+  def stop(self):
+    self.loop.close()
+
+  async def write(self, msg):
+    self.writer.write((msg + '\n').encode())
+
+  async def open(self):
+    print(f'Opening connection to {self.port}...')
+
+    try:
+      self.reader, self.writer = await serial_asyncio.open_serial_connection(url=self.port, baudrate=self.baudrate)
+      
+      self.tasks.append(
+        asyncio.ensure_future(self._read())
+      )
+    except Exception:
+      print(traceback.format_exc())
+
+    print(f'Connected to {self.port}.')
+
+  async def close(self):
+    print(f'Closing connection to {self.port}...')
+
+    for task in self.tasks:
+      task.cancel()
+
+      await asyncio.gather(task)
+
+
+  async def _read(self):
+    try:
+      while True:
+        msg = await self.reader.readuntil(b'\n')
+
+        if self.readerCallback:
+          await self.readerCallback(msg)
+
+    except futures._base.CancelledError:
+      print("Cancelled")
+    except asyncio.streams.IncompleteReadError:
+      print(traceback.format_exc())
+    except Exception:
+      print(traceback.format_exc())
+
+## Statics
   @staticmethod
   def baud_rates():
     return [
@@ -49,50 +101,4 @@ class SerialConnection(object):
   @staticmethod
   def list_ports():
     return [port.device for port in list_ports.comports()]
-
-  def __init__(self, port, baudrate, *args, **kwargs):
-    self.port     = port
-    self.baudrate = baudrate
-    self.serial   = serial.Serial(self.port, self.baudrate, timeout=3)
-    self.queue = Queue()
-
-
-  def start(self):
-    self._open()
-    # self._run()
-    self._thread = threading.Thread(target=self._run)
-    # self._thread.setDaemon(True)
-    self._thread.start()
-   
-
-  def _open(self):
-    if not self.serial.port and self.serial.baudrate:
-      raise ValueError('Port and baudrate are required for a serial connection')
-
-    try:
-      if self.serial.isOpen():
-        self._close()
-
-      self.serial.open() 
-    except:
-      raise
-
-
-  def _close(self):
-    try:
-      self.serial.close()
-    except:
-      pass
-
-  def _run(self):
-    while self.serial.isOpen():
-      self._read()
-
-  def _read(self):
-    while True:
-      buffer = self.serial.readline().decode('utf-8')
-      if len(buffer) > 0:
-        self.websocket.emit('message', data=buffer)
-      else:
-        break
 

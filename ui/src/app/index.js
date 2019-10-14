@@ -53,7 +53,7 @@ export default class App extends React.Component {
             <Grid.Column id="detail-column">
               <Switch>
                 <Route exact path="/" component={Summary}/>
-                <Route path="/terminal/:name/:baudrate/:path" component={Terminal}/>
+                <Route path="/terminal" component={Terminal}/>
               </Switch>
             </Grid.Column>
 

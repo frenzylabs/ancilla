@@ -6,16 +6,18 @@
  Copyright 2019 Wess Cope
 '''
 
-from flask          import Flask, request
-from flask_restful  import Resource, Api
-from ...serial      import SerialConnection
-import threading
+import json
 
-class PortsResource(Resource):
-  def get(self, id=None):
-    print("PORTS")
-    print(threading.currentThread())
-    return dict(
-      baud_rates=SerialConnection.baud_rates(),
-      ports=SerialConnection.list_ports()
+from .base      import BaseHandler
+from ...serial  import SerialConnection
+
+class PortsResource(BaseHandler):
+  def get(self, *args, **kwargs):
+    self.write(
+      dict(
+        baud_rates=SerialConnection.baud_rates(),
+        ports=SerialConnection.list_ports()
+      )
     )
+
+    self.finish()
