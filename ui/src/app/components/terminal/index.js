@@ -8,7 +8,6 @@
 
 import React        from 'react'
 import queryString  from 'query-string'
-import {connect}    from 'react-redux'
 import {Connection} from '../../network'
 
 import { 
@@ -26,11 +25,53 @@ class Terminal extends React.Component {
 
     this.state = {
       connection: null,
+      connected: false,
       buffer:     []
     }
 
-    this.trashAction  = this.trashAction.bind(this)
-    this.onMessage    = this.onMessage.bind(this)
+    this.setupConnection  = this.setupConnection.bind(this)
+    this.powerAction      = this.powerAction.bind(this)
+    this.trashAction      = this.trashAction.bind(this)
+    this.onMessage        = this.onMessage.bind(this)
+  }
+
+  componentDidMount() {
+    this.setupConnection()
+  }
+
+  setupConnection() {
+    const query     = queryString.parse(this.props.location.search)
+    const name      = query.name
+    const baudrate  = query.baudrate
+    const path      = query.path
+
+    const conn = providers.connection.get({
+      name:     name,
+      path:     path,
+      baudrate: baudrate
+    })
+
+    conn.onMessageHandler = this.onMessage
+
+    this.setState({
+      connection: conn,
+      buffer:     this.state.buffer.concat(conn.buffer)
+    })
+  }
+
+  powerAction(e) {
+    if(this.state.connection == null) { this.setupConnection() }
+
+    if(this.state.connected) {
+      this.state.connection.disconnect()
+    } else {
+      this.state.connection.connect()
+    }
+    
+
+    this.setState({
+      connected: !this.state.connected
+    })
   }
 
   trashAction(e) {
@@ -45,43 +86,14 @@ class Terminal extends React.Component {
     })
   }
 
-  componentDidMount() {
-    if(this.state.connection) { 
-      this.state.connection.disconnect()
-    }
-
-    const query     = queryString.parse(this.props.location.search)
-    const name      = query.name
-    const baudrate  = query.baudrate
-    const path      = query.path
-
-    const conn      = new Connection({
-      name:     name,
-      path:     path,
-      baudrate: baudrate
-    })
-
-    conn.onMessageHandler = this.onMessage
-
-    conn.connect()
-
-    this.setState({
-      connection: conn
-    })
-  }
-
-  componentWillUnmount() {
-    if(!this.state.connection) { return }
-
-    this.state.connection.disconnect()
-  }
-
   render() {
     return (
       <Segment.Group id="terminal">
         <Segment.Inline id="terminal-header">
           <TerminalHeader 
+            connected={this.state.connected}
             connection={this.state.connection}
+            powerAction={this.powerAction}
             trashAction={this.trashAction}
           />
         </Segment.Inline>

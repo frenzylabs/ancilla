@@ -22,7 +22,7 @@ import {
 import {
   Connections,
   Terminal,
-  Summary
+  Summary,
 } from './components'
 
 export default class App extends React.Component {
@@ -45,7 +45,7 @@ export default class App extends React.Component {
       <Router>
         <Grid id="main-view" columns={2} celled style={{margin: 0, padding: 0, height: '100%', minHeight: '100%', maxHeight: '100%'}}>
           <Grid.Row>
-
+          
             <Grid.Column id="master-column" style={{background: 'white', flex: '0 0 200px'}}>
               {this.renderMasterColumn()}
             </Grid.Column>

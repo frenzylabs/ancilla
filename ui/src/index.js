@@ -13,11 +13,13 @@ import React      from "react"
 import ReactDOM   from "react-dom"
 import {Provider} from 'react-redux'
 
-import App        from './app'
+import App            from './app'
 import {Notification} from './app/components'
-import {printer}  from './app/network'
-import store      from './app/store'
+import {printer}      from './app/network'
+import store          from './app/store'
 
+import './app/providers'
+ 
 store.dispatch(printer.list())
 store.dispatch(printer.ports())
 

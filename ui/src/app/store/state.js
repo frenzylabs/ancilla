@@ -13,6 +13,5 @@ export const initialState = {
   baudrates:          [],
   errors:             null,
   notification:       null,
-  currentConnection:  null,
-  connections:        [/* Connection */]   
+  connections:        [/* Connection */]
 }

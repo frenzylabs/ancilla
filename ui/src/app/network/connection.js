@@ -12,8 +12,9 @@ import {connect}  from 'react-redux'
 import {default as actions} from '../store/actions/connection'
 
 export default class Connection {
-  buffer  = []
-  sent    = []
+  buffer    = []
+  sent      = []
+  connected = false
 
   constructor(props) {
     this.name     = props.name
@@ -31,10 +32,14 @@ export default class Connection {
 
   }
 
+  isConnected() {
+    return this.socket.readyState == this.socket.OPEN
+  }
+  
   connect() {
-    console.log("Connecting")
-
-    this.socket = new WebSocket(`ws://${this.host}:${this.port}/serial`)
+    if(this.socket && this.socket.readyState === this.socket.OPEN) { return }
+ 
+    this.socket = this.socket || new WebSocket(`ws://${this.host}:${this.port}/serial`)
 
     this.socket.onopen = (e) => {
       this.onConnect(e)
@@ -59,7 +64,7 @@ export default class Connection {
       action: 'disconnect'
     }))
 
-    this.socket.disconnect()
+    this.socket.close()
   }
 
   send(message) {
@@ -67,6 +72,8 @@ export default class Connection {
   }
 
   onConnect(event) {
+    this.connected = true
+
     let message = JSON.stringify({
       action:   'connect',
       port:     this.path,
@@ -77,6 +84,8 @@ export default class Connection {
   }
 
   onDisconnect(event) {
+    this.connected = false
+
     console.log("Disconnect: ", event)
   }
 
