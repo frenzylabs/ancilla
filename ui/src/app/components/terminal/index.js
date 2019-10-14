@@ -31,6 +31,7 @@ class Terminal extends React.Component {
 
     this.trashAction  = this.trashAction.bind(this)
     this.onMessage    = this.onMessage.bind(this)
+    this.powerAction  = this.powerAction.bind(this)
   }
 
   trashAction(e) {
@@ -75,6 +76,15 @@ class Terminal extends React.Component {
 
     this.state.connection.disconnect()
   }
+  powerAction() {
+      if (this.state.connection) {
+        if (this.state.connection.connected) {
+          this.state.connection.connect()
+        } else {
+          this.state.connection.disconnect()
+        }
+      }
+  }
 
   render() {
     return (
@@ -83,6 +93,7 @@ class Terminal extends React.Component {
           <TerminalHeader 
             connection={this.state.connection}
             trashAction={this.trashAction}
+            powerAction={this.powerAction}
           />
         </Segment.Inline>
 

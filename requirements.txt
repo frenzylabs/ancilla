@@ -47,3 +47,4 @@ voc==0.1.6
 Werkzeug==0.16.0
 whichcraft==0.6.1
 zeroconf==0.23.0
+tornado

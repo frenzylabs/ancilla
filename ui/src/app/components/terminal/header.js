@@ -48,7 +48,7 @@ class TerminalHeader extends React.Component {
     return(
       <Menu borderless={true} fluid size='tiny' compact inverted style={{border: 'none', borderRadius: '0'}}>
         <Menu.Item header>
-            Connection: &nbsp;
+            Connection: ({this.props.connection && this.props.connection.connected ? "Connected" : "Disconnected"}) &nbsp;
 
             {this.props.connection && (this.props.connection.name != this.props.connection.path) && 
                 <span>{this.props.connection.name}</span>

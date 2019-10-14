@@ -20,22 +20,24 @@ class SocketResource(WebSocketHandler):
   def open(self):
     print("Opening websocket connection")
 
-    self.clients.add(self)
+    SocketResource.clients.add(self)
     self.write_message({'connection':'success'})
 
   def on_close(self):
-    self.clients.remove(self)    
+    print("On Close")
+    SocketResource.clients.remove(self)    
 
   async def on_message(self, message):
     try:
       msg     = json.loads(message)
+      print("msg: ", msg)
       action  = msg.get('action')
       params  = {k:v for k,v in filter(lambda t: t[0] != "action", msg.items())}
 
       if not action:
         self.write_error({'error': 'no action provided'})
         return
-
+      print("action: ", action)
       method = getattr(self, action)
 
       if not method:
@@ -51,7 +53,8 @@ class SocketResource(WebSocketHandler):
       self.write_error({'error':"{}".format(err)})
 
   def stop(self, *args, **kwargs):
-    for client in self.clients:
+    print("On Stop")
+    for client in SocketResource.clients:
       client.close()
 
     self.close()

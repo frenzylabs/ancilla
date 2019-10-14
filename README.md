@@ -36,7 +36,7 @@ $ env PYTHON_CONFIGURE_OPTS="--enable-shared" pyenv install 3.7.4
 ```
 $ virtualenv .venv --no-site-packages
 $ source .venv/bin/activate
-$ pip install -f requirements.txt
+$ pip install -r requirements.txt
 ```
 
 ## For the UI setup:

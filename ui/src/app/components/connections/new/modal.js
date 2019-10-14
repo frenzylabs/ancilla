@@ -33,7 +33,7 @@ class NewConnectionModal extends React.Component {
   handleClose() {
     this.setState({opened: false})
   }
-add
+
   handleOpen() {
     this.setState({opened: true})
   }

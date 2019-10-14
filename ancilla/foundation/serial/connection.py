@@ -20,15 +20,23 @@ class SerialConnection(object):
     self.port     = port
     self.baudrate = baudrate
     self.tasks    = []
+    self.readers = set()
 
   def run(self, reader=None):
     self.readerCallback = reader
+    self.readers.add(reader)
     self.loop           = asyncio.get_event_loop()
 
     self.loop.create_task(self.open())
 
   def stop(self):
     self.loop.close()
+
+  def addHandler(self, callback):
+    self.readers.add(callback)
+  
+  def removeHandler(self, callback):
+    self.readers.remove(callback)
 
   async def write(self, msg):
     self.writer.write((msg + '\n').encode())
@@ -61,8 +69,12 @@ class SerialConnection(object):
       while True:
         msg = await self.reader.readuntil(b'\n')
 
-        if self.readerCallback:
-          await self.readerCallback(msg)
+        for handle in self.readers:
+          print("handle ", handle)
+          await handle(msg)
+          
+        # if self.readerCallback:
+        #   await self.readerCallback(msg)
 
     except futures._base.CancelledError:
       print("Cancelled")

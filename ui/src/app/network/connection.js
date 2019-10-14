@@ -21,6 +21,7 @@ export default class Connection {
     this.port     = 5000
     this.path     = props.path
     this.baudrate = props.baudrate
+    this.connected    =  false
 
     this.connect      = this.connect.bind(this)
     this.send         = this.send.bind(this)
@@ -55,18 +56,22 @@ export default class Connection {
   }
 
   disconnect() {
+    console.log("DISCONNECTED")
     this.socket.send(JSON.stringify({
       action: 'disconnect'
     }))
 
     this.socket.disconnect()
+    this.connected = false
   }
 
   send(message) {
+    console.log("SEND")
     this.socket.send(message)
   }
 
   onConnect(event) {
+    console.log("Connected", event)
     let message = JSON.stringify({
       action:   'connect',
       port:     this.path,
@@ -74,6 +79,7 @@ export default class Connection {
     })
 
     this.send(message)
+    this.connected = true
   }
 
   onDisconnect(event) {
