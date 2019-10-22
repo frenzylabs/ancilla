@@ -68,7 +68,6 @@ class Terminal extends React.Component {
       this.state.connection.connect()
     }
     
-
     this.setState({
       connected: !this.state.connected
     })

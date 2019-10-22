@@ -7,7 +7,7 @@
 '''
 
 from peewee import SqliteDatabase
-from ..env    import Env
+from ..env  import Env
 
 class Database(object):
   path = "/".join([Env.ancilla, ".a_store"])

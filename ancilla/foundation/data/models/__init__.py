@@ -6,4 +6,4 @@
  Copyright 2019 Wess Cope
 '''
 
-from .printers import Printer, PrinterLog
+from .printers  import Printer, PrinterLog

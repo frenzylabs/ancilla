@@ -16,6 +16,7 @@ from .foundation.env  import Env
 from .foundation import (
   Beacon,
   APIServer,
+  Document
 )
 
 from .foundation.data.db      import Database
@@ -28,8 +29,9 @@ class Application(toga.App):
   
   def __init__(self, *args, **kwargs):
     super().__init__(*args, **kwargs)
-    self.beacon     = Beacon()
-    self.api_server = APIServer()
+    self.document_store = Document()
+    self.beacon         = Beacon()
+    self.api_server     = APIServer(self.document_store)
 
   @property
   def webview(self):

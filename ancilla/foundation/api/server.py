@@ -18,7 +18,8 @@ from ..env import Env
 # Resources
 from .resources import (
   PrinterResource,
-  PortsResource
+  PortsResource,
+  DocumentResource
 )
 
 # Sockets
@@ -29,6 +30,9 @@ from ..socket import (
 STATIC_FOLDER = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'ui/dist')
 
 class APIServer(object):
+  def __init__(self, document_store):
+    self.document_store = document_store
+
   @property
   def app(self):
     settings = {
@@ -37,10 +41,11 @@ class APIServer(object):
     }
 
     _app = Application([
-      (r"/printers", PrinterResource),
-      (r"/ports", PortsResource),
-      (r"/serial", SerialResource),
-      (r"/app/(.*)", StaticFileHandler, {'path' : STATIC_FOLDER}),
+      (r"/document",  DocumentResource, dict(document=self.document_store)),
+      (r"/printers",  PrinterResource),
+      (r"/ports",     PortsResource),
+      (r"/serial",    SerialResource),
+      (r"/app/(.*)",  StaticFileHandler, dict(path = STATIC_FOLDER)),
     ], **settings)
 
     return _app

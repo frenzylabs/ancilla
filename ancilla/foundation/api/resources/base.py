@@ -26,4 +26,3 @@ class BaseHandler(RequestHandler):
 
   def options(self):
     pass
-  
