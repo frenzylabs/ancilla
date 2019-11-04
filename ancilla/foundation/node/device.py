@@ -55,13 +55,14 @@ class Device(object):
         # self.voter_callback = handler
         input_stream = self.ctx.socket(zmq.ROUTER)
         print(f"ipc://{self.identity.decode('utf-8')}_taskrouter")
-        input_url = f"tcp://*:5558"
-        input_stream.identity = b"printer"
+        input_url = f"ipc://{self.identity.decode('utf-8')}_taskrouter"
+        # input_url = f"tcp://*:5558"
+        input_stream.identity = self.identity #b"printer"
         input_stream.bind(input_url)
 
         self.input_stream = ZMQStream(input_stream)
         self.input_stream.on_recv(self.on_message)
-        self.input_stream.on_send(self.input_sent)
+        # self.input_stream.on_send(self.input_sent)
         self.data_stream = ZMQStream(collector)
         self.data_stream.on_recv(self.on_data)
 
@@ -75,7 +76,7 @@ class Device(object):
       print("ON MESSGE", msg)
 
     def on_data(self, data):
-      print("ON DATA", data)
+      # print("ON DATA", data)
       self.pusher.send_multipart(data)
 
     def stop(self):

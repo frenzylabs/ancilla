@@ -74,8 +74,9 @@ class NodeServer(object):
         router = ctx.socket(zmq.ROUTER)
         router.identity = self.identity
         router.bind("tcp://*:5556")
+
         publisher = ctx.socket(zmq.PUB)
-        publisher.bind("inproc://publisher")
+        publisher.bind("ipc://publisher")
         # publisher.bind("ipc://publisher")
         # publisher.bind("tcp://*:5557")
         collector = ctx.socket(zmq.PULL)
@@ -126,7 +127,7 @@ class NodeServer(object):
             # print("GET ITEMS", flush=True)
             # Apply state update sent from devices
             if collector in items:
-                # print("INSIDE HERE", flush=True)
+                # print("INSIDE SERVER COLLECTOR", flush=True)
                 msg = collector.recv_multipart()
                 publisher.send_multipart(msg)
 

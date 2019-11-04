@@ -74,22 +74,27 @@ class ZMQNodePubSub(object):
         # self.request.connect('tcp://127.0.0.1:5557')
         # self.request.connect('ipc://devicepublisher')
         self.request = ZMQStream(self.request)
-        self.request.on_recv(self.callback)
+        
 
         # self.request.linger = 0
         # self.request.setsockopt(zmq.SUBSCRIBE, b"")
 
-    def subscribe(self, channel_id):
+    def subscribe(self, channel_id, callback):
         if type(channel_id) != bytes:
           channel_id = channel_id.encode('ascii')
+        print("channel_Id= ", channel_id)
+        self.request.on_recv(callback)
         self.request.setsockopt(zmq.SUBSCRIBE, channel_id)
+
 
     def make_request(self, to, action, msg = None):
       device = Device.select().where(Device.name == to)
       if len(device) > 0:
         device = device.get()
+      else:
+        raise Exception(f"No Device With Name {to}")
 
-      print("device = ", device.id)
+      print("device = ", device)
       dr = DeviceRequest(device_id=device.id, state="pending", action=action, payload=msg)
       dr.save()
       print(dr, flush=True)
@@ -116,13 +121,21 @@ class NodeSocket(WebSocketHandler):
         self.subscription = subscription
         self.pubsub = ZMQNodePubSub(self.node, self.on_data)
         self.pubsub.connect()
-        self.pubsub.subscribe(self.node.identity)
+        self.pubsub.subscribe(self.node.identity, self.subscribe_callback)
         # self.node.connect("tcp://localhost:5556", "localhost")
         # self.node.add_device("Printer", "/dev/cu.usbserial-14140", subscription)
         # self.node.add_device('camera', '0', subscription)
         
         # self.pubsub.subscribe("")
         print('ws node opened')
+    
+    def subscribe_callback(self, data):
+      # print("SUBSCRIBE CB", flush=True)
+      # print(data, flush=True)
+      topic, msg, *other = data
+      # print(topic, flush=True)
+      self.write_message(msg, binary=True)
+      # self.write_message("HI")
 
     def on_message(self, message):
         print(f'MSG: {message}', flush=True)
@@ -152,7 +165,7 @@ class NodeSocket(WebSocketHandler):
               print(res, flush=True)
               self.write_message(res, binary=True)
           elif action == 'SUB':
-            self.pubsub.subscribe(to)
+            self.pubsub.subscribe(to, self.subscribe_callback)
           else:
 
             res = self.pubsub.make_request(to, action, content)
@@ -209,10 +222,11 @@ class NodeSocket(WebSocketHandler):
         print('ws closed')
 
     def on_data(self, data):
-        print("ON DATA", flush=True)
+        print("WS ON DATA", flush=True)
         print(data, flush=True)
         node_identifier, request_id, msg = data
         print(node_identifier, flush=True)
+        self.write_message(msg, binary=True)
         # if sub == self.subscription:
         #   data = self.pubsub.request.recv_pyobj()
         #   print(data)
@@ -250,7 +264,7 @@ class NodeSocket(WebSocketHandler):
         #   #     if i == 20:
         #   #         break
 
-        self.write_message(msg, binary=True)
+        
         # self.write_message({"message": data[0].decode("utf-8")})
 
 

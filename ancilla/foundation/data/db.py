@@ -7,12 +7,13 @@
 '''
 
 from peewee import SqliteDatabase
+from playhouse.sqlite_ext import SqliteExtDatabase
 from peewee_migrate import Router
 from ..env  import Env
 
 class Database(object):
   path = "/".join([Env.ancilla, ".a_store"])
-  conn = SqliteDatabase(path, {'foreign_keys' : 1})
+  conn = SqliteExtDatabase(path, {'foreign_keys' : 1})
   router = Router(conn)
 
   @staticmethod

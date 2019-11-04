@@ -19,7 +19,7 @@ class DeviceRequest(BaseModel):
   device_id   = IntegerField()
   state       = CharField()
   action      = CharField()
-  payload     = CharField()  
+  payload     = CharField(null=True)  
 
   @property
   def serialize(self):
