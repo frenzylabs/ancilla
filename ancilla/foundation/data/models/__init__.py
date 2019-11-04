@@ -6,4 +6,6 @@
  Copyright 2019 Wess Cope
 '''
 
-from .printers  import Printer, PrinterLog
+from .printer  import Printer, PrinterLog
+from .device import Device
+from .device_request import DeviceRequest

@@ -11,6 +11,13 @@ from ...data.models import Printer
 
 class PrinterResource(BaseHandler):
   def get(self, *args, **kwargs):
+    # pr = Printer.select().dicts().get()
+    # print(pr)
+    for printer in Printer.select():
+      print(printer.__data__.get("created_at"))
+      print(printer.json, flush=True)
+      # printer.de
+
     self.write(
       {'printers': [printer.json for printer in Printer.select()]}
     )
@@ -18,7 +25,7 @@ class PrinterResource(BaseHandler):
 
   def post(self):
     printer = Printer(**self.params)
-
+    
     if not printer.is_valid:
       self.write_error(400, errors=printer.errors)
 

@@ -12,22 +12,22 @@ import os
 import threading
 import subprocess
 
-from .foundation.env  import Env
+from .env  import Env
 
-from .foundation import (
+from . import (
   Beacon,
   APIServer,
   Document,
   NodeServer
 )
 
-from .foundation.data.db      import Database
-from .foundation.data.models  import (
+from .data.db      import Database
+from .data.models  import (
   Printer, 
   PrinterLog
 )
 
-class Application(toga.App):
+class Application(object):
   
   def __init__(self, *args, **kwargs):
     super().__init__(*args, **kwargs)
@@ -60,11 +60,10 @@ class Application(toga.App):
 
   def start_db(self):
     Database.connect()
-    Database.run_migrations()
-    # Database.create_tables([
-    #   Printer,
-    #   PrinterLog
-    # ])
+    Database.create_tables([
+      Printer,
+      PrinterLog
+    ])
 
   def _start_dev(self):
     print("START DEV", flush=True)

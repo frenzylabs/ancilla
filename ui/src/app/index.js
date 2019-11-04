@@ -25,6 +25,7 @@ import {
   Summary,
 } from './components'
 
+
 export default class App extends React.Component {
   constructor(props) {
     super(props)

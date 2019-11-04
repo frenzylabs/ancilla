@@ -24,7 +24,8 @@
     "semantic-ui-css": "^2.4.1",
     "semantic-ui-react": "^0.88.1",
     "socket.io": "^2.3.0",
-    "tether-drop": "^1.4.2"
+    "tether-drop": "^1.4.2",
+    "zeromq": "^5.1.1"
   },
   "devDependencies": {
     "@babel/core": "^7.6.2",
