@@ -14,10 +14,12 @@ from peewee import (
   IntegerField,
   ForeignKeyField
 )
+from playhouse.sqlite_ext import JSONField
 
 class DeviceRequest(BaseModel):  
   device_id   = IntegerField()
-  state       = CharField()
+  status      = CharField()
+  state       = JSONField(default={})
   action      = CharField()
   payload     = CharField(null=True)  
 
@@ -26,10 +28,9 @@ class DeviceRequest(BaseModel):
     return {
       'id':           self.id,
       'device_id':    self.device_id,
-      'state':        self.state,
+      'status':        self.status,
       'action':       self.action,
       'payload':      self.payload
-      
     }
 
 
@@ -37,7 +38,7 @@ class DeviceRequest(BaseModel):
     return "{}, {}, {}, {}, {}".format(
       self.id, 
       self.device_id,
-      self.state,
+      self.status,
       self.action,
       self.payload,
     )

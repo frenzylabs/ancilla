@@ -1,9 +1,11 @@
 import threading
 import time
+import sys
 import zmq
 from zmq.eventloop.zmqstream import ZMQStream
 import zmq.asyncio
 
+from tornado.ioloop import IOLoop
 from .zhelpers import zpipe
 from ..data.models import Printer
 # from .devices import *
@@ -23,48 +25,45 @@ class Device(object):
     pusher = None
 
     def __init__(self, ctx, name, **kwargs):    
-        print(name, flush=True)  
-        # query = Printer.select()
-        # print(q)
-        # query = Printer.select().where(Printer.name == name).limit(1)
-        # self.record = query[0].json
-        # for pr in query:
-        #   print(pr.json)
-        # print(type(query))
-        # print(self.record)
-        # self.endpoint = endpoint
-        # if identity == None: 
-        #   identity = endpoint
+        print(f'DEVICE NAME = {name}', flush=True)  
         self.identity = name
-        # self.baudrate = baudrate
-                
         # self.ping_at = time.time() + 1e-3*PING_INTERVAL
         # self.expires = time.time() + 1e-3*SERVER_TTL
 
         self.ctx = ctx #zmq.Context()
-        
+
         self.pusher = self.ctx.socket(zmq.PUSH)
         self.pusher.connect(f"ipc://collector")
 
-        collector = self.ctx.socket(zmq.PULL)
-        collector.bind(f"inproc://{self.identity}_collector")
+        # self.ctx = zmq.Context()
+        deid = f"inproc://{self.identity}_collector"
+        self.data_stream = self.ctx.socket(zmq.PULL)
+        # print(f'BEFORE CONNECT COLLECTOR NAME = {deid}', flush=True)  
+        self.data_stream.bind(deid)
+        time.sleep(0.1)        
+        self.data_stream = ZMQStream(self.data_stream)
+        # self.data_stream.stop_on_recv()
 
-        # socket = self.ctx.socket(type)
-        # socket.bind(endpoint)
-        # self.voter_socket = socket
-        # self.voter_callback = handler
-        input_stream = self.ctx.socket(zmq.ROUTER)
-        print(f"ipc://{self.identity.decode('utf-8')}_taskrouter")
+        self.input_stream = self.ctx.socket(zmq.ROUTER)
+        # print(f"ipc://{self.identity.decode('utf-8')}_taskrouter", flush=True)
         input_url = f"ipc://{self.identity.decode('utf-8')}_taskrouter"
         # input_url = f"tcp://*:5558"
-        input_stream.identity = self.identity #b"printer"
-        input_stream.bind(input_url)
+        self.input_stream.identity = f"{self.identity.decode('utf-8')}_input".encode('ascii')  #self.identity #b"printer"
+        self.input_stream.bind(input_url)
+        time.sleep(0.1)
 
-        self.input_stream = ZMQStream(input_stream)
-        self.input_stream.on_recv(self.on_message)
+        self.input_stream = ZMQStream(self.input_stream)
+        # self.input_stream.on_recv(self.on_message)
         # self.input_stream.on_send(self.input_sent)
-        self.data_stream = ZMQStream(collector)
-        self.data_stream.on_recv(self.on_data)
+        IOLoop.current().add_callback(self.start_receiving)
+        # sys.stderr.flush()
+
+        
+
+    def start_receiving(self):
+      # print("Start receiving", flush=True)
+      self.data_stream.on_recv(self.on_data)
+      # self.input_stream.on_recv(self.on_message)
 
     def register_data_handlers(self, obj):
       data_handlers.append(obj)
@@ -74,6 +73,9 @@ class Device(object):
 
     def on_message(self, msg):
       print("ON MESSGE", msg)
+
+    def on_tada(self, *args):
+      print("ON TADA", flush=True)
 
     def on_data(self, data):
       # print("ON DATA", data)
@@ -86,6 +88,7 @@ class Device(object):
       print("RUN SERVER", flush=True)
 
     def send(self, msg):
+      print("DEvice Send", flush=True)
       print(msg)
       # self.pipe.send_multipart([b"COMMAND", msg])
 

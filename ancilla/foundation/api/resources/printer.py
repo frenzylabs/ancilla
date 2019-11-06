@@ -13,15 +13,15 @@ class PrinterResource(BaseHandler):
   def get(self, *args, **kwargs):
     # pr = Printer.select().dicts().get()
     # print(pr)
-    for printer in Printer.select():
-      print(printer.__data__.get("created_at"))
-      print(printer.json, flush=True)
-      # printer.de
+    # for printer in Printer.select():
+    #   print(printer.__data__.get("created_at"))
+    #   print(printer.json, flush=True)
+    #   # printer.de
 
     self.write(
       {'printers': [printer.json for printer in Printer.select()]}
     )
-    self.finish()
+    # self.finish()
 
   def post(self):
     printer = Printer(**self.params)
@@ -32,4 +32,4 @@ class PrinterResource(BaseHandler):
     printer.save()
     self.write(printer.json)
 
-    self.finish()
+    # self.finish()

@@ -33,8 +33,7 @@ class Application(toga.App):
     super().__init__(*args, **kwargs)
     self.document_store = Document()
     self.beacon         = Beacon()
-    self.node_server    = NodeServer()
-    self.api_server     = APIServer(self.document_store, self.node_server)
+    
     
 
   @property
@@ -73,7 +72,8 @@ class Application(toga.App):
     # self.th.start()
     # subprocess.
     # self.api_server     = APIServer(self.document_store)
-    
+    self.node_server    = NodeServer()
+    self.api_server     = APIServer(self.document_store, self.node_server)
     self.api_server.start()
     
   

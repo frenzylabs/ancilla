@@ -10,3 +10,5 @@ from .printer  import Printer, PrinterLog
 from .device import Device
 from .device_request import DeviceRequest
 from .printer_command import PrinterCommand
+from .print import Print
+from .slice_file import SliceFile

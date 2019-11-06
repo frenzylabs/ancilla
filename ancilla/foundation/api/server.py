@@ -22,6 +22,7 @@ from ..env import Env
 
 # Resources
 from .resources import (
+  FileResource,
   PrinterResource,
   PortsResource,
   DocumentResource
@@ -54,8 +55,9 @@ from datetime import datetime
 
 class ZMQNodePubSub(object):
 
-    def __init__(self, node, callback):
-        self.callback = callback
+    def __init__(self, node, request_callback, subscribe_callback):
+        self.callback = request_callback
+        self.subscribe_callback = subscribe_callback
         self.node = node
 
     def connect(self):
@@ -69,22 +71,38 @@ class ZMQNodePubSub(object):
         self.stream = ZMQStream(self.socket)
         self.stream.on_recv(self.callback)
 
-        self.request = self.context.socket(zmq.SUB)
-        self.request.connect('ipc://publisher')
+        self.subscriber = self.context.socket(zmq.SUB)
+        self.subscriber.connect('ipc://publisher')
         # self.request.connect('tcp://127.0.0.1:5557')
         # self.request.connect('ipc://devicepublisher')
-        self.request = ZMQStream(self.request)
+        self.subscriber = ZMQStream(self.subscriber)
+        self.subscriber.on_recv(self.subscribe_callback)
         
 
         # self.request.linger = 0
         # self.request.setsockopt(zmq.SUBSCRIBE, b"")
 
-    def subscribe(self, channel_id, callback):
-        if type(channel_id) != bytes:
-          channel_id = channel_id.encode('ascii')
-        print("channel_Id= ", channel_id)
-        self.request.on_recv(callback)
-        self.request.setsockopt(zmq.SUBSCRIBE, channel_id)
+    def subscribe(self, to, topic=''):
+      subscribeto = to
+      if len(topic) > 0:
+        subscribeto = f"{subscribeto}.{topic}"
+      subscribeto = subscribeto.encode('ascii')
+      print("topic = ", subscribeto)
+      # if callback:
+      #   self.subscriber.on_recv(callback)
+      self.subscriber.setsockopt(zmq.SUBSCRIBE, subscribeto)
+    
+    def unsubscribe(self, to, topic=''):
+      subscribetopic = to
+      if len(topic) > 0:
+        subscribetopic = f"{subscribetopic}.{topic}"
+      subscribetopic = subscribetopic.encode('ascii')
+
+        # if type(topic) != bytes:
+        #   topic = topic.encode('ascii')
+      print("subtopic= ", subscribetopic)
+        # self.request.on_recv(callback)
+      self.subscriber.setsockopt(zmq.UNSUBSCRIBE, subscribetopic)
 
 
     def make_request(self, to, action, msg = None):
@@ -93,9 +111,12 @@ class ZMQNodePubSub(object):
         device = device.get()
       else:
         raise Exception(f"No Device With Name {to}")
+    
+      if msg and type(msg) == dict:
+        msg = json.dumps(msg)
 
       print("device = ", device)
-      dr = DeviceRequest(device_id=device.id, state="pending", action=action, payload=msg)
+      dr = DeviceRequest(device_id=device.id, status="pending", action=action, payload=msg)
       dr.save()
       print(dr, flush=True)
       payload = [self.node.identity, f'{dr.id}'.encode('ascii'), to.encode('ascii'), action.encode('ascii')]
@@ -118,10 +139,11 @@ class NodeSocket(WebSocketHandler):
         if (len(args) > 0):
           subscription = args[0]
         
+        print("OPEN NODE SOCKET", flush=True)
         self.subscription = subscription
-        self.pubsub = ZMQNodePubSub(self.node, self.on_data)
+        self.pubsub = ZMQNodePubSub(self.node, self.on_data, self.subscribe_callback)
         self.pubsub.connect()
-        self.pubsub.subscribe(self.node.identity, self.subscribe_callback)
+        self.pubsub.subscribe(self.node.identity.decode('utf-8'))
         # self.node.connect("tcp://localhost:5556", "localhost")
         # self.node.add_device("Printer", "/dev/cu.usbserial-14140", subscription)
         # self.node.add_device('camera', '0', subscription)
@@ -130,11 +152,12 @@ class NodeSocket(WebSocketHandler):
         print('ws node opened')
     
     def subscribe_callback(self, data):
-      # print("SUBSCRIBE CB", flush=True)
-      # print(data, flush=True)
-      topic, msg, *other = data
-      # print(topic, flush=True)
-      self.write_message(msg, binary=True)
+      print("SUBSCRIBE CB", flush=True)
+      print(data, flush=True)
+      if data and len(data) > 2:
+        topic, status, msg, *other = data
+        # print(topic, flush=True)
+        self.write_message(msg, binary=True)
       # self.write_message("HI")
 
     def on_message(self, message):
@@ -157,6 +180,8 @@ class NodeSocket(WebSocketHandler):
           if (len(msg) > 0):
             content = msg.pop(0)
 
+          # ['CONTROL', 'ADD|REMOVE' ]
+          # ['to', 'SUBSCRIBE', '']
           if to == "CMD":
             if action == "ADD":
               kind = content.get("kind")
@@ -165,7 +190,9 @@ class NodeSocket(WebSocketHandler):
               print(res, flush=True)
               self.write_message(res, binary=True)
           elif action == 'SUB':
-            self.pubsub.subscribe(to, self.subscribe_callback)
+            self.pubsub.subscribe(to, content)
+          elif action == 'UNSUB':
+            self.pubsub.unsubscribe(to, content)
           else:
 
             res = self.pubsub.make_request(to, action, content)
@@ -173,59 +200,17 @@ class NodeSocket(WebSocketHandler):
           print("EXCEPTION", flush=True)
           print(str(err), flush=True)
           self.write_message({"error": str(err)})
-            # if action:
-            #   data = [self.node.identity, to.encode('ascii'), action.encode('ascii'), innermsg.encode("ascii")]
-            # else:
-            #   data = [self.node.identity, to.encode('ascii'), innermsg.encode("ascii")]
 
-            # self.router
-            # self.pubsub.socket.send_multipart(data)
-          # if (len(msg) > 2):
-          #   ["DEVICENAME", "COMMAND", "RECORD"]
-
-
-          # print(msg, flush=True)
-          
-          # print(innermsg)
-          # self.pubsub.request.send_multipart([b'toyou', b'blah', b'tada'])
-          # self.pubsub.socket.send_multipart([b'', b'blah', b'tada'])
-          
-          # to = msg.pop('to') or 0
-
-
-        #   action  = msg.get('subscribe')
-          
-        #   if action:
-        #     res = self.pubsub.subscribe(action)
-        #     print(f'Subscription= {str(res)}', flush=True)
-        #     self.write_message({"message": "subscribed to it"})
-
-          # params  = {k:v for k,v in filter(lambda t: t[0] != "action", msg.items())}
-      
-          # if not action:
-          #   self.write_error({'error': 'no action provided'})
-          #   return
-
-          # method = getattr(self, action)
-
-          # if not method:
-          #   self.write_error({'error': f'no action {action} found'})
-          #   return
-
-          # if len(params) > 0:
-          #   await method(**params)
-          # else:
-          #   await method()
         
     
     def on_close(self):
         print('ws closed')
 
     def on_data(self, data):
-        print("WS ON DATA", flush=True)
-        print(data, flush=True)
+        # print(f"WS ON DATA {data}", flush=True)
+        # print(data, flush=True)
         node_identifier, request_id, msg = data
-        print(node_identifier, flush=True)
+        # print(node_identifier, flush=True)
         self.write_message(msg, binary=True)
         # if sub == self.subscription:
         #   data = self.pubsub.request.recv_pyobj()
@@ -284,6 +269,7 @@ class APIServer(object):
 
     _app = Application([
       (r"/document",  DocumentResource, dict(document=self.document_store)),
+      (r"/files",     FileResource, dict(node=self.node_server)),
       (r"/printers",  PrinterResource),
       (r"/ports",     PortsResource),
       (r"/serial",    SerialResource),
@@ -295,7 +281,7 @@ class APIServer(object):
     return _app
 
   def start(self):
-    print("Starting api server...")
+    print("Starting api server...", flush=True)
 
     # server = tornado.httpserver.HTTPServer(self.app)
     # server.bind(5000)

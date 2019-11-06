@@ -33,18 +33,17 @@ except ImportError:
 
 SQL = pw.SQL
 
-from ancilla.foundation.data.models import Printer, Device, DeviceRequest
+from ancilla.foundation.data.models import SliceFile, Print
 
 def migrate(migrator, database, fake=False, **kwargs):
     """Write your migrations here."""
     # database.drop_tables([Printer])
     database.create_tables([
-        Device,
-        Printer,
-        DeviceRequest
+        Print,
+        SliceFile
     ])
 
-    migrator.add_index(Device, "name", "device_type", unique=True)
+    # migrator.add_index(PrinterCommand, "", "device_type", unique=True)
     # migrator.add_fields(Printer, device=pw.ForeignKeyField(Device, backref='specific'))
 
 
@@ -52,19 +51,15 @@ def migrate(migrator, database, fake=False, **kwargs):
 def rollback(migrator, database, fake=False, **kwargs):
     """Write your rollback migrations here."""
     database.drop_tables([
-        Device,
-        Printer,
-        DeviceRequest
+        Print,
+        SliceFile
     ])
 
 
-# from ancilla.foundation.data.models import Device, SliceFile, Print
+# from ancilla.foundation.data.models import Device
 # from ancilla.foundation.env import Env
 # from peewee import SqliteDatabase
-# from playhouse.sqlite_ext import SqliteExtDatabase
 # from peewee_migrate import Router
 # path = "/".join([Env.ancilla, ".a_store"])
-# conn = SqliteExtDatabase(path, {'foreign_keys' : 1})
+# conn = SqliteDatabase(path, {'foreign_keys' : 1})
 # router = Router(conn)
-
-# router.rollback("003_create_files_prints")

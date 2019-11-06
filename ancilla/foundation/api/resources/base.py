@@ -22,7 +22,8 @@ class BaseHandler(RequestHandler):
   
   def prepare(self):
     if self.request.method == 'POST':
-      self.params = json_decode(self.request.body)
+      if not self.request.headers.get('Content-Type').startswith('multipart/form-data'):
+        self.params = json_decode(self.request.body)
 
   def options(self):
     pass
