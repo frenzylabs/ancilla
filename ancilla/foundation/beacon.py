@@ -16,13 +16,15 @@ class Beacon(object):
   def __init__(self, name="ancilla", port=5000, *args, **kwargs):
     self.name = name
     self.port = port
+    self.host_name = socket.gethostname() 
+    self.host_ip = socket.gethostbyname(self.host_name) 
 
   @property
   def info(self):
     return ServiceInfo(
       "_{}._tcp.local.".format(self.name),
       "{}._{}._tcp.local.".format(self.name.capitalize(), self.name),
-      addresses=[socket.inet_aton("127.0.0.1")],
+      addresses=[socket.inet_aton(self.host_ip)],
       port=self.port,
       server="{}.local.".format(self.name)
     )

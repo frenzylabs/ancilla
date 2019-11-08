@@ -5,6 +5,7 @@ import zmq
 from zmq.eventloop.zmqstream import ZMQStream
 import zmq.asyncio
 
+from tornado.queues import Queue
 from tornado.ioloop import IOLoop
 from .zhelpers import zpipe
 from ..data.models import Printer
@@ -23,6 +24,8 @@ class Device(object):
     data_stream = None
     input_stream = None
     pusher = None
+    task_queue = Queue()
+    
 
     def __init__(self, ctx, name, **kwargs):    
         print(f'DEVICE NAME = {name}', flush=True)  
@@ -58,7 +61,6 @@ class Device(object):
         IOLoop.current().add_callback(self.start_receiving)
         # sys.stderr.flush()
 
-        
 
     def start_receiving(self):
       # print("Start receiving", flush=True)
@@ -66,7 +68,7 @@ class Device(object):
       # self.input_stream.on_recv(self.on_message)
 
     def register_data_handlers(self, obj):
-      data_handlers.append(obj)
+      self.data_handlers.append(obj)
 
     def input_sent(self, msg, status):
       print("INPUT SENT", msg)
@@ -79,6 +81,9 @@ class Device(object):
 
     def on_data(self, data):
       # print("ON DATA", data)
+      for d in self.data_handlers:
+        data = d.handle(data)
+
       self.pusher.send_multipart(data)
 
     def stop(self):
@@ -90,6 +95,37 @@ class Device(object):
     def send(self, msg):
       print("DEvice Send", flush=True)
       print(msg)
+  
+
+    # async def _process_tasks(self):
+    # # print("About to get queue", flush=True)
+    #   async for item in self.task_queue:
+    #   # print('consuming {}...'.format(item))
+    #     (method, request_id, msg) = item
+    #     await method(request_id, msg)
+
+
+    # async def _add_task(self, msg):
+    #   await self.task_queue.put(msg)
+
+
+    # def start_print(self, request_id, data):
+    #   request = DeviceRequest.get_by_id(request_id)
+    #   if self.print_queued:
+    #     request.status = "unschedulable"
+    #     request.save()
+    #     self.publish_request(request)
+    #     return {"error": "Printer Busy"}
+      
+    #   loop = IOLoop().current()
+      
+    #   self.task_queue.put((self.print_task, request_id, data))
+    #   self.print_queued = True
+    #   loop.add_callback(partial(self._process_tasks))
+    #   self.task_queue.join()
+
+    #   return {"queued": "success"}
+
       # self.pipe.send_multipart([b"COMMAND", msg])
 
 

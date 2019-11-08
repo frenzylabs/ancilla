@@ -20,7 +20,13 @@ from tornado import gen
 from tornado.gen        import coroutine, sleep
 from collections import OrderedDict
 import struct # for packing integers
+from zmq.eventloop.ioloop import PeriodicCallback
 
+
+from ..tasks.device_task import PeriodicTask
+from ..tasks.print_task import PrintTask
+
+from .middleware import PrinterHandler
 
 class CommandQueue(object):
     current_command = None
@@ -34,13 +40,14 @@ class CommandQueue(object):
         self.queue[cmd.identifier()] = cmd
 
     def get_command(self):
-      if not self.current_command:
+      if not self.current_command and len(self.queue) > 0:
         cid, cmd = self.queue.popitem(False)
         self.current_command = cmd
         self.current_expiry = time.time() + 5000
       return self.current_command 
 
     def finish_command(self, status="finished"):
+      print("FINISH Cmd", flush=True)
       if self.current_command:
         self.current_command.status = status
         self.current_command.save()
@@ -76,7 +83,10 @@ class Printer(Device):
         self.port = self.record['port']
         self.baud_rate = self.record['baud_rate']
 
+        
         super().__init__(ctx, name, **kwargs)
+
+        self.register_data_handlers(PrinterHandler(self))
 
 
 
@@ -143,7 +153,8 @@ class Printer(Device):
       if not cmd:
         return
       
-      request = cmd.request
+      print(f"Process CMD {cmd.command}", flush=True)
+      # request = cmd.request
       if cmd.status == "pending":
         cmd.status = "running"
         
@@ -151,15 +162,9 @@ class Printer(Device):
         if cmd.nowait:
           self.command_queue.finish_command()
         else:
-          cmd.save()
-        
-        if cmd.sequence < 1:
-          request.status = cmd.status
-          request.save()
-          self.publish_request(request)
-          # self.input_stream.send_multipart([cmd.request_id, cmd.num, b'Sent'])
-      # else:
-      #   print("CMD is Running")
+          cmd.save()        
+      else:
+        print(f"CMD is Running {cmd.command}", flush=True)
 
     def add_command(self, request_id, num, data, nowait=False):
       if type(data) == bytes:
@@ -170,42 +175,34 @@ class Printer(Device):
       IOLoop.current().add_callback(self.process_commands)
       return pc
 
-    def on_data(self, data):
-      # print("Printer ON DATA", flush=True)
+    # def on_data(self, data):
+    #   # print(f"Printer ON DATA {data}", flush=True)
 
-      if not data or len(data) < 3:
-        return
+    #   if not data or len(data) < 3:
+    #     return
 
-      identifier, status, msg = data
+    #   identifier, status, msg = data
 
-      cmd = self.command_queue.current_command
-      if cmd:
-        # print("INSIDE CMD on data")
-        cmdstatus = None
-        denmsg = msg.decode('utf-8')
-        if status == b'error':
-          cmdstatus = "error"
-          self.command_queue.finish_command(status="error")
-        else:
-          if denmsg.startswith("echo:busy:"):
-            self.command_queue.update_expiry()
-          else:
-            cmd.response.append(denmsg)
+    #   cmd = self.command_queue.current_command
+    #   if cmd:
+    #     print(f"INSIDE CMD on data {cmd.command}", flush=True)
+    #     cmdstatus = None
+    #     denmsg = msg.decode('utf-8')
+    #     if status == b'error':
+    #       cmdstatus = "error"
+    #       self.command_queue.finish_command(status="error")
+    #     else:
+    #       if denmsg.startswith("echo:busy:"):
+    #         self.command_queue.update_expiry()
+    #       else:
+    #         cmd.response.append(denmsg)
 
-          if denmsg.startswith("ok"):
-            cmdstatus = "finished"
-            self.command_queue.finish_command()
-
-        if cmd.sequence < 1 and cmdstatus:
-          request = cmd.request
-          request.status = cmdstatus
-          request.save()
-          self.publish_request(request)
+    #       if denmsg.startswith("ok"):
+    #         cmdstatus = "finished"
+    #         self.command_queue.finish_command()
 
 
-        num_s = struct.pack('!q', cmd.sequence)
-        self.input_stream.send_multipart([cmd.request_id.encode('ascii'), num_s, msg])
-      super().on_data(data)
+    #   super().on_data(data)
 
 
 
@@ -246,181 +243,69 @@ class Printer(Device):
       if self.state == "printing":
         self.state = "paused"
       return {"state": self.state}
-      
+
+    def periodic(self, request_id, data):
+      try:
+        res = data.decode('utf-8')
+        payload = json.loads(res)
+        name = payload.get("name") or "PeriodicTask"
+        method = payload.get("method")
+        timeinterval = payload.get("interval")
+        pt = PeriodicTask(name, request_id, payload)
+        self.task_queue.put(pt)
+        loop = IOLoop().current()
+        loop.add_callback(self._process_tasks)
+
+      except Exception as e:
+        print(f"Cant periodic task {str(e)}", flush=True)
+
 
     def command(self, request_id, data):
       # print("CONNECT WRITE", data)
+      request = DeviceRequest.get_by_id(request_id)
+      status = "success"
+      reason = ""
       if self.connector.alive:
         self.add_command(request_id, -1, data+b'\n')
-        # self.connector.write(data+b'\n')
       else:
-        return {"failed": "Not Connected"}
-      # request = DeviceRequest.get_by_id(request_id)
-      # request.state = "Sent"
-      # request.save()
-      return {"sent": "success"}
+        status = "success"
+        reason = "Not Connected"
+
+      request.state = status
+      request.save()
+      return {"status": status, "reason": reason}
 
 
-    # def file_len(fname):
-    #   i = 0
-    #   with open(fname) as f:
-    #       for i, l in enumerate(f):
-    #           pass
-    #   return i + 1
 
     async def _process_tasks(self):
         # print("About to get queue", flush=True)
-        async for item in self.task_queue:
+        async for dtask in self.task_queue:
           # print('consuming {}...'.format(item))
-          (method, request_id, msg) = item
-          await method(request_id, msg)
-
+          self.current_task[dtask.name] = dtask
+          res = await dtask.run(self)
+          del self.current_task[dtask.name]
+          print(f"PROCESS TASK = {res}", flush=True)
 
     async def _add_task(self, msg):
       await self.task_queue.put(msg)
 
 
     def start_print(self, request_id, data):
-      request = DeviceRequest.get_by_id(request_id)
-      if self.print_queued:
-        request.status = "unschedulable"
-        request.save()
-        self.publish_request(request)
-        return {"error": "Printer Busy"}
-      
-      loop = IOLoop().current()
-      
-      self.task_queue.put((self.print_task, request_id, data))
-      self.print_queued = True
-      loop.add_callback(partial(self._process_tasks))
-      self.task_queue.join()
+      try:
+        res = data.decode('utf-8')
+        payload = json.loads(res)
+        name = payload.get("name") or "PeriodicTask"
+        method = payload.get("method")
+        pt = PrintTask(name, request_id, payload)
+        self.task_queue.put(pt)
+        loop = IOLoop().current()
+        loop.add_callback(partial(self._process_tasks))
+
+      except Exception as e:
+        print(f"Cant periodic task {str(e)}", flush=True)
 
       return {"queued": "success"}
 
-    async def print_task(self, request_id, data):
-        request = DeviceRequest.get_by_id(request_id)
-        sf = None
-        
-        try:
-          res = data.decode('utf-8')
-          content = json.loads(res)
-          # print(f"CONTENT = {content}", flush=True)
-          fid = content.get("file_id")
-          sf = SliceFile.get(fid)
-          self.current_print = Print(status="running", request_id=request.id, printer_snapshot=self.record, printer=self.printer, slice_file=sf)
-          self.current_print.save(force_insert=True)
-        except Exception as e:
-          print(f"Cant get file to print {str(e)}", flush=True)
-          request.status = "failed"
-          request.save()
-          self.publish_request(request)
-          return
-
-        router = self.ctx.socket(zmq.ROUTER)
-        
-        encoded_request_id = request_id.encode('ascii')
-        router.identity = encoded_request_id
-        # print("INSIDE PRINTER TASK = ", request_id)
-        socket_set_hwm(router, 1)
-        router.setsockopt(zmq.LINGER, 0)
-
-        connect_to = f"ipc://{self.identity.decode('utf-8')}_taskrouter"
-        router.connect(connect_to)
-
-        self.state = "printing"
-
-        poller = zmq.Poller()
-        poller.register(router, zmq.POLLIN)
-
-        try:
-          with open(sf.path, "r") as fp: 
-          # with open(f'{Env.ancilla}/gcodes/test.gcode', "r") as fp:
-            cnt = 1
-            fp.seek(0, os.SEEK_END)
-            endfp = fp.tell()
-            # print("End File POS: ", endfp)
-            fp.seek(0)
-            line = fp.readline()
-            lastpos = 0
-            while self.state == "printing":
-              # for line in fp:
-              await sleep(0.1)
-              pos = fp.tell()
-              
-              # print("File POS: ", pos)
-              if pos == endfp:
-                self.state = "finished"
-                request.status = "finished"
-                request.save()
-                self.current_print.status = "finished"      
-                self.current_print.save()
-                break
-
-              if not line.strip():
-                line = fp.readline()
-                continue
-
-              print("Line {}, POS: {} : {}".format(cnt, pos, line))    
-
-              is_comment = line.startswith(";")
-              pc = self.add_command(request_id, cnt, line.encode('ascii'), is_comment)
-              if is_comment:
-                cnt += 1
-                line = fp.readline()
-                continue
-
-              await sleep(0.1)
-
-              while True:
-                # pollcnt += 1
-                try:                
-                  items = dict(poller.poll(2000))
-                except:
-                  break           # Interrupted
-
-                if router in items:
-                  res = router.recv_multipart()                  
-                  from_ident, num_s, msg = res
-                  # cmdseq = struct.unpack('!q', num_s)[0]
-                  # print("cmdseq = ", cmdseq)
-                  
-                  
-
-                  cc = self.command_queue.current_command
-                  # if cc:
-                  #   print("COMMANDQUE: ", cc.json)
-                  if cc and cc.status == "error":
-                    request.status = "failed"
-                    request.save()
-                    self.state = "print_failed"
-                    break
-                  
-                  if not cc or cc.status == "finished":
-                    # if pc.status == "finished":
-                    self.current_print.state["pos"] = pos
-                    self.current_print.save()
-                    line = fp.readline()
-                    cnt += 1                  
-                    break
-
-                else:
-                  await sleep(0.1)
-                  # if pollcnt > 20:
-                  #   break
-            
-        except Exception as e:
-          request.status = "failed"
-          request.save()
-          self.current_print.status = "failed"
-          self.current_print.save()
-          print(f"Print Exception: {str(e)}", flush=True)
-
-        print(f"FINISHED PRINT {self.state}", flush=True)
-        self.print_queued = False
-        self.current_print = None
-        self.publish_request(request)
-
-        
 
     def publish_request(self, request):
       rj = json.dumps(request.json).encode('ascii')

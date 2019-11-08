@@ -1,9 +1,9 @@
 '''
- printer.py
+ device_request.py
  models
 
- Created by Wess Cope (me@wess.io) on 09/30/19
- Copyright 2019 Wess Cope
+ Created by Kevin Musselman (kmussel@gmail.com) on 11/01/19
+ Copyright 2019 Frenzylabs, LLC
 '''
 
 from .base import BaseModel

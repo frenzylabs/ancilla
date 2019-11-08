@@ -10,3 +10,4 @@ from .printer   import PrinterResource
 from .ports     import PortsResource
 from .document  import DocumentResource
 from .file      import FileResource
+from .print     import PrintResource

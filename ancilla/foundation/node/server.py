@@ -63,7 +63,6 @@ class NodeServer(object):
         print("INSIDE AGENT TASK", flush=True)
         loop = IOLoop().initialize(make_current=True)  
         # loop = IOLoop.current(instance=True)
-        
 
         router = ctx.socket(zmq.ROUTER)
         router.identity = self.identity
@@ -77,12 +76,13 @@ class NodeServer(object):
         publisher.bind("ipc://publisher")
         # publisher.bind("tcp://*:5557")
 
+        eventsubscriber = ctx.socket(zmq.SUB)
+        eventsubscriber.bind("ipc://subscriber")
+
         # print("NODE_SERVER before collector bind", flush=True)
         collector = ctx.socket(zmq.PULL)
         collector.bind("ipc://collector")
         # collector.bind("tcp://*:5558")
-
-        
 
         sequence = 0
         kvmap = {}
@@ -96,7 +96,7 @@ class NodeServer(object):
         
         while True:
             try:
-                items = dict(poller.poll(2000))
+                items = dict(poller.poll(1000))
             except:
                 break           # Interrupted4
 
