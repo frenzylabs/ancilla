@@ -49,3 +49,4 @@ Werkzeug==0.16.0
 whichcraft==0.6.1
 zeroconf==0.23.0
 zmq
+opencv-python

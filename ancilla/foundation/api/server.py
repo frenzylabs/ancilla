@@ -25,7 +25,9 @@ from .resources import (
   FileResource,
   PrinterResource,
   PortsResource,
-  DocumentResource
+  DocumentResource,
+  CameraResource,
+  WebcamHandler
 )
 
 # Sockets
@@ -271,10 +273,11 @@ class APIServer(object):
       (r"/document",  DocumentResource, dict(document=self.document_store)),
       (r"/files",     FileResource, dict(node=self.node_server)),
       (r"/printers",  PrinterResource),
+      (r"/cameras",   CameraResource),
       (r"/ports",     PortsResource),
       (r"/serial",    SerialResource),
       (r"/node/(.*)",   NodeSocket, dict(node=self.node_server)),
-      # (r"/webcam/(.*)",   StreamHandler),
+      (r"/webcam/(.*)",   WebcamHandler, dict(node=self.node_server)),
       (r"/app/(.*)",  StaticFileHandler, dict(path = STATIC_FOLDER)),
     ], **settings)
 

@@ -12,3 +12,5 @@ from .device_request import DeviceRequest
 from .printer_command import PrinterCommand
 from .print import Print
 from .slice_file import SliceFile
+from .camera import Camera
+from .camera_recording import CameraRecording

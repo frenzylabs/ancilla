@@ -5,6 +5,7 @@ import zmq
 from zmq.eventloop.zmqstream import ZMQStream
 import zmq.asyncio
 
+import json
 from tornado.queues import Queue
 from tornado.ioloop import IOLoop
 from .zhelpers import zpipe
@@ -12,24 +13,26 @@ from ..data.models import Printer
 # from .devices import *
 
 class Device(object):
-    endpoint = None         # Server identity/endpoint
-    identity = None
+    # endpoint = None         # Server identity/endpoint
+    # identity = None
     alive = True            # 1 if known to be alive
     ping_at = 0             # Next ping at this time
     expires = 0             # Expires at this time
     workers = []
-    data_handlers = []
+    
     request_handlers = []
     interceptors = []
-    data_stream = None
-    input_stream = None
+    # data_stream = None
+    # input_stream = None
     pusher = None
-    task_queue = Queue()
+    
     
 
     def __init__(self, ctx, name, **kwargs):    
         print(f'DEVICE NAME = {name}', flush=True)  
         self.identity = name
+        self.data_handlers = []
+        self.task_queue = Queue()
         # self.ping_at = time.time() + 1e-3*PING_INTERVAL
         # self.expires = time.time() + 1e-3*SERVER_TTL
 
@@ -81,6 +84,8 @@ class Device(object):
 
     def on_data(self, data):
       # print("ON DATA", data)
+      print(f"onData self = {self.identity}", flush=True)
+      print(f"DATA Handles: {self.data_handlers}", flush=True)
       for d in self.data_handlers:
         data = d.handle(data)
 
@@ -92,10 +97,45 @@ class Device(object):
     def start(self):
       print("RUN SERVER", flush=True)
 
+    
+
     def send(self, msg):
-      print("DEvice Send", flush=True)
-      print(msg)
+      # print("SENDING COMMAND", flush=True)
+      # print(msg)
+      request_id, action, *lparts = msg
+      
+      data = b''
+      if len(lparts) > 0:
+        data = lparts[0]
+      
+      try:
+        request_id = request_id.decode('utf-8')
+        action_name = action.decode('utf-8').lower()
+        method = getattr(self, action_name)
+        if not method:
+          return json.dumps({request_id: {'error': f'no action {action} found'}})
+        
+        res = method(request_id, data)
+        if not res:
+          res = "sent"
+        return json.dumps({request_id: res})
+
+      except Exception as e:
+        print(f'Send Exception: {str(e)}', flush=True)
+        return json.dumps({request_id: {"error": str(e)}})
   
+
+    async def _process_tasks(self):
+      # print("About to get queue", flush=True)
+      async for dtask in self.task_queue:
+        # print('consuming {}...'.format(item))
+        self.current_task[dtask.name] = dtask
+        res = await dtask.run(self)
+        del self.current_task[dtask.name]
+        print(f"PROCESS TASK = {res}", flush=True)
+
+    async def _add_task(self, msg):
+      await self.task_queue.put(msg)
 
     # async def _process_tasks(self):
     # # print("About to get queue", flush=True)

@@ -10,19 +10,151 @@ from ..zhelpers import zpipe
 
 import cv2
 
-class CameraConnector(object):
-  def __init__(self, ident, pub_endpoint, endpoint, baudrate, pipe, debug = True):
-    self.publisher_endpoint = pub_endpoint
-    self.identity = ident
-    self.serial_endpoint = endpoint
+import threading
+import time
+import zmq
+import os
 
-    ctx = zmq.Context.instance()   
-    socket = ctx.socket(zmq.PUB)
-    socket.bind(f'ipc://{self.identity}')
+import json
+from tornado.ioloop import IOLoop
 
-    capture = cv2.VideoCapture('rtsp://192.168.1.64/1')
-    # socket.bind("tcp://*:5555")
-    self.video = cv2.VideoCapture(0)
+from ..zhelpers import zpipe, socket_set_hwm
+from ...data.models import Camera as CameraModel
+from ..device import Device
+from ...env import Env
+from ...data.models import DeviceRequest
+from .camera_connector import CameraConnector
+# from queue import Queue
+import asyncio
+from functools import partial
+from tornado.queues     import Queue
+from tornado import gen
+from tornado.gen        import coroutine, sleep
+from collections import OrderedDict
+import struct # for packing integers
+from zmq.eventloop.ioloop import PeriodicCallback
+
+
+from ..tasks.device_task import PeriodicTask
+# from ..tasks.print_task import PrintTask
+
+# from .middleware import PrinterHandler
+
+
+    
+
+class Camera(Device):
+    connector = None
+    endpoint = None         # Server identity/endpoint
+    identity = None
+    alive = True            # 1 if known to be alive
+    ping_at = 0             # Next ping at this time
+    expires = 0             # Expires at this time
+    state = "IDLE"
+    recording = False
+    task_queue = Queue()
+    # command_queue = CommandQueue()
+
+    def __init__(self, ctx, name, **kwargs):
+        self.camera_model = CameraModel.get(CameraModel.name == name)
+        
+        # self.port = self.record['port']
+        # self.baud_rate = self.record['baud_rate']
+
+        
+        super().__init__(ctx, name, **kwargs)
+
+        # self.register_data_handlers(PrinterHandler(self))
+
+
+
+    def start(self, *args):
+      print(f"START Camera {self.identity}", flush=True)
+      self.connector = CameraConnector(self.ctx, self.identity, self.camera_model.endpoint)
+      # self.connector.start()
+    
+    def connect(self, *args):
+      try:
+        # if not self.connector:
+        #   self.connector = SerialConnector(self.ctx, self.identity, self.port, self.baud_rate)
+        # else:
+        self.connector.open()
+        print("Camera Connect", flush=True)
+        self.connector.run()
+        return {"sent": "Connect"}
+      except Exception as e:
+        print(f'Exception Open Conn: {str(e)}')
+        self.pusher.send_multipart([self.identity, b'error', str(e).encode('ascii')])
+
+    def stop(self, *args):
+      print("Camera Stop", flush=True)
+      self.connector.close()
+
+
+    def close(self, *args):
+      print("Camera Close", flush=True)
+      self.connector.close()
+
+
+    def pause(self, *args):
+      if self.state == "printing":
+        self.state = "paused"
+      return {"state": self.state}
+
+    def periodic(self, request_id, data):
+      try:
+        res = data.decode('utf-8')
+        payload = json.loads(res)
+        name = payload.get("name") or "PeriodicTask"
+        method = payload.get("method")
+        timeinterval = payload.get("interval")
+        pt = PeriodicTask(name, request_id, payload)
+        self.task_queue.put(pt)
+        loop = IOLoop().current()
+        loop.add_callback(self._process_tasks)
+
+      except Exception as e:
+        print(f"Cant periodic task {str(e)}", flush=True)
+
+
+    def start_print(self, request_id, data):
+      try:
+        res = data.decode('utf-8')
+        payload = json.loads(res)
+        name = payload.get("name") or "PeriodicTask"
+        method = payload.get("method")
+        pt = PrintTask(name, request_id, payload)
+        self.task_queue.put(pt)
+        loop = IOLoop().current()
+        loop.add_callback(partial(self._process_tasks))
+
+      except Exception as e:
+        print(f"Cant periodic task {str(e)}", flush=True)
+
+      return {"queued": "success"}
+
+
+    def publish_request(self, request):
+      rj = json.dumps(request.json).encode('ascii')
+      self.pusher.send_multipart([self.identity+b'.request', b'request', rj])
+            
+              
+
+
+
+# class CameraConnector(object):
+#   def __init__(self, ident, pub_endpoint, endpoint, baudrate, pipe, debug = True):
+#     self.publisher_endpoint = pub_endpoint
+#     self.identity = ident
+#     self.serial_endpoint = endpoint
+
+#     ctx = zmq.Context.instance()   
+#     socket = ctx.socket(zmq.PUB)
+#     socket.bind(f'ipc://{self.identity}')
+
+#     capture = cv2.VideoCapture('rtsp://192.168.1.64/1')
+#     # socket.bind("tcp://*:5555")
+#     self.video = cv2.VideoCapture(0)
 
 
 

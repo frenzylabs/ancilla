@@ -85,7 +85,7 @@ class Printer(Device):
 
         
         super().__init__(ctx, name, **kwargs)
-
+        print(f"INSIDE PRINTER INIT = {self.identity}", flush=True)
         self.register_data_handlers(PrinterHandler(self))
 
 
@@ -175,36 +175,6 @@ class Printer(Device):
       IOLoop.current().add_callback(self.process_commands)
       return pc
 
-    # def on_data(self, data):
-    #   # print(f"Printer ON DATA {data}", flush=True)
-
-    #   if not data or len(data) < 3:
-    #     return
-
-    #   identifier, status, msg = data
-
-    #   cmd = self.command_queue.current_command
-    #   if cmd:
-    #     print(f"INSIDE CMD on data {cmd.command}", flush=True)
-    #     cmdstatus = None
-    #     denmsg = msg.decode('utf-8')
-    #     if status == b'error':
-    #       cmdstatus = "error"
-    #       self.command_queue.finish_command(status="error")
-    #     else:
-    #       if denmsg.startswith("echo:busy:"):
-    #         self.command_queue.update_expiry()
-    #       else:
-    #         cmd.response.append(denmsg)
-
-    #       if denmsg.startswith("ok"):
-    #         cmdstatus = "finished"
-    #         self.command_queue.finish_command()
-
-
-    #   super().on_data(data)
-
-
 
     def send(self, msg):
       # print("SENDING COMMAND", flush=True)
@@ -274,20 +244,6 @@ class Printer(Device):
       request.state = status
       request.save()
       return {"status": status, "reason": reason}
-
-
-
-    async def _process_tasks(self):
-        # print("About to get queue", flush=True)
-        async for dtask in self.task_queue:
-          # print('consuming {}...'.format(item))
-          self.current_task[dtask.name] = dtask
-          res = await dtask.run(self)
-          del self.current_task[dtask.name]
-          print(f"PROCESS TASK = {res}", flush=True)
-
-    async def _add_task(self, msg):
-      await self.task_queue.put(msg)
 
 
     def start_print(self, request_id, data):

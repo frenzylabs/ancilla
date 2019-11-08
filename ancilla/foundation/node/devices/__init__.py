@@ -9,3 +9,5 @@
 from .camera import CameraConnector
 from .serial_connector import SerialConnector
 from .printer import Printer
+from .camera import Camera
+from .camera_connector import CameraConnector

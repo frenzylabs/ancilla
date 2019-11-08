@@ -108,8 +108,9 @@ class NodeServer(object):
             # print("GET ITEMS", flush=True)
             # Apply state update sent from devices
             if collector in items:
-                # print(f"INSIDE SERVER COLLECTOR {msg}", flush=True)
+                
                 msg = collector.recv_multipart()
+                # print(f"INSIDE SERVER COLLECTOR {msg}", flush=True)
                 publisher.send_multipart(msg)
 
             # Execute state snapshot request
