@@ -130,9 +130,34 @@ class NodeAgent(object):
         #     server.ping_at = time.time() + 1e-3*PING_INTERVAL
         #     server.expires = time.time() + 1e-3*SERVER_TTL
         elif command == b"REQUEST":
-            assert not self.request    # Strict request-reply cycle
+            # assert not self.request    # Strict request-reply cycle
             # Prefix request with sequence number and empty envelope
-            self.request = [str(self.sequence).encode('ascii'), b''] + msg
+            
+            try:
+              # identity = msg.pop(0)
+              # action = msg.pop(0)
+              identity, action, *other = msg
+
+              activedevice = self.active_devices.get(identity)
+
+              if activedevice:
+                # [b'-1', action, *lparts = msg
+                res = activedevice.send([b'-1', action, other])
+                self.pipe.send_multipart([identity, b'resp', res.encode('ascii')])
+              else:
+                self.pipe.send_multipart([identity, b'resp', json.dumps({"error": 'Device Not Active'}).encode('ascii')])
+
+              # DeviceCls = getattr(importlib.import_module("ancilla.foundation.node.devices"), kind)
+
+              # device = DeviceCls(self.ctx, identity)
+              # device.start()
+              # self.devices[identity] = device
+              # self.actives.append(device)
+              # self.pipe.send_multipart([identity, b'Success', b'Printer Started'])
+            except Exception as e:
+              print(f"EXception connecting device {str(e)}")
+              self.pipe.send_multipart([identity, b'Error', f'Could Not Make Request: {str(e)}'.encode('ascii')])
+
 
             # Request expires after global timeout
             # self.expires = time.time() + 1e-3*GLOBAL_TIMEOUT

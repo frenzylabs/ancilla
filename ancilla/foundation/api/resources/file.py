@@ -39,7 +39,7 @@ class FileResource(BaseHandler):
     sf = SliceFile(name=original_name, generated_name=filename, path=filepath)
     sf.save()
 
-    self.finish({"created": "file: " + original_name + " has been uploaded"})
+    self.finish({"file": sf.json})
 
   def get(self):
 

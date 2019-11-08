@@ -84,8 +84,8 @@ class Device(object):
 
     def on_data(self, data):
       # print("ON DATA", data)
-      print(f"onData self = {self.identity}", flush=True)
-      print(f"DATA Handles: {self.data_handlers}", flush=True)
+      # print(f"onData self = {self.identity}", flush=True)
+      # print(f"DATA Handles: {self.data_handlers}", flush=True)
       for d in self.data_handlers:
         data = d.handle(data)
 
@@ -113,16 +113,16 @@ class Device(object):
         action_name = action.decode('utf-8').lower()
         method = getattr(self, action_name)
         if not method:
-          return json.dumps({request_id: {'error': f'no action {action} found'}})
+          return json.dumps({'error': f'no action {action} found'})
         
         res = method(request_id, data)
         if not res:
           res = "sent"
-        return json.dumps({request_id: res})
+        return json.dumps(res)
 
       except Exception as e:
         print(f'Send Exception: {str(e)}', flush=True)
-        return json.dumps({request_id: {"error": str(e)}})
+        return json.dumps({"error": str(e)})
   
 
     async def _process_tasks(self):

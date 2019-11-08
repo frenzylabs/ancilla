@@ -49,14 +49,17 @@ class NodeServer(object):
     #     self.pipe.send_multipart([b"CONNECT_LOCAL_PRINTER", endpoint.encode('ascii'), identity.encode('ascii')])
     #     time.sleep(0.1) # Allow connection to come up        
 
-    # def request(self, msg):
-    #     # print("Send request, get reply")
-    #     request = [b"REQUEST"] + msg
-    #     self.pipe.send_multipart(request)
-    #     reply = self.pipe.recv_multipart()
-    #     status = reply.pop(0)
-    #     if status != "FAILED":
-    #         return reply
+    def request(self, msg):
+        # print("Send request, get reply")
+        request = [b"REQUEST"] + msg
+        self.pipe.send_multipart(request)
+        reply = self.pipe.recv_multipart()
+        ident, kind, msg = reply
+        return msg.decode('utf-8')
+        # return reply
+        # status = reply.pop(0)
+        # if status != "FAILED":
+        #     return reply
 
 
     def run_server(self, ctx, pipe):

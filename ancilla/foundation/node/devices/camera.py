@@ -95,6 +95,12 @@ class Camera(Device):
       print("Camera Close", flush=True)
       self.connector.close()
 
+    def get_state(self, *args):
+      print(f"get state {self.connector.video}", flush=True)
+      running = False
+      if self.connector and self.connector.alive and self.connector.video.isOpened():
+        running = True
+      return {"running": running}
 
     def pause(self, *args):
       if self.state == "printing":

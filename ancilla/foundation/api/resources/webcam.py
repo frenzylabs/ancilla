@@ -126,6 +126,10 @@ class WebcamHandler(RequestHandler):
           subscription = args[0]
         
         print(f"Camera SUBSCRIBE = {subscription}", flush=True)
+        
+
+
+        
         self.subscription = subscription
         # self.pubsub = ZMQNodePubSub(self.node, self.on_data, self.subscribe_callback)
         
@@ -138,49 +142,15 @@ class WebcamHandler(RequestHandler):
         # mimetype='multipart/x-mixed-replace; boundary=frame')
         
         print("Start request")
-        await self.camera_frame(self.subscription)
-        # await asyncio.sleep(10)
-        print("Okay done now")
+        resp = self.node.request([subscription.encode('ascii'), b'get_state', b''])
+        jresp = json.loads(resp)
+        print(f'NODE REQ: {jresp}', flush=True)
+        if jresp.get("running") != True:          
+          self.write_error(400, errors=jresp)
+          self.flush()
+        else:
+          await self.camera_frame(self.subscription)
 
-
-        
-        # IOLoop.current().spawn_callback(self.handle_data)
-        # await self.handle_data()
-        # return response
-        # self.ioloop = tornado.ioloop.IOLoop.instance() 
-
-        # self.pipe = self.get_pipe()        
-        # self.ioloop.add_handler( self.socket.fileno(), self.async_callback (self.on_message), self.ioloop.READ)
-
-        # context = zmq.Context()
-        # socket = context.socket(zmq.SUB)
-        # socket.connect('ipc://devicepublisher')      
-        # socket.linger = 0
-        # socket.setsockopt(zmq.SUBSCRIBE, b"")
-        # io_loop = tornado.ioloop.IOLoop.current()
-        # callback = functools.partial(connection_ready, sock)
-        # io_loop.add_handler(sock.fileno(), callback, io_loop.READ)
-        # loop.add_callback(partial(self.on_message(), self.ioloop))
-        # self.ioloop.add_callback(lambda: self.handle_data())      
-        # while True:
-        #   self.handle_data()
-        #   yield self.handle_data()
-        # yield self.on_message()
-        # yield tornado.gen.Task(self.flush)
-        # while True:
-            # topic, msg = socket.recv_multipart()
-            # frame = pickle.loads(msg)
-
-            # if self.get_argument('fd') == "true":
-            #     img = cam.get_frame (True)
-            # else:
-            #     img = cam.get_frame(False)
-            # self.write("--boundarydonotcross\n")
-            # self.write("Content-type: image/jpeg\r\n")
-            # self.write("Content-length: %s\r\n\r\n" % len(frame))
-            # img = cv2.imencode('.jpg', frame)[1].tobytes()
-            # self.write((img))
-            # yield tornado.gen.Task(self.flush)
 
 
 
@@ -213,6 +183,7 @@ class WebcamHandler(RequestHandler):
       # new_rgb = np.dstack([x, y, z, 1])
       # print(frame)
       # cv2.imshow('image', x)
+
 
 # video = cv2.VideoCapture(0)
 

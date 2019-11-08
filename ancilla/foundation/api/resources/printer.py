@@ -27,9 +27,14 @@ class PrinterResource(BaseHandler):
     printer = Printer(**self.params)
     
     if not printer.is_valid:
-      self.write_error(400, errors=printer.errors)
-
-    printer.save()
-    self.write(printer.json)
+      print(f"Printer is NOt VAlid {printer.errors}", flush=True)
+      self.set_status(400)
+      del printer.errors['device']
+      del printer.errors['created_at']
+      del printer.errors['updated_at']
+      self.write({"errors": printer.errors})
+    else:
+      printer.save()
+      self.write(printer.json)
 
     # self.finish()

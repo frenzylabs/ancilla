@@ -99,6 +99,7 @@ class CameraConnector(object):
           print(f'Exception with Camera: {str(e)}', flush=True)
           publisher.send_multipart([self.identity, b'error', str(e).encode('ascii')])
           break
+      self.alive = False
 
     def open(self):
       try:
