@@ -47,12 +47,15 @@ class ZMQCameraPubSub(object):
         # self.request.linger = 0
         # self.request.setsockopt(zmq.SUBSCRIBE, b"")
 
+    def close(self):
+      self.subscriber.close()
+
     def subscribe(self, to, topic=''):
       subscribeto = to
       if len(topic) > 0:
         subscribeto = f"{subscribeto}.{topic}"
       subscribeto = subscribeto.encode('ascii')
-      print("topic = ", subscribeto)
+      # print("topic = ", subscribeto)
       # if callback:
       #   self.subscriber.on_recv(callback)
       self.subscriber.setsockopt(zmq.SUBSCRIBE, subscribeto)
@@ -65,19 +68,20 @@ class ZMQCameraPubSub(object):
 
         # if type(topic) != bytes:
         #   topic = topic.encode('ascii')
-      print("subtopic= ", subscribetopic)
+      # print("subtopic= ", subscribetopic)
         # self.request.on_recv(callback)
       self.subscriber.setsockopt(zmq.UNSUBSCRIBE, subscribetopic)    
 
 class WebcamHandler(RequestHandler):
     def initialize(self, node):
       self.node = node
+      self.ready = True
 
     # @gen.coroutine
     def on_message(self, data):
       # print("ON MESSAGE: ", flush=True)
       # topic, msg = yield self.socket.request.recv_multipart()
-      topic, framenum, msg = data
+      topic, device, framenum, msg = data
       fnum = int(framenum.decode('utf-8'))
       # print("fRAME = ", fnum)
       frame = pickle.loads(msg)
@@ -93,12 +97,17 @@ class WebcamHandler(RequestHandler):
       self.write(b'Content-Type: image/jpeg\r\n\r\n')
       self.write(encodedImage.tobytes())
       self.write(b'\r\n\r\n')
-      IOLoop.current().add_callback(self.flushit)
+      if self.ready:
+        IOLoop.current().add_callback(self.flushit)
 
     
     async def flushit(self):
       # print("FLUSHING WRITE", flush=True)
-      await self.flush()
+      try:
+        await self.flush()
+      except:
+        self.ready = False
+
     
 
     # @gen.coroutine
@@ -115,16 +124,19 @@ class WebcamHandler(RequestHandler):
         self.pubsub.subscribe(subscription)
         # IOLoop.current().add_callback(self.flushit)
         while True:
-          await asyncio.sleep(1)
+          if self.ready:
+            await asyncio.sleep(1)
+          else:
+            break
 
 
     async def get(self, *args):
-        print("HI THERE", flush=True)
         # def open(self, *args, **kwargs):
-        subscription = ""
+        device = ""
         if (len(args) > 0):
-          subscription = args[0]
+          device = args[0]
         
+        subscription = device + ".events.camera.data_received"
         print(f"Camera SUBSCRIBE = {subscription}", flush=True)
         
 
@@ -142,14 +154,30 @@ class WebcamHandler(RequestHandler):
         # mimetype='multipart/x-mixed-replace; boundary=frame')
         
         print("Start request")
-        resp = self.node.request([subscription.encode('ascii'), b'get_state', b''])
-        jresp = json.loads(resp)
-        print(f'NODE REQ: {jresp}', flush=True)
-        if jresp.get("running") != True:          
-          self.write_error(400, errors=jresp)
+        payload = [device.encode('ascii'), b'get_state', b'']
+        # if msg:
+        #   payload.append(msg.encode('ascii'))
+        resp = self.node.device_request(payload)
+        try: 
+          resp = json.loads(resp).get("resp")
+        except Exception as e:
+          resp = {"error": str(e)}
+          # pass
+        # response.append(resp)
+
+        # resp = self.node.request([device.encode('ascii'), b'get_state', b''])
+        # jresp = json.loads(resp)
+        # print(f'NODE REQ: {resp}', flush=True)
+        if resp.get("running") != True:
+          self.write_error(400, errors=resp)
           self.flush()
         else:
-          await self.camera_frame(self.subscription)
+          try:
+            await self.camera_frame(self.subscription)
+          except:
+            print("exception")
+          finally:
+            self.pubsub.close()
 
 
 

@@ -38,7 +38,7 @@ from zmq.eventloop.ioloop import PeriodicCallback
 from ..tasks.device_task import PeriodicTask
 # from ..tasks.print_task import PrintTask
 
-# from .middleware import PrinterHandler
+from .middleware import CameraHandler
 
 
     
@@ -63,7 +63,7 @@ class Camera(Device):
 
         
         super().__init__(ctx, name, **kwargs)
-
+        self.register_data_handlers(CameraHandler(self))
         # self.register_data_handlers(PrinterHandler(self))
 
 
@@ -81,26 +81,29 @@ class Camera(Device):
         self.connector.open()
         print("Camera Connect", flush=True)
         self.connector.run()
-        return {"sent": "Connect"}
+        self.fire_event("connection.opened", {"status": "success"})
+        return {"status": "connected"}
       except Exception as e:
         print(f'Exception Open Conn: {str(e)}')
-        self.pusher.send_multipart([self.identity, b'error', str(e).encode('ascii')])
+        self.fire_event("connection.failed", {"error": str(e)})
+        return {"error": str(e), "status": "failed"}
+        # self.pusher.send_multipart([self.identity, b'error', str(e).encode('ascii')])
 
     def stop(self, *args):
       print("Camera Stop", flush=True)
       self.connector.close()
-
+      self.fire_event("connection.closed", {"status": "success"})
 
     def close(self, *args):
-      print("Camera Close", flush=True)
-      self.connector.close()
+      self.stop(args)
+
 
     def get_state(self, *args):
       print(f"get state {self.connector.video}", flush=True)
       running = False
       if self.connector and self.connector.alive and self.connector.video.isOpened():
         running = True
-      return {"running": running}
+      return {"open": running, "running": running}
 
     def pause(self, *args):
       if self.state == "printing":

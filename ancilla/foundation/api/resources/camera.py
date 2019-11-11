@@ -24,6 +24,7 @@ class CameraResource(BaseHandler):
       self.write_error(400, errors=camera.errors)
 
     camera.save()
-    self.write(camera.json)
+    self.finish({"camera": camera.json})
+    # self.write(camera.json)
 
     # self.finish()

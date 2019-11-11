@@ -8,3 +8,4 @@
 
 from .data_handler import DataHandler
 from .printer_handler import PrinterHandler
+from .camera_handler import CameraHandler

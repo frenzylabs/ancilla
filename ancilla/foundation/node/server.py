@@ -124,10 +124,12 @@ class NodeServer(object):
                 
                 msg = collector.recv_multipart()
                 publisher.send_multipart(msg)
-                if len(msg) == 3:
-                    topic, device, payload = msg
+                if len(msg) >= 3:
+                    topic, device, *other = msg
+                    # topic, device, payload, *other = msg
                     if topic.startswith(b'events.'):
-                        publisher.send_multipart([device + b'.' + topic, device, payload])
+                        publisher.send_multipart([device + b'.' + topic, device] + other)
+                        # publisher.send_multipart([device + b'.' + topic, device, payload])
                     
                     
                 # print(f"INSIDE SERVER COLLECTOR {msg}", flush=True)
