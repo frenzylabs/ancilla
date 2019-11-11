@@ -57,6 +57,11 @@ class CommandQueue(object):
     def update_expiry(self):
         self.current_expiry = time.time() + 5000
 
+    def clear(self):
+      self.queue.clear()
+      self.current_command = None
+      self.current_expiry = None
+
     def __next__(self):
         address, worker = self.queue.popitem(False)
         return address
@@ -103,15 +108,22 @@ class Printer(Device):
         self.connector.open()
         print("Printer Connect", flush=True)
         self.connector.run()
+        self.fire_event("connection.opened", {"status": "success"})
         return {"status": "connected"}
       except Exception as e:
         print(f'Exception Open Conn: {str(e)}')
-        self.pusher.send_multipart([self.identity, b'error', str(e).encode('ascii')])
+        self.fire_event("connection.failed", {"error": str(e)})
+        return {"error": str(e), "status": "failed"}
+        # self.pusher.send_multipart([self.identity, b'error', str(e).encode('ascii')])
 
     def stop(self, *args):
       print("Printer Stop", flush=True)
       self.connector.close()
+      self.command_queue.clear()
+      self.fire_event("connection.closed", {"status": "success"})
 
+    def close(self, *args):
+      self.stop(args)
     # def serialcmd(self, *args):
     #   cmd = args[0]
 
@@ -174,40 +186,18 @@ class Printer(Device):
         print(f"CMD is Running {cmd.command}", flush=True)
         IOLoop.current().add_callback(self.process_commands)
 
-    def add_command(self, request_id, num, data, nowait=False):
+    def add_command(self, request_id, num, data, nowait=False, skip_queue=False):
       if type(data) == bytes:
         data = data.decode('utf-8')
       pc = PrinterCommand(request_id=request_id, sequence=num, command=data, printer_id=self.record["id"], nowait=nowait)
       pc.save(force_insert=True)
-      self.command_queue.add(pc)
-      IOLoop.current().add_callback(self.process_commands)
+      if skip_queue:
+        self.connector.write(pc.command.encode('ascii'))
+      else:
+        self.command_queue.add(pc)
+        IOLoop.current().add_callback(self.process_commands)
       return pc
 
-
-    # def send(self, msg):
-    #   # print("SENDING COMMAND", flush=True)
-    #   # print(msg)
-    #   request_id, action, *lparts = msg
-      
-    #   data = b''
-    #   if len(lparts) > 0:
-    #     data = lparts[0]
-      
-    #   try:
-    #     request_id = request_id.decode('utf-8')
-    #     action_name = action.decode('utf-8').lower()
-    #     method = getattr(self, action_name)
-    #     if not method:
-    #       return json.dumps({request_id: {'error': f'no action {action} found'}})
-        
-    #     res = method(request_id, data)
-    #     if not res:
-    #       res = "sent"
-    #     return json.dumps({request_id: res})
-
-    #   except Exception as e:
-    #     print(f'Send Exception: {str(e)}', flush=True)
-    #     return json.dumps({request_id: {"error": str(e)}})
 
     def get_state(self, *args):
       # print(self.connector.serial)
@@ -218,9 +208,18 @@ class Printer(Device):
       return {"open": serialopen, "alive": self.connector.alive, "state": self.state }
 
     def pause(self, *args):
+      if self.current_task["print"]:
+        self.current_task["print"].pause()
       if self.state == "printing":
         self.state = "paused"
       return {"state": self.state}
+
+    def cancel(self, request_id, *args):
+      if self.current_task["print"]:
+        self.current_task["print"].cancel(request_id)
+      self.state = "idle"
+      return {"state": self.state}
+      
 
     def periodic(self, request_id, data):
       try:
@@ -258,9 +257,9 @@ class Printer(Device):
       try:
         res = data.decode('utf-8')
         payload = json.loads(res)
-        name = payload.get("name") or "PrintTask"
+        # name = payload.get("name") or "PrintTask"
         method = payload.get("method")
-        pt = PrintTask(name, request_id, payload)
+        pt = PrintTask("print", request_id, payload)
         self.task_queue.put(pt)
         loop = IOLoop().current()
         loop.add_callback(partial(self._process_tasks))

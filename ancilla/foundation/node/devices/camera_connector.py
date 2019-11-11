@@ -67,8 +67,8 @@ class CameraConnector(object):
 
     def reader(self, ctx):
       print(f"RUN Camera SERVER: inproc://{self.identity}_collector", flush=True)
-      publisher = ctx.socket(zmq.PUSH)
-      publisher.connect(f"inproc://{self.identity}_collector")
+      device_collector = ctx.socket(zmq.PUSH)
+      device_collector.connect(f"inproc://{self.identity}_collector")
       # publisher.connect("ipc://collector")
       # publisher.send_multipart([b'ender3', b'hello there'])
       # if self.endpoint
@@ -90,14 +90,14 @@ class CameraConnector(object):
           if ret:
             i += 1
           # publisher.send_multipart([self.identity, frame])
-            publisher.send(self.identity, zmq.SNDMORE)
-            publisher.send(f'{i}'.encode('ascii'), zmq.SNDMORE)
-            publisher.send_pyobj(frame)
+            device_collector.send(self.identity, zmq.SNDMORE)
+            device_collector.send(f'{i}'.encode('ascii'), zmq.SNDMORE)
+            device_collector.send_pyobj(frame)
             # time.sleep(2)
             # print('Sent frame {}'.format(i))
         except Exception as e:
           print(f'Exception with Camera: {str(e)}', flush=True)
-          publisher.send_multipart([self.identity, b'error', str(e).encode('ascii')])
+          device_collector.send_multipart([self.identity, b'error', str(e).encode('ascii')])
           break
       self.alive = False
 

@@ -13,6 +13,7 @@ class PrinterHandler(DataHandler):
       if type(msg) == bytes:
           msg = msg.decode('utf-8')
 
+
       newmsg = msg
       prefix = "echo:"
       if msg.startswith(prefix):
@@ -30,10 +31,12 @@ class PrinterHandler(DataHandler):
           cmdstatus = "error"
           self.device.command_queue.finish_command(status="error")
         else:
-          
           if newmsg.startswith("busy:"):
             cmdstatus = "busy"
             self.device.command_queue.update_expiry()
+          elif newmsg.startswith("Error:"):
+            cmdstatus = "error"
+            self.device.command_queue.finish_command(status="error")
           else:
             cmdstatus = "running"
             cmd.response.append(newmsg)
@@ -47,6 +50,6 @@ class PrinterHandler(DataHandler):
         payload = {"status": status.decode('utf-8'), "resp": newmsg}
 
       
-      return [identifier, status, json.dumps(payload).encode('ascii')]
+      return [b'events.printer.data_received', identifier, json.dumps(payload).encode('ascii')]
       # super().on_data(data)
       # return data

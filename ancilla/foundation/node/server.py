@@ -89,8 +89,8 @@ class NodeServer(object):
         publisher.bind("ipc://publisher")
         # publisher.bind("tcp://*:5557")
 
-        eventsubscriber = ctx.socket(zmq.SUB)
-        eventsubscriber.bind("ipc://subscriber")
+        # eventsubscriber = ctx.socket(zmq.SUB)
+        # eventsubscriber.bind("ipc://subscriber")
 
         # print("NODE_SERVER before collector bind", flush=True)
         collector = ctx.socket(zmq.PULL)
@@ -123,8 +123,15 @@ class NodeServer(object):
             if collector in items:
                 
                 msg = collector.recv_multipart()
-                # print(f"INSIDE SERVER COLLECTOR {msg}", flush=True)
                 publisher.send_multipart(msg)
+                if len(msg) == 3:
+                    topic, device, payload = msg
+                    if topic.startswith(b'events.'):
+                        publisher.send_multipart([device + b'.' + topic, device, payload])
+                    
+                    
+                # print(f"INSIDE SERVER COLLECTOR {msg}", flush=True)
+                # publisher.send_multipart(msg)
 
             # Execute state snapshot request
             if router in items:

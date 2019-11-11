@@ -30,7 +30,12 @@ class Device(object):
 
     def __init__(self, ctx, name, **kwargs):    
         print(f'DEVICE NAME = {name}', flush=True)  
-        self.identity = name
+        if type(name) == bytes:
+          self.identity = name
+          self.name = name.decode('utf-8')
+        else:
+          self.name = name
+          self.identity = name.encode('ascii')
         self.data_handlers = []
         self.task_queue = Queue()
         self.current_task = {}
@@ -51,6 +56,10 @@ class Device(object):
         self.data_stream = ZMQStream(self.data_stream)
         # self.data_stream.stop_on_recv()
 
+        self.event_stream = self.ctx.socket(zmq.SUB)
+        self.event_stream.connect("ipc://publisher")
+        self.event_stream = ZMQStream(self.event_stream)
+        self.event_stream.on_recv(self.on_message)
         # self.input_stream = self.ctx.socket(zmq.ROUTER)
         # # print(f"ipc://{self.identity.decode('utf-8')}_taskrouter", flush=True)
         # input_url = f"ipc://{self.identity.decode('utf-8')}_taskrouter"
@@ -133,11 +142,23 @@ class Device(object):
         # print('consuming {}...'.format(item))
         self.current_task[dtask.name] = dtask
         res = await dtask.run(self)
+        rj = json.dumps(res).encode('ascii')
+        self.pusher.send_multipart([self.identity+b'.task', b'finished', rj])
+
+        # self.pusher.publish()
         del self.current_task[dtask.name]
         print(f"PROCESS TASK = {res}", flush=True)
 
     async def _add_task(self, msg):
       await self.task_queue.put(msg)
+
+
+    def fire_event(self, evtname, payload):
+      evtname = evtname.encode('ascii')
+      payload["device"] = self.name
+      pstring = json.dumps(payload).encode('ascii')
+      self.pusher.send_multipart([b'events.'+ evtname, self.identity, pstring])
+      
 
     # async def _process_tasks(self):
     # # print("About to get queue", flush=True)

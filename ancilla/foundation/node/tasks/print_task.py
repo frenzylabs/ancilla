@@ -8,24 +8,32 @@ import zmq.asyncio
 import json
 
 from tornado.ioloop import IOLoop
+from zmq.eventloop.ioloop import PeriodicCallback
 from ..zhelpers import zpipe
 from ...data.models import Printer, Print, SliceFile, DeviceRequest
 # from .devices import *
 from tornado.gen        import sleep
 from .device_task import DeviceTask
 
+from ...utils import Dotdict
 
 class PrintTask(DeviceTask):
   def __init__(self, name, request_id, payload, *args):
     super().__init__(name, *args)
     self.request_id = request_id
     self.payload = payload
-    self.state = "pending"
+    self.state = Dotdict({"status": "pending", "print": {}})
+    
+
     # ["wessender", "start_print", {"name": "printit", "file_id": 1}]
 
 
   async def run(self, device):
+    self.state_callback = PeriodicCallback(self.get_state, 3000)
+    self.state_callback.start()
+    
     request = DeviceRequest.get_by_id(self.request_id)
+    self.device = device
     sf = None
     num_commands = -1
     try:
@@ -34,16 +42,21 @@ class PrintTask(DeviceTask):
       name = self.payload.get("name") or ""
       sf = SliceFile.get(fid)
       device.current_print = Print(name=name, status="running", request_id=request.id, printer_snapshot=device.record, printer=device.printer, slice_file=sf)
-      device.current_print.save(force_insert=True)          
+      device.current_print.save(force_insert=True)   
+      self.state.status = "running"
+      self.state.print = device.current_print.json
+      
+      device.fire_event("print.started", self.state)
       # num_commands = file_len(sf.path)
     except Exception as e:
       print(f"Cant get file to print {str(e)}", flush=True)
+      device.fire_event("print.failed", {"status": "failed", "reason": str(e)})
       # request.status = "failed"
       # request.save()
       # self.publish_request(request)
       return
 
-    self.state = "running"
+    self.state.status = "running"
     
 
     try:
@@ -52,16 +65,17 @@ class PrintTask(DeviceTask):
         fp.seek(0, os.SEEK_END)
         endfp = fp.tell()
         # print("End File POS: ", endfp)
+        device.current_print.state["end_pos"] = endfp
         fp.seek(0)
         line = fp.readline()
         lastpos = 0
-        while self.state == "running":
+        while self.state.status == "running":
           # for line in fp:
           pos = fp.tell()
           
           # print("File POS: ", pos)
           if pos == endfp:
-            self.state = "finished"
+            self.state.status = "finished"
             # request.status = "finished"
             # request.save()
             device.current_print.status = "finished"
@@ -81,14 +95,16 @@ class PrintTask(DeviceTask):
           
           while (self.current_command.status == "pending" or self.current_command.status == "running"):
             await sleep(0.1)
-            if self.state != "running":
+            if self.state.status != "running":
               break
 
           print(f'InsidePrintTask curcmd= {self.current_command}', flush=True)
           if self.current_command.status == "error":
             request.status = "failed"
             request.save()
-            self.state = "print_failed"
+            device.current_print.status = "failed"
+            self.state.status = "failed"
+            self.state.reason = "Could Not Execute Command: " + self.current_command.command
             break
 
           if self.current_command.status == "finished":
@@ -100,14 +116,32 @@ class PrintTask(DeviceTask):
         
     except Exception as e:
       device.current_print.status = "failed"
-      device.current_print.save()
-      self.state = "failed"
+      # device.current_print.save()
+      self.state.status = "failed"
+      self.state.reason = str(e)
       print(f"Print Exception: {str(e)}", flush=True)
 
+    device.current_print.save()
+    self.state.print = device.current_print.json
+    device.fire_event("print."+self.state.status, self.state)
     print(f"FINISHED PRINT {self.state}", flush=True)
     device.print_queued = False
     device.current_print = None
+    self.state_callback.stop()
     return {"state": self.state}
+
+  def cancel(self, request_id):
+    self.state.status = "cancelled"
+    # self.device.add_command(request_id, 0, 'M0\n', True, True)
+
+  def pause(self):
+    self.state.status = "paused"
+
+  def get_state(self):
+    print("get state", flush=True)
+    self.state.print = self.device.current_print.json
+    self.device.fire_event("print.state", self.state)
+    
     # self.publish_request(request)
   
 
