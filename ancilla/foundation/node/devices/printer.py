@@ -103,7 +103,7 @@ class Printer(Device):
         self.connector.open()
         print("Printer Connect", flush=True)
         self.connector.run()
-        return {"sent": "Connect"}
+        return {"status": "connected"}
       except Exception as e:
         print(f'Exception Open Conn: {str(e)}')
         self.pusher.send_multipart([self.identity, b'error', str(e).encode('ascii')])
@@ -115,36 +115,36 @@ class Printer(Device):
     # def serialcmd(self, *args):
     #   cmd = args[0]
 
-    def reset(self, *args):
-      s = self.connector.serial
-      # s._reconfigurePort()
-      # s.setDTR(True) # Drop DTR
-      # time.sleep(0.022)    # Read somewhere that 22ms is what the UI does.
-      # s.setDTR(True)
+    # def reset(self, *args):
+    #   s = self.connector.serial
+    #   # s._reconfigurePort()
+    #   # s.setDTR(True) # Drop DTR
+    #   # time.sleep(0.022)    # Read somewhere that 22ms is what the UI does.
+    #   # s.setDTR(True)
 
-    def flush(self, *args):
-      self.connector.serial.flush()
+    # def flush(self, *args):
+    #   self.connector.serial.flush()
 
-    def sendbreak(self, *args):
-      print(f'break = serial = {self.connector.serial}', flush=True)
-      self.connector.serial.break_condition
-      self.connector.serial.send_break(1.0)
-      print(self.connector.serial.break_condition)
+    # def sendbreak(self, *args):
+    #   print(f'break = serial = {self.connector.serial}', flush=True)
+    #   self.connector.serial.break_condition
+    #   self.connector.serial.send_break(1.0)
+    #   print(self.connector.serial.break_condition)
 
-    def resetinput(self, *args):
-      print(f'serial = {self.connector.serial}', flush=True)
-      self.connector.serial.reset_input_buffer()
+    # def resetinput(self, *args):
+    #   print(f'serial = {self.connector.serial}', flush=True)
+    #   self.connector.serial.reset_input_buffer()
 
-    def resetoutput(self, *args):
-      print(f'serial = {self.connector.serial}', flush=True)
-      self.connector.serial.reset_output_buffer()      
+    # def resetoutput(self, *args):
+    #   print(f'serial = {self.connector.serial}', flush=True)
+    #   self.connector.serial.reset_output_buffer()      
 
-    def close(self, *args):
-      print("Printer Close", flush=True)
-      self.connector.close()
+    # def close(self, *args):
+    #   print("Printer Close", flush=True)
+    #   self.connector.close()
 
-    def on_message(self, msg):
-      print("ON MESSAge", msg)  
+    # def on_message(self, msg):
+    #   print("ON MESSAge", msg)  
       # identifier, request_id, cmd, *data = msg
 
     def process_commands(self):
@@ -158,13 +158,21 @@ class Printer(Device):
       if cmd.status == "pending":
         cmd.status = "running"
         
-        self.connector.write(cmd.command.encode('ascii'))
-        if cmd.nowait:
+        res = self.connector.write(cmd.command.encode('ascii'))
+        err = res.get("error")
+        print(f"CMD response: {res}")
+        if err:
+          print(f"CMD ERR response: {err}")
+          cmd.status = "error"
+          cmd.response.append(err)
+          self.command_queue.finish_command(status="error")
+        elif cmd.nowait:
           self.command_queue.finish_command()
         else:
           cmd.save()        
       else:
         print(f"CMD is Running {cmd.command}", flush=True)
+        IOLoop.current().add_callback(self.process_commands)
 
     def add_command(self, request_id, num, data, nowait=False):
       if type(data) == bytes:
@@ -176,30 +184,30 @@ class Printer(Device):
       return pc
 
 
-    def send(self, msg):
-      # print("SENDING COMMAND", flush=True)
-      # print(msg)
-      request_id, action, *lparts = msg
+    # def send(self, msg):
+    #   # print("SENDING COMMAND", flush=True)
+    #   # print(msg)
+    #   request_id, action, *lparts = msg
       
-      data = b''
-      if len(lparts) > 0:
-        data = lparts[0]
+    #   data = b''
+    #   if len(lparts) > 0:
+    #     data = lparts[0]
       
-      try:
-        request_id = request_id.decode('utf-8')
-        action_name = action.decode('utf-8').lower()
-        method = getattr(self, action_name)
-        if not method:
-          return json.dumps({request_id: {'error': f'no action {action} found'}})
+    #   try:
+    #     request_id = request_id.decode('utf-8')
+    #     action_name = action.decode('utf-8').lower()
+    #     method = getattr(self, action_name)
+    #     if not method:
+    #       return json.dumps({request_id: {'error': f'no action {action} found'}})
         
-        res = method(request_id, data)
-        if not res:
-          res = "sent"
-        return json.dumps({request_id: res})
+    #     res = method(request_id, data)
+    #     if not res:
+    #       res = "sent"
+    #     return json.dumps({request_id: res})
 
-      except Exception as e:
-        print(f'Send Exception: {str(e)}', flush=True)
-        return json.dumps({request_id: {"error": str(e)}})
+    #   except Exception as e:
+    #     print(f'Send Exception: {str(e)}', flush=True)
+    #     return json.dumps({request_id: {"error": str(e)}})
 
     def get_state(self, *args):
       # print(self.connector.serial)
@@ -250,7 +258,7 @@ class Printer(Device):
       try:
         res = data.decode('utf-8')
         payload = json.loads(res)
-        name = payload.get("name") or "PeriodicTask"
+        name = payload.get("name") or "PrintTask"
         method = payload.get("method")
         pt = PrintTask(name, request_id, payload)
         self.task_queue.put(pt)
@@ -258,7 +266,7 @@ class Printer(Device):
         loop.add_callback(partial(self._process_tasks))
 
       except Exception as e:
-        print(f"Cant periodic task {str(e)}", flush=True)
+        print(f"Cant Start Print task {str(e)}", flush=True)
 
       return {"queued": "success"}
 

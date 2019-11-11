@@ -31,8 +31,9 @@ class PrintTask(DeviceTask):
     try:
       # print(f"CONTENT = {content}", flush=True)
       fid = self.payload.get("file_id")
+      name = self.payload.get("name") or ""
       sf = SliceFile.get(fid)
-      device.current_print = Print(status="running", request_id=request.id, printer_snapshot=device.record, printer=device.printer, slice_file=sf)
+      device.current_print = Print(name=name, status="running", request_id=request.id, printer_snapshot=device.record, printer=device.printer, slice_file=sf)
       device.current_print.save(force_insert=True)          
       # num_commands = file_len(sf.path)
     except Exception as e:
@@ -83,7 +84,7 @@ class PrintTask(DeviceTask):
             if self.state != "running":
               break
 
-          
+          print(f'InsidePrintTask curcmd= {self.current_command}', flush=True)
           if self.current_command.status == "error":
             request.status = "failed"
             request.save()

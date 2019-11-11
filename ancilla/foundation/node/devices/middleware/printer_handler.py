@@ -1,4 +1,5 @@
 from .data_handler import DataHandler
+import json
 
 class PrinterHandler(DataHandler):
   def __init__(self, device, *args):
@@ -17,24 +18,35 @@ class PrinterHandler(DataHandler):
       if msg.startswith(prefix):
         newmsg = msg[len(prefix):]
 
+      
       cmd = self.device.command_queue.current_command
       if cmd:
+        # identifier = identifier + b'.printer.log'
         print(f"INSIDE CMD on data {cmd.command}", flush=True)
         cmdstatus = None
+
 
         if status == b'error':
           cmdstatus = "error"
           self.device.command_queue.finish_command(status="error")
         else:
+          
           if newmsg.startswith("busy:"):
+            cmdstatus = "busy"
             self.device.command_queue.update_expiry()
           else:
+            cmdstatus = "running"
             cmd.response.append(newmsg)
 
           if newmsg.startswith("ok"):
             cmdstatus = "finished"
             self.device.command_queue.finish_command()
 
-      return [identifier, status, newmsg.encode('ascii')]
+        payload = {"status": cmdstatus, "sequence": cmd.sequence, "command": cmd.command, "resp": newmsg, "req_id": cmd.request_id}
+      else:
+        payload = {"status": status.decode('utf-8'), "resp": newmsg}
+
+      
+      return [identifier, status, json.dumps(payload).encode('ascii')]
       # super().on_data(data)
       # return data

@@ -33,6 +33,7 @@ class Device(object):
         self.identity = name
         self.data_handlers = []
         self.task_queue = Queue()
+        self.current_task = {}
         # self.ping_at = time.time() + 1e-3*PING_INTERVAL
         # self.expires = time.time() + 1e-3*SERVER_TTL
 
@@ -50,15 +51,15 @@ class Device(object):
         self.data_stream = ZMQStream(self.data_stream)
         # self.data_stream.stop_on_recv()
 
-        self.input_stream = self.ctx.socket(zmq.ROUTER)
-        # print(f"ipc://{self.identity.decode('utf-8')}_taskrouter", flush=True)
-        input_url = f"ipc://{self.identity.decode('utf-8')}_taskrouter"
-        # input_url = f"tcp://*:5558"
-        self.input_stream.identity = f"{self.identity.decode('utf-8')}_input".encode('ascii')  #self.identity #b"printer"
-        self.input_stream.bind(input_url)
-        time.sleep(0.1)
+        # self.input_stream = self.ctx.socket(zmq.ROUTER)
+        # # print(f"ipc://{self.identity.decode('utf-8')}_taskrouter", flush=True)
+        # input_url = f"ipc://{self.identity.decode('utf-8')}_taskrouter"
+        # # input_url = f"tcp://*:5558"
+        # self.input_stream.identity = f"{self.identity.decode('utf-8')}_input".encode('ascii')  #self.identity #b"printer"
+        # self.input_stream.bind(input_url)
+        # time.sleep(0.1)
 
-        self.input_stream = ZMQStream(self.input_stream)
+        # self.input_stream = ZMQStream(self.input_stream)
         # self.input_stream.on_recv(self.on_message)
         # self.input_stream.on_send(self.input_sent)
         IOLoop.current().add_callback(self.start_receiving)
@@ -113,16 +114,17 @@ class Device(object):
         action_name = action.decode('utf-8').lower()
         method = getattr(self, action_name)
         if not method:
-          return json.dumps({'error': f'no action {action} found'})
+          return {'error': f'no action {action} found'}
         
         res = method(request_id, data)
         if not res:
-          res = "sent"
-        return json.dumps(res)
+          res = {"status": "sent"}
+        res["request_id"] = request_id
+        return res
 
       except Exception as e:
         print(f'Send Exception: {str(e)}', flush=True)
-        return json.dumps({"error": str(e)})
+        return {"error": str(e)}
   
 
     async def _process_tasks(self):

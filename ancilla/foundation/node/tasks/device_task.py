@@ -71,6 +71,7 @@ class PeriodicTask(DeviceTask):
 
     except Exception as e:
       print(f"Couldnot run task {self.name}: {str(e)}")
+      return {"status": "error", "reason": "Error Running Task"}
 
   def command_active(self):
     if self.state == "running" and (

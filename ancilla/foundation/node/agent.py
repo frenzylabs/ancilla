@@ -29,7 +29,7 @@ class NodeAgent(object):
 
         self.active_devices = {}
 
-        self.check_devices()
+        self.__check_devices()
 
 
         
@@ -48,8 +48,9 @@ class NodeAgent(object):
           # self.pipe.send_multipart([identifier, b'Failed', f'Could Not Connect to Device: {str(e)}'.encode('ascii')])
 
 
-    def __add_device(self, identifier, name, kind):
+    def __add_device(self, identifier, name):
       try:
+          # identifier == bytes (since it's already in bytes format coming in we can leave it)
           model = Device.get(Device.name == name)
           self.device_models[identifier] = model
           return model
@@ -59,7 +60,7 @@ class NodeAgent(object):
           raise Exception(f'Device Does Not Exist: {str(e)}')
           # self.pipe.send_multipart([identifier, b'Failed', f'Device Does Not Exist: {str(e)}'.encode('ascii')])
 
-    def check_devices(self):
+    def __check_devices(self):
       for (identifier, device_model) in self.device_models.items():
         try:
           
@@ -70,6 +71,19 @@ class NodeAgent(object):
         except Exception as e:
           print(f"EXception connecting device: {str(e)}", flush=True)
           self.router.send_multipart([identifier, b'Failed', f'Printer Could Not Start: {str(e)}'.encode('ascii')])
+
+    def add_device(self, name):
+      try:
+        identifier = name.encode('ascii')
+        model = self.__add_device(identifier, name)
+
+        return [True, {"success": "Device Added"}]
+
+
+      except Exception as e:
+          print(f"EXception adding device {str(e)}", flush=True)
+          return [False, {"error": "Could Not Add Device", "reason": str(e)}]
+          # raise Exception(f'Device Does Not Exist: {str(e)}')
 
     def control_message (self):
         msg = self.pipe.recv_multipart()
@@ -92,7 +106,7 @@ class NodeAgent(object):
                   activedevice = self.__connect_device(identity, device_model)
                 else:
                   name = identity.decode('utf-8')
-                  device_model = self.__add_device(identity, name, kind)
+                  device_model = self.add_device(identity, name, kind)
                   activedevice = self.__connect_device(identity, device_model)
   
               if activedevice:
@@ -130,22 +144,63 @@ class NodeAgent(object):
         #     server.ping_at = time.time() + 1e-3*PING_INTERVAL
         #     server.expires = time.time() + 1e-3*SERVER_TTL
         elif command == b"REQUEST":
+          action, *payload = msg
+      
+          payload = {}
+          
+          try:
+            if len(payload) > 0:
+              payload = payload[0].decode('utf-8')
+              payload = json.loads(payload)
+
+            action_name = action.decode('utf-8').lower()
+            method = getattr(self, action_name)
+            isSuccessful = False
+            msg = {'error': f'no action {action} found'}
+            if method:
+              [isSuccessful, msg] = method(**payload)  
+
+            if isSuccessful:
+              res = {"status": "ok"}
+            # return json.dumps(res)
+              self.pipe.send_multipart([b'success', json.dumps(msg).encode('ascii')])
+            else:
+              self.pipe.send_multipart([b'error', json.dumps(msg).encode('ascii')])
+
+          except Exception as e:
+            print(f'Send Exception: {str(e)}', flush=True)
+            # return json.dumps({"error": str(e)})
+            self.pipe.send_multipart([b'error', json.dumps({"error": str(e)}).encode('ascii')])
+
+          
+
+          
+
+        elif command == b"DEVICE_REQUEST":
             # assert not self.request    # Strict request-reply cycle
             # Prefix request with sequence number and empty envelope
-            
+            print("INSIDE DEVICE_REQUEST")
             try:
               # identity = msg.pop(0)
               # action = msg.pop(0)
               identity, action, *other = msg
+              response = {"action": action.decode('utf-8')}
 
               activedevice = self.active_devices.get(identity)
 
               if activedevice:
                 # [b'-1', action, *lparts = msg
                 res = activedevice.send([b'-1', action, other])
-                self.pipe.send_multipart([identity, b'resp', res.encode('ascii')])
+                # if type(res) == dict:
+                #   response.update({"resp"})
+                
+                response.update({"resp": res})
+                
+                res = json.dumps(response)
+                self.pipe.send_multipart([identity, b'success', res.encode('ascii')])
               else:
-                self.pipe.send_multipart([identity, b'resp', json.dumps({"error": 'Device Not Active'}).encode('ascii')])
+                response.update({"resp": {"error": 'Device Not Active'}})
+                self.pipe.send_multipart([identity, b'error', json.dumps(response).encode('ascii')])
 
               # DeviceCls = getattr(importlib.import_module("ancilla.foundation.node.devices"), kind)
 
@@ -156,7 +211,7 @@ class NodeAgent(object):
               # self.pipe.send_multipart([identity, b'Success', b'Printer Started'])
             except Exception as e:
               print(f"EXception connecting device {str(e)}")
-              self.pipe.send_multipart([identity, b'Error', f'Could Not Make Request: {str(e)}'.encode('ascii')])
+              self.pipe.send_multipart([identity, b'error', json.dumps({"error": 'Could Not Make Request', "reason": str(e)}).encode('ascii')])
 
 
             # Request expires after global timeout
@@ -177,42 +232,63 @@ class NodeAgent(object):
         message = msgparts[0]
 
       print("DEVICE IDENTITY here", flush=True)
+      response = {"request_id": request_id.decode('utf-8'), "action": action.decode('utf-8')}
+
       if device_identity:
         curdevice = self.active_devices.get(device_identity)
         if curdevice:
           res = curdevice.send([request_id, action, message])
           print(f"SEND RESPONSE = {res}", flush=True)
-          resp = b''
+          
           if res:
-            resp = res.encode('ascii')
-          router.send_multipart([node_identity, request_id, resp])
+            response.update({"resp": res})
+            # res = {}
+          # resp = json.dumps(res.encode('ascii'))
+          # router.send_multipart([node_identity, device_identity, resp])
         else:
           
-          msg = b'Device Does Not Exists'
+
+          # msg = b'Device Does Not Exists'
+          # msg = {"status": "error","reason": "Device Does Not Exists"}
+          # msg = b'{"status": "error","reason": "Device Does Not Exists"}'
           device_model = self.device_models.get(device_identity)
-          if device_model:
+          if not device_model:
+            response.update({"resp": {"status": "error","reason": "Device Does Not Exists"}})
+          else:
             try:
+              print(device_model, flush=True)
               activedevice = self.__connect_device(device_identity, device_model)
+              print("CONNECT TO ACTIVE DEVICE")
               if activedevice:
                 resp = b''
                 if action == b'connect':
                   resp = b'Connected'
+                  response.update({"resp": {"status": "Connected"}})
                 else:
                   res = activedevice.send([request_id, action, message])                
                   if res:
-                    resp = res.encode('ascii')
+                    response.update({"resp": res})
+                    # resp = res.encode('ascii')
 
-                router.send_multipart([node_identity, request_id, resp])
-                return
+                # router.send_multipart([node_identity, device_identity, resp])
+                # return
             except:
               print("No active device", flush=True)
-            msg = b'Device Is Not Active'
+              # msg = b'{"status": "error","reason": "Device Is Not Active"}'
+              msg = {"status": "error","reason": "Device Is Not Active"}
+              response.update({"resp": msg})
+          
             
-          print("Device doesn't exist", flush=True)
-          router.send_multipart([node_identity, request_id, msg])
+          # print("Device doesn't exist", flush=True)
+          # router.send_multipart([node_identity, device_identity, msg])
       else:
         print("NO router ", flush=True)
-        router.send_multipart([node_identity, request_id, b'No Device'])
+        response.update({"resp": {"status": "error","reason": "No Device"}})
+        # router.send_multipart([node_identity, device_identity, b'No Device'])
+
+      router.send_multipart([node_identity, device_identity, json.dumps(response).encode('ascii')])
+
+      
 
     # def router_message (self):
     #     reply = self.router.recv_multipart()

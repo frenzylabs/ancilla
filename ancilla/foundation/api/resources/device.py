@@ -11,7 +11,9 @@ import json
 from .base      import BaseHandler
 from ...serial  import SerialConnection
 
-class DevicesResource(BaseHandler):
+from ...data.models import Device
+
+class DeviceResource(BaseHandler):
   def initialize(self, node):
     self.node = node
 
@@ -28,3 +30,16 @@ class DevicesResource(BaseHandler):
     # )
 
     self.finish()
+
+  def get(self, *args, **kwargs):
+    # pr = Printer.select().dicts().get()
+    # print(pr)
+    # for printer in Printer.select():
+    #   print(printer.__data__.get("created_at"))
+    #   print(printer.json, flush=True)
+    #   # printer.de
+
+    self.write(
+      {'devices': [device.json for device in Device.select()]}
+    )
+    

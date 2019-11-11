@@ -13,5 +13,6 @@ from .file      import FileResource
 from .print     import PrintResource
 from .camera    import CameraResource
 from .webcam    import WebcamHandler
+from .device    import DeviceResource
 
 

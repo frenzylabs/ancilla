@@ -24,7 +24,8 @@ class Device(BaseModel):
     return {
       'id':           self.id,
       'name':         self.name,
-      'device_type':  self.device_type
+      'device_type':  self.device_type,
+      'specific': self.specific
     }
 
 

@@ -27,7 +27,8 @@ from .resources import (
   PortsResource,
   DocumentResource,
   CameraResource,
-  WebcamHandler
+  WebcamHandler,
+  DeviceResource
 )
 
 # Sockets
@@ -106,26 +107,108 @@ class ZMQNodePubSub(object):
         # self.request.on_recv(callback)
       self.subscriber.setsockopt(zmq.UNSUBSCRIBE, subscribetopic)
 
-
     def make_request(self, to, action, msg = None):
-      device = Device.select().where(Device.name == to)
-      if len(device) > 0:
-        device = device.get()
-      else:
-        raise Exception(f"No Device With Name {to}")
-    
       if msg and type(msg) == dict:
         msg = json.dumps(msg)
+        
+      kind, *cmds = action.split(".")
+      method = action
+      if len(cmds) > 0:
+        method = cmds[0]
+      
+      response = [to+".request"]
+      if to == "":
+          payload = [method.encode('ascii')]
+          if msg:
+            payload.append(msg.encode('ascii'))
+          resp = self.node.request(payload)
+          try: 
+            resp = json.loads(resp)
+          except:
+            pass
+          response.append(resp)
+          # return resp
 
-      print("device = ", device)
-      dr = DeviceRequest(device_id=device.id, status="pending", action=action, payload=msg)
-      dr.save()
-      print(dr, flush=True)
-      payload = [self.node.identity, f'{dr.id}'.encode('ascii'), to.encode('ascii'), action.encode('ascii')]
-      if msg:
-        payload.append(msg.encode('ascii'))
+      if kind == "REQUEST":
+          payload = [to.encode('ascii'), method.encode('ascii')]
+          if msg:
+            payload.append(msg.encode('ascii'))
+          resp = self.node.device_request(payload)
+          try: 
+            resp = json.loads(resp)
+          except:
+            pass
+          response.append(resp)
+          # return resp
+      else:
+        if to != "":
+          device = Device.select().where(Device.name == to)
+          if len(device) > 0:
+            device = device.get()
+          else:
+            raise Exception(f"No Device With Name {to}")
 
-      self.socket.send_multipart(payload)
+          dr = DeviceRequest(device_id=device.id, status="pending", action=method, payload=msg)
+          dr.save()
+          print(dr, flush=True)
+          payload = [self.node.identity, f'{dr.id}'.encode('ascii'), to.encode('ascii'), action.encode('ascii')]
+          if msg:
+            payload.append(msg.encode('ascii'))
+
+          self.socket.send_multipart(payload)
+          response.append({"status": "pending", "request": dr.json})
+          # return [to + ".request", {"status": "pending", "request": dr.json}
+          
+      return response
+          
+
+      # if to == "":
+      #   action == "REQUEST"
+        
+      #       resp = self.node.request([method.encode('ascii'), msg.encode('ascii')])
+      #       return resp
+      #   elif kind == "DEVICE_REQUEST":
+
+      #   self.node.make_request()
+      #   resp = self.node.request([subscription.encode('ascii'), b'get_state', b''])
+      #   return json.loads(resp)
+      # device = Device.select().where(Device.name == to)
+      # if len(device) > 0:
+      #   device = device.get()
+      # else:
+      #   raise Exception(f"No Device With Name {to}")
+    
+      
+
+      # print("device = ", device)
+      # dr = DeviceRequest(device_id=device.id, status="pending", action=action, payload=msg)
+      # dr.save()
+      # print(dr, flush=True)
+      # payload = [self.node.identity, f'{dr.id}'.encode('ascii'), to.encode('ascii'), action.encode('ascii')]
+      # if msg:
+      #   payload.append(msg.encode('ascii'))
+
+      # self.socket.send_multipart(payload)
+
+    # def make_request(self, to, action, msg = None):
+    #   device = Device.select().where(Device.name == to)
+    #   if len(device) > 0:
+    #     device = device.get()
+    #   else:
+    #     raise Exception(f"No Device With Name {to}")
+    
+    #   if msg and type(msg) == dict:
+    #     msg = json.dumps(msg)
+
+    #   print("device = ", device)
+    #   dr = DeviceRequest(device_id=device.id, status="pending", action=action, payload=msg)
+    #   dr.save()
+    #   print(dr, flush=True)
+    #   payload = [self.node.identity, f'{dr.id}'.encode('ascii'), to.encode('ascii'), action.encode('ascii')]
+    #   if msg:
+    #     payload.append(msg.encode('ascii'))
+
+    #   self.socket.send_multipart(payload)
 
 
 class NodeSocket(WebSocketHandler):
@@ -136,6 +219,9 @@ class NodeSocket(WebSocketHandler):
         super().__init__(application, request, **kwargs)
 
 
+    def check_origin(self, origin):
+      return True
+
     def open(self, *args, **kwargs):
         subscription = ""
         if (len(args) > 0):
@@ -143,9 +229,9 @@ class NodeSocket(WebSocketHandler):
         
         print("OPEN NODE SOCKET", flush=True)
         self.subscription = subscription
-        self.pubsub = ZMQNodePubSub(self.node, self.on_data, self.subscribe_callback)
-        self.pubsub.connect()
-        self.pubsub.subscribe(self.node.identity.decode('utf-8'))
+        self.node_connector = ZMQNodePubSub(self.node, self.on_data, self.subscribe_callback)
+        self.node_connector.connect()
+        self.node_connector.subscribe(self.node.name+".notifications")
         # self.node.connect("tcp://localhost:5556", "localhost")
         # self.node.add_device("Printer", "/dev/cu.usbserial-14140", subscription)
         # self.node.add_device('camera', '0', subscription)
@@ -159,7 +245,17 @@ class NodeSocket(WebSocketHandler):
       if data and len(data) > 2:
         topic, status, msg, *other = data
         # print(topic, flush=True)
-        self.write_message(msg, binary=True)
+        # topic, status, msg = data
+        # print(node_identifier, flush=True)
+        topic = topic.decode('utf-8')
+        msg = msg.decode('utf-8')
+        try:
+          msg = json.loads(msg)
+        except:
+          pass
+        # to = to.decode('utf-8')
+        self.write_message(json.dumps([topic, msg]))
+        # self.write_message(msg, binary=True)
       # self.write_message("HI")
 
     def on_message(self, message):
@@ -172,10 +268,9 @@ class NodeSocket(WebSocketHandler):
 
         try:
           msg     = json.loads(message)
-          # print(msg, flush=True)
+          print(msg, flush=True)
           to = msg.pop(0)
           action = None
-          data = []
           
           action = msg.pop(0)
           content = None
@@ -192,16 +287,18 @@ class NodeSocket(WebSocketHandler):
               print(res, flush=True)
               self.write_message(res, binary=True)
           elif action == 'SUB':
-            self.pubsub.subscribe(to, content)
+            self.node_connector.subscribe(to, content)
           elif action == 'UNSUB':
-            self.pubsub.unsubscribe(to, content)
+            self.node_connector.unsubscribe(to, content)
           else:
 
-            res = self.pubsub.make_request(to, action, content)
+            res = self.node_connector.make_request(to, action, content)
+            print(f"MAKE REQUEST = {res}", flush=True)
+            self.write_message(json.dumps(res))
         except Exception as err:
           print("EXCEPTION", flush=True)
           print(str(err), flush=True)
-          self.write_message({"error": str(err)})
+          self.write_message(json.dumps([to+".request", {"error": str(err)}]))
 
         
     
@@ -209,11 +306,18 @@ class NodeSocket(WebSocketHandler):
         print('ws closed')
 
     def on_data(self, data):
-        # print(f"WS ON DATA {data}", flush=True)
+        print(f"WS ON DATA {data}", flush=True)
         # print(data, flush=True)
-        node_identifier, request_id, msg = data
+        node_identifier, to, msg = data
         # print(node_identifier, flush=True)
-        self.write_message(msg, binary=True)
+        msg = msg.decode('utf-8')
+        try:
+          msg = json.loads(msg)
+        except:
+          pass
+        to = to.decode('utf-8')
+        self.write_message(json.dumps([to, msg]))
+
         # if sub == self.subscription:
         #   data = self.pubsub.request.recv_pyobj()
         #   print(data)
@@ -272,11 +376,13 @@ class APIServer(object):
     _app = Application([
       (r"/document",  DocumentResource, dict(document=self.document_store)),
       (r"/files",     FileResource, dict(node=self.node_server)),
+      (r"/devices",  DeviceResource, dict(node=self.node_server)),
       (r"/printers",  PrinterResource),
       (r"/cameras",   CameraResource),
       (r"/ports",     PortsResource),
-      (r"/serial",    SerialResource),
+      (r"/serial",    SerialResource),      
       (r"/node/(.*)",   NodeSocket, dict(node=self.node_server)),
+      (r"/node",   NodeSocket, dict(node=self.node_server)),
       (r"/webcam/(.*)",   WebcamHandler, dict(node=self.node_server)),
       (r"/app/(.*)",  StaticFileHandler, dict(path = STATIC_FOLDER)),
     ], **settings)

@@ -61,10 +61,15 @@ class SerialConnector(object):
       self.thread_read.start()
 
   def write(self, msg):
+    if not self.serial or not self.serial.is_open:      
+      return {"error": "Serial Connection is not opened"}
+
     try:
       self.serial.write(msg)
+      return {"success": "ok"}
     except Exception as e:
       print('Serial Writer: {}'.format(e))
+      return {"error": "Could Not Write To Serial Port", "reason": str(e)}
 
 
   def reader(self, ctx):
@@ -82,14 +87,14 @@ class SerialConnector(object):
               # data += self.serial.read()
               # print(f"INSIDE READER {data}", flush=True)
               if b'\n' in data:
-                  publisher.send_multipart([self.identity, b'resp', data])
+                  publisher.send_multipart([self.identity+b'.connector', b'resp', data])
                   data = b''
           except Exception as e:
               # except socket.error as msg: 
               print('Serial Reader: {}'.format(e))
               # probably got disconnected
               # self.serial.close()
-              publisher.send_multipart([self.identity, b'error', str(e).encode('ascii')])
+              publisher.send_multipart([self.identity+b'.connector', b'error', str(e).encode('ascii')])
               break
      
       self.alive = False
