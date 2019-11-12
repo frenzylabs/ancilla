@@ -93,7 +93,9 @@ class PrintTask(DeviceTask):
 
           print(f"CurCmd: {self.current_command.command}", flush=True)
           
-          while (self.current_command.status == "pending" or self.current_command.status == "running"):
+          while (self.current_command.status == "pending" or 
+                self.current_command.status == "running" or 
+                self.current_command.status == "busy"):
             await sleep(0.1)
             if self.state.status != "running":
               break
@@ -128,6 +130,7 @@ class PrintTask(DeviceTask):
     device.print_queued = False
     device.current_print = None
     self.state_callback.stop()
+    self.device.fire_event("print.state", self.state)
     return {"state": self.state}
 
   def cancel(self, request_id):

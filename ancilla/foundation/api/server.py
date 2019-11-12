@@ -28,7 +28,8 @@ from .resources import (
   DocumentResource,
   CameraResource,
   WebcamHandler,
-  DeviceResource
+  DeviceResource,
+  PrintResource
 )
 
 # Sockets
@@ -227,7 +228,7 @@ class NodeSocket(WebSocketHandler):
         if (len(args) > 0):
           subscription = args[0]
         
-        print("OPEN NODE SOCKET", flush=True)
+        # print("OPEN NODE SOCKET", flush=True)
         self.subscription = subscription
         self.node_connector = ZMQNodePubSub(self.node, self.on_data, self.subscribe_callback)
         self.node_connector.connect()
@@ -240,8 +241,8 @@ class NodeSocket(WebSocketHandler):
         print('ws node opened')
     
     def subscribe_callback(self, data):
-      print("SUBSCRIBE CB", flush=True)
-      print(data, flush=True)
+      # print("SUBSCRIBE CB", flush=True)
+      # print(data, flush=True)
       if data and len(data) > 2:
         topic, status, msg, *other = data
         # print(topic, flush=True)
@@ -378,6 +379,7 @@ class APIServer(object):
       (r"/files",     FileResource, dict(node=self.node_server)),
       (r"/devices",  DeviceResource, dict(node=self.node_server)),
       (r"/printers",  PrinterResource),
+      (r"/prints",  PrintResource),
       (r"/cameras",   CameraResource),
       (r"/ports",     PortsResource),
       (r"/serial",    SerialResource),      

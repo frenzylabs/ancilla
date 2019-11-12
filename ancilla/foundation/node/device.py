@@ -39,6 +39,7 @@ class Device(object):
         self.data_handlers = []
         self.task_queue = Queue()
         self.current_task = {}
+        self.state = {}
         # self.ping_at = time.time() + 1e-3*PING_INTERVAL
         # self.expires = time.time() + 1e-3*SERVER_TTL
 

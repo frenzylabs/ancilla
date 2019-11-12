@@ -11,9 +11,16 @@ from ...data.models import Print
 
 class PrintResource(BaseHandler):
   def get(self, *args, **kwargs):
+    prnts = Print.select().order_by(Print.created_at.desc())
+    pid = self.get_argument('printer_id', None)
+    if pid:
+      prnts = prnts.where(Print.printer_id==pid)
+    limit = self.get_argument('limit', None)
+    if limit:
+      prnts = prnts.limit(limit)
 
     self.write(
-      {'prints': [prints.json for prints in Print.select()]}
+      {'prints': [prints.json for prints in prnts]}
     )
     # self.finish()
 

@@ -27,6 +27,7 @@ from ..tasks.device_task import PeriodicTask
 from ..tasks.print_task import PrintTask
 
 from .middleware import PrinterHandler
+from ...utils import Dotdict
 
 class CommandQueue(object):
     current_command = None
@@ -75,7 +76,7 @@ class Printer(Device):
     ping_at = 0             # Next ping at this time
     expires = 0             # Expires at this time
     workers = []
-    state = "IDLE"
+    # state = "IDLE"
     print_queued = False
     current_print = None
     task_queue = Queue()
@@ -88,8 +89,18 @@ class Printer(Device):
         self.port = self.record['port']
         self.baud_rate = self.record['baud_rate']
 
+
+
         
         super().__init__(ctx, name, **kwargs)
+
+        self.state = Dotdict({
+          "status": "Idle",
+          "connected": False, 
+          "alive": False,
+          "printing": False
+        })
+
         print(f"INSIDE PRINTER INIT = {self.identity}", flush=True)
         self.register_data_handlers(PrinterHandler(self))
 
@@ -105,11 +116,19 @@ class Printer(Device):
         # if not self.connector:
         #   self.connector = SerialConnector(self.ctx, self.identity, self.port, self.baud_rate)
         # else:
-        self.connector.open()
-        print("Printer Connect", flush=True)
-        self.connector.run()
-        self.fire_event("connection.opened", {"status": "success"})
-        return {"status": "connected"}
+        print("INSIDE PRINTER CONNECT", flush=True)
+        res = self.connector.open()
+        if res["status"] == "success":
+          print("Printer Connect", flush=True)
+          self.connector.run()
+          self.state.connected = True
+          self.fire_event("connection.opened", {"status": "success"})
+          return {"status": "connected"}
+        else:
+          print("Printer Connect False", flush=True)
+          self.state.connected = False
+          self.fire_event("connection.failed", res)
+          return res
       except Exception as e:
         print(f'Exception Open Conn: {str(e)}')
         self.fire_event("connection.failed", {"error": str(e)})
@@ -118,9 +137,11 @@ class Printer(Device):
 
     def stop(self, *args):
       print("Printer Stop", flush=True)
-      self.connector.close()
-      self.command_queue.clear()
-      self.fire_event("connection.closed", {"status": "success"})
+      res = self.connector.close()
+      self.command_queue.clear()      
+      self.state.connected = False
+      self.fire_event("connection.closed", res)
+      return res
 
     def close(self, *args):
       self.stop(args)
@@ -204,20 +225,31 @@ class Printer(Device):
       serialopen = False
       if self.connector and self.connector.serial:
         serialopen = self.connector.serial.is_open
+        self.state.connected = True
+        self.state.status = 'Ready'
+      else:
+        self.state.connected = False
+        self.state.status = 'Disconnected'
 
-      return {"open": serialopen, "alive": self.connector.alive, "state": self.state }
+      return self.state
+
+      # return {"open": serialopen, "alive": self.connector.alive, "state": self.state }
 
     def pause(self, *args):
       if self.current_task["print"]:
         self.current_task["print"].pause()
-      if self.state == "printing":
-        self.state = "paused"
+      # if self.state == "printing":
+      #   self.state = "paused"
+      self.state.status = 'Idle'
+      self.state.printing = False
       return {"state": self.state}
 
     def cancel(self, request_id, *args):
       if self.current_task["print"]:
         self.current_task["print"].cancel(request_id)
-      self.state = "idle"
+
+      self.state.status = 'Idle'
+      self.state.printing = False
       return {"state": self.state}
       
 

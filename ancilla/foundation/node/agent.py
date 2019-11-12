@@ -188,12 +188,17 @@ class NodeAgent(object):
 
               activedevice = self.active_devices.get(identity)
 
+              if not activedevice:
+                device_model = self.device_models.get(identity)
+                if device_model:
+                  activedevice = self.__connect_device(identity, device_model)
+                else:
+                  name = identity.decode('utf-8')
+                  device_model = self.add_device(identity, name, kind)
+                  activedevice = self.__connect_device(identity, device_model)
+  
               if activedevice:
-                # [b'-1', action, *lparts = msg
-                res = activedevice.send([b'-1', action, other])
-                # if type(res) == dict:
-                #   response.update({"resp"})
-                
+                res = activedevice.send([b'-1', action] + other)
                 response.update({"resp": res})
                 
                 res = json.dumps(response)
@@ -202,13 +207,21 @@ class NodeAgent(object):
                 response.update({"resp": {"error": 'Device Not Active'}})
                 self.pipe.send_multipart([identity, b'error', json.dumps(response).encode('ascii')])
 
-              # DeviceCls = getattr(importlib.import_module("ancilla.foundation.node.devices"), kind)
+              # if activedevice:
+              #   # [b'-1', action, *lparts = msg
+              #   res = activedevice.send([b'-1', action, other])
+              #   # if type(res) == dict:
+              #   #   response.update({"resp"})
+                
+              #   response.update({"resp": res})
+                
+              #   res = json.dumps(response)
+              #   self.pipe.send_multipart([identity, b'success', res.encode('ascii')])
+              # else:
+              #   response.update({"resp": {"error": 'Device Not Active'}})
+              #   self.pipe.send_multipart([identity, b'error', json.dumps(response).encode('ascii')])
 
-              # device = DeviceCls(self.ctx, identity)
-              # device.start()
-              # self.devices[identity] = device
-              # self.actives.append(device)
-              # self.pipe.send_multipart([identity, b'Success', b'Printer Started'])
+
             except Exception as e:
               print(f"EXception connecting device {str(e)}")
               self.pipe.send_multipart([identity, b'error', json.dumps({"error": 'Could Not Make Request', "reason": str(e)}).encode('ascii')])

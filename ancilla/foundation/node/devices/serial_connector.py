@@ -35,7 +35,7 @@ class SerialConnector(object):
     
   def create_serial(self):
     # print("create serial", flush=True)
-    self.serial = serial.Serial(self.port, self.baud_rate, timeout=4.0)
+    self.serial = serial.Serial(self.port, self.baud_rate, timeout=2.0)
     # self.serial.xonxoff = False     #disable software flow control
     # self.serial.rtscts = False     #disable hardware (RTS/CTS) flow control
     # self.serial.dsrdtr = False       #disable hardware (DSR/DTR) flow control
@@ -115,12 +115,14 @@ class SerialConnector(object):
         # print(f"OPEN SERIAL {self.alive}", flush=True)
         # self
         self.create_serial()
+        return {"status": "success"}
         # self.serial = serial.Serial(self.port, self.baud_rate, timeout=4.0)
       # elif self.serial.is_closed:
       #   print("closeing IS OPEN")
       #   self.close()
     except Exception as e:
       print(f'Serial Open Exception {str(e)}')
+      return {"status": "error", "reason": str(e)}
     
     # self.serial.open()
     
@@ -140,15 +142,17 @@ class SerialConnector(object):
       try:
         # print("CLOSE SERIAL", flush=True)
         if self.serial:
-          self.serial.flush()
+          # self.serial.flush()
           self.serial.reset_input_buffer()
           self.serial.reset_output_buffer()
           self.serial.close()
           del self.serial
-          time.sleep(2)
+          time.sleep(1)
           self.serial = None
+        return {"status": "success"}
       except Exception as e:
         print(f"SErail close {str(e)}", flush=True)
+        return {"status": "error", "reason": str(e)}
       # finally:
       #   del self.serial
       #   self.serial = None
