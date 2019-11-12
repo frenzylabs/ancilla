@@ -43,6 +43,7 @@ class PrintTask(DeviceTask):
       sf = SliceFile.get(fid)
       device.current_print = Print(name=name, status="running", request_id=request.id, printer_snapshot=device.record, printer=device.printer, slice_file=sf)
       device.current_print.save(force_insert=True)   
+      device.state.printing = True
       self.state.status = "running"
       self.state.print = device.current_print.json
       
@@ -123,6 +124,7 @@ class PrintTask(DeviceTask):
       self.state.reason = str(e)
       print(f"Print Exception: {str(e)}", flush=True)
 
+    device.current_print.status = self.state.status
     device.current_print.save()
     self.state.print = device.current_print.json
     device.fire_event("print."+self.state.status, self.state)
