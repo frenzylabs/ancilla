@@ -36,10 +36,10 @@ from zmq.eventloop.ioloop import PeriodicCallback
 
 
 from ..tasks.device_task import PeriodicTask
-# from ..tasks.print_task import PrintTask
+from ..tasks.camera_record_task import CameraRecordTask
 
 from .middleware import CameraHandler
-
+from ...utils import Dotdict
 
     
 
@@ -63,7 +63,15 @@ class Camera(Device):
 
         
         super().__init__(ctx, name, **kwargs)
-        self.register_data_handlers(CameraHandler(self))
+        self.camera_handler = CameraHandler(self)
+        self.register_data_handlers(self.camera_handler)
+
+        self.state = Dotdict({
+          "status": "Idle",
+          "connected": False, 
+          "alive": False,
+          "recording": False
+        })
         # self.register_data_handlers(PrinterHandler(self))
 
 
@@ -126,19 +134,42 @@ class Camera(Device):
         print(f"Cant periodic task {str(e)}", flush=True)
 
 
-    def start_print(self, request_id, data):
+    def stop_recording(self, request_id, data):
       try:
         res = data.decode('utf-8')
         payload = json.loads(res)
-        name = payload.get("name") or "PeriodicTask"
-        method = payload.get("method")
-        pt = PrintTask(name, request_id, payload)
+        name = payload.get("name") or "recording"
+        if self.current_task[name]:
+          self.current_task[name].cancel()
+        
+        self.state.status = 'Idle'
+        self.state.recording = False
+        return {"state": self.state}
+
+        # # method = payload.get("method")
+        # pt = CameraRecordTask(name, self, payload)
+        # self.task_queue.put(pt)
+        # loop = IOLoop().current()
+        # loop.add_callback(partial(self._process_tasks))
+
+      except Exception as e:
+        print(f"Can't stop recording task {str(e)}", flush=True)
+
+        return {"status": "failed", "reason": str(e)}
+
+    def start_recording(self, request_id, data):
+      try:
+        res = data.decode('utf-8')
+        payload = json.loads(res)
+        name = payload.get("print_id") or "recording"
+        # method = payload.get("method")
+        pt = CameraRecordTask(name, self, payload)
         self.task_queue.put(pt)
         loop = IOLoop().current()
         loop.add_callback(partial(self._process_tasks))
 
       except Exception as e:
-        print(f"Cant periodic task {str(e)}", flush=True)
+        print(f"Cant record task {str(e)}", flush=True)
 
       return {"queued": "success"}
 

@@ -87,14 +87,14 @@ class SerialConnector(object):
               # data += self.serial.read()
               # print(f"INSIDE READER {data}", flush=True)
               if b'\n' in data:
-                  publisher.send_multipart([self.identity, b'resp', data])
+                  publisher.send_multipart([self.identity+ b'.data_received', b'resp', data])
                   data = b''
           except Exception as e:
               # except socket.error as msg: 
               print('Serial Reader: {}'.format(e))
               # probably got disconnected
               # self.serial.close()
-              publisher.send_multipart([self.identity, b'error', str(e).encode('ascii')])
+              publisher.send_multipart([self.identity + b'.data_received', b'error', str(e).encode('ascii')])
               break
      
       self.alive = False
@@ -106,6 +106,7 @@ class SerialConnector(object):
         print('ErrorSerial Reader: {}'.format(e))
 
       # publisher.close()
+      publisher.send_multipart([self.identity+ b'.connection.closed', b'closed', b'{"connected": False}'])
       print('reader thread terminated', flush=True)
 
 

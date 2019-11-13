@@ -9,15 +9,33 @@ class PrinterHandler(DataHandler):
       if not data or len(data) < 3:
         return
 
-      identifier, status, msg = data
+      fromidentifier, status, msg = data
+
+      identifier, *rest = fromidentifier.split(b'.')
+
+      newmsg = ""
+      decodedmsg = ""
       if type(msg) == bytes:
-          msg = msg.decode('utf-8')
+          decodedmsg = msg.decode('utf-8')
+      else:
+        decodedmsg = msg
+
+      if len(rest) > 0:
+        eventkind = b'.'.join(rest)
+      else:
+        eventkind = b'data_received'
+
+      if eventkind == b'connection.closed':
+        device.state.connected = False
+        self.device.fire_event("connection.closed", device.state)
 
 
-      newmsg = msg
+      # newmsg = msg
       prefix = "echo:"
-      if msg.startswith(prefix):
-        newmsg = msg[len(prefix):]
+      if decodedmsg.startswith(prefix):
+        newmsg = decodedmsg[len(prefix):]
+      else:
+        newmsg = decodedmsg
 
       
       cmd = self.device.command_queue.current_command
@@ -50,6 +68,6 @@ class PrinterHandler(DataHandler):
         payload = {"status": status.decode('utf-8'), "resp": newmsg}
 
       
-      return [b'events.printer.data_received', identifier, json.dumps(payload).encode('ascii')]
+      return [b'events.printer.'+ eventkind, identifier, json.dumps(payload).encode('ascii')]
       # super().on_data(data)
       # return data

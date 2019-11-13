@@ -202,7 +202,9 @@ class Printer(Device):
         elif cmd.nowait:
           self.command_queue.finish_command()
         else:
-          cmd.save()        
+          cmd.save()
+      elif cmd.status != "running":
+        self.command_queue.finish_command(status=cmd.status)     
       else:
         print(f"CMD is Running {cmd.command}", flush=True)
         IOLoop.current().add_callback(self.process_commands)

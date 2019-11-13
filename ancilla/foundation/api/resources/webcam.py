@@ -90,7 +90,7 @@ class WebcamHandler(RequestHandler):
       x = cv2.resize(frame, dsize=(640, 480), interpolation=cv2.INTER_CUBIC)
       # print(x.shape)
 
-      x = x.astype(np.uint8)
+      # x = x.astype(np.uint8)
       (flag, encodedImage) = cv2.imencode(".jpg", x)
 
       self.write(b'--frame\r\n')

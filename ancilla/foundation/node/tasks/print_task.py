@@ -22,8 +22,7 @@ class PrintTask(DeviceTask):
     super().__init__(name, *args)
     self.request_id = request_id
     self.payload = payload
-    self.state = Dotdict({"status": "pending", "print": {}})
-    
+    self.state = Dotdict({"status": "pending", "model": {}})
 
     # ["wessender", "start_print", {"name": "printit", "file_id": 1}]
 
@@ -44,8 +43,11 @@ class PrintTask(DeviceTask):
       device.current_print = Print(name=name, status="running", request_id=request.id, printer_snapshot=device.record, printer=device.printer, slice_file=sf)
       device.current_print.save(force_insert=True)   
       device.state.printing = True
+      self.device.fire_event("printer.state", self.device.state)
+
       self.state.status = "running"
-      self.state.print = device.current_print.json
+      self.state.model = device.current_print.json
+      self.state.id = device.current_print.id
       
       device.fire_event("print.started", self.state)
       # num_commands = file_len(sf.path)
@@ -99,6 +101,7 @@ class PrintTask(DeviceTask):
                 self.current_command.status == "busy"):
             await sleep(0.1)
             if self.state.status != "running":
+              self.current_command.status = self.state.status
               break
 
           print(f'InsidePrintTask curcmd= {self.current_command}', flush=True)
@@ -126,13 +129,15 @@ class PrintTask(DeviceTask):
 
     device.current_print.status = self.state.status
     device.current_print.save()
-    self.state.print = device.current_print.json
+    self.state.model = device.current_print.json
     device.fire_event("print."+self.state.status, self.state)
     print(f"FINISHED PRINT {self.state}", flush=True)
     device.print_queued = False
     device.current_print = None
     self.state_callback.stop()
     self.device.fire_event("print.state", self.state)
+    self.device.state.printing = False
+    self.device.fire_event("printer.state", self.device.state)
     return {"state": self.state}
 
   def cancel(self, request_id):
@@ -144,7 +149,7 @@ class PrintTask(DeviceTask):
 
   def get_state(self):
     print("get state", flush=True)
-    self.state.print = self.device.current_print.json
+    self.state.model = self.device.current_print.json
     self.device.fire_event("print.state", self.state)
     
     # self.publish_request(request)
