@@ -34,6 +34,13 @@ class CameraRecordTask(DeviceTask):
     self.root_path = "/".join([Env.ancilla, "devices", device.name, "recordings", self.name])
     if not os.path.exists(self.root_path):
       os.makedirs(self.root_path)
+    self.image_path = self.root_path + "/images"
+    if not os.path.exists(self.image_path):
+      os.makedirs(self.image_path)
+    self.video_path = self.root_path + "/videos"
+    if not os.path.exists(self.video_path):
+      os.makedirs(self.video_path)
+    
 
     print(f"CR root path = {self.root_path}")
 
@@ -85,12 +92,15 @@ class CameraRecordTask(DeviceTask):
       frame = pickle.loads(self.current_frame)
       frame = cv2.flip(frame, 1)
 
-      x = cv2.resize(frame, dsize=(640, 480), interpolation=cv2.INTER_CUBIC)
+      x = cv2.resize(frame, dsize=self.video_size, interpolation=cv2.INTER_CUBIC)
       # print(x.shape)
 
       # x = x.astype(np.uint8)
       # (flag, encodedImage) = cv2.imencode(".jpg", x)
-      cv2.imwrite(self.root_path+"/"+imgname, x)
+  
+      cv2.imwrite(self.image_path+"/"+imgname, x)
+      if self.video_writer:
+        self.video_writer.write(x)
       self.current_frame_num += 1
       self.current_frame = None
     except Exception as e:
@@ -165,11 +175,21 @@ class CameraRecordTask(DeviceTask):
     # self.device = device
     try:
       # print(f"CONTENT = {content}", flush=True)
-      self.timelapse = self.payload.get("timelapse") or 3000
+      self.timelapse = int(self.payload.get("timelapse") or 2) * 1000
+      self.settings = self.payload.get("settings") or {"size": [640, 480]}
+      width, height = self.settings.get("size") or [640, 480]
+      self.video_size = (width, height)
+      self.video_settings = self.payload.get("videoSettings") or {"format": "mp4v"}
+      self.video_format = self.video_settings.get("format") or "mp4v"      
+      self.video_fps = int(self.video_settings.get("fps") or 10)
+      # print(f"self.video_Fps {self.video_fps}  vsize: {self.video_size}, vformat: {self.video_format}", flush=True)
+      self.video_writer = cv2.VideoWriter(self.video_path + "/output.mov", cv2.VideoWriter_fourcc(*self.video_format), self.video_fps, self.video_size)
+      # # out = cv2.VideoWriter('output.avi',cv2.VideoWriter_fourcc('M','J','P','G'), 29, videosize)
+      # out = cv2.VideoWriter('output.mov',cv2.VideoWriter_fourcc('m','p','4','v'), 29, videosize)
       # name = self.payload.get("name") or ""
       # sf = SliceFile.get(fid)
       
-      self.recording = CameraRecording(image_path=self.root_path)
+      self.recording = CameraRecording(image_path=self.image_path, video_path=self.video_path)
       self.recording.camera = self.device.camera_model
       self.recording.save(force_insert=True) 
 
@@ -201,6 +221,8 @@ class CameraRecordTask(DeviceTask):
     self.device.state.recording = False
     self.event_stream.close()
     self.flush_callback.stop()
+    if self.video_writer:
+      self.video_writer.release()
     return {"state": self.state}
 
   def cancel(self):

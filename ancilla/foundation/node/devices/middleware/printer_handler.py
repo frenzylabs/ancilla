@@ -26,8 +26,8 @@ class PrinterHandler(DataHandler):
         eventkind = b'data_received'
 
       if eventkind == b'connection.closed':
-        device.state.connected = False
-        self.device.fire_event("connection.closed", device.state)
+        self.device.state.connected = False
+        self.device.fire_event("connection.closed", self.device.state)
 
 
       # newmsg = msg
