@@ -26,13 +26,12 @@ class FileResource(BaseHandler):
 
 
   def post(self):
-    incoming        = self.request.files['file'][0]
-    
+    incoming        = self.request.files['file'][0]    
     name            = "".join(random.choice(string.ascii_lowercase + string.digits) for x in range(6))    
     original_name   = incoming.get('filename') or incoming.get('name') or f"{name}.txt"
     ext             = os.path.splitext(original_name)[1]
     filename        = name + ext
-    filepath        = "{}/{}".format(self.root_path, filename)
+    filepath        = self._path_for_file(filename)
     output          = open(filepath, 'wb')
     
     output.write(incoming['body'])
@@ -48,3 +47,15 @@ class FileResource(BaseHandler):
     )
     self.finish()
 
+  def delete(self):
+    id          = self.get_argument('file_id', None)
+    slice_file  = SliceFile.get_by_id(id)
+
+    os.remove(slice_file.path)
+    slice_file.delete()
+
+    self.set_status(200, "")
+    self.write()
+
+  def _path_for_file(self, filename):
+    return "{}/{}".format(self.root_path, filename)

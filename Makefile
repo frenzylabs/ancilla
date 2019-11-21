@@ -16,7 +16,7 @@ clean:
 	&& rm -rf ui/.cache \
 	&& rm -rf ~/.ancilla
 
-run: bundle_js
+run:
 	@RUN_ENV=DEV python -m ancilla
 
 bundle_js:
