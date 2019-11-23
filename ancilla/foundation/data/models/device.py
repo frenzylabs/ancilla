@@ -11,9 +11,11 @@ from .base import BaseModel
 from peewee import (
   CharField,
   TextField,
-  IntegerField,
-  ForeignKeyField
+  IntegerField
 )
+
+from playhouse.sqlite_ext import JSONField
+
 
 class Device(BaseModel):
   name          = CharField()
@@ -29,6 +31,7 @@ class Device(BaseModel):
     }
 
 
+
   def __repr__(self):
     return "{}, {}, {}".format(
       self.id, 
@@ -38,3 +41,4 @@ class Device(BaseModel):
 
   class Meta:
     table_name = "devices"
+

@@ -25,5 +25,5 @@ class BaseHandler(RequestHandler):
       if not self.request.headers.get('Content-Type').startswith('multipart/form-data'):
         self.params = json_decode(self.request.body)
 
-  def options(self):
+  def options(self, *args):
     pass

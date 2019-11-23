@@ -8,11 +8,12 @@ import zmq.asyncio
 import json
 from tornado.queues import Queue
 from tornado.ioloop import IOLoop
-from .zhelpers import zpipe
-from ..data.models import Printer
+from ..zhelpers import zpipe
+from .events import Event
+# from .devices.events import Event
 # from .devices import *
 
-class Device(object):
+class BaseService(object):    
     # endpoint = None         # Server identity/endpoint
     # identity = None
     alive = True            # 1 if known to be alive
@@ -40,9 +41,11 @@ class Device(object):
         self.task_queue = Queue()
         self.current_task = {}
         self.state = {}
+        self.events = []
         # self.ping_at = time.time() + 1e-3*PING_INTERVAL
         # self.expires = time.time() + 1e-3*SERVER_TTL
 
+        zmq.Context()
         self.ctx = ctx #zmq.Context()
 
         self.pusher = self.ctx.socket(zmq.PUSH)
@@ -74,6 +77,9 @@ class Device(object):
         # self.input_stream.on_send(self.input_sent)
         IOLoop.current().add_callback(self.start_receiving)
         # sys.stderr.flush()
+
+
+    # def subscribe_to_event(self, event_name, event_handler):
 
 
     def start_receiving(self):
@@ -155,6 +161,9 @@ class Device(object):
 
 
     def fire_event(self, evtname, payload):
+      print("fire event", evtname)
+      if isinstance(evtname, Event):
+        evtname = evtname.value()
       evtname = evtname.encode('ascii')
       payload["device"] = self.name
       pstring = json.dumps(payload).encode('ascii')

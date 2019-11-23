@@ -8,7 +8,7 @@ import zmq.asyncio
 from tornado.ioloop import IOLoop
 from ..zhelpers import zpipe
 from ...data.models import Printer
-# from .devices import *
+
 from tornado.gen        import sleep
 from functools import partial
 

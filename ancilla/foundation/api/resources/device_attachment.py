@@ -12,24 +12,29 @@ from .base      import BaseHandler
 from ...serial  import SerialConnection
 
 import importlib
-from ...data.models import Device
+from ...data.models import Device, DeviceAttachment
 
-class DeviceResource(BaseHandler):
-  def initialize(self, node):
+class DeviceAttachmentResource(BaseHandler):
+  def initialize(self, node, **kwargs):
     self.node = node
 
-  def get(self, *args):
-    # print("INSIDE GET REQUEST", device_id)
+  def get(self, device_id, *args):
+    print("INSIDE GET REQUEST", device_id)
     self.write(
-      {'devices': [da.json for da in Device.select()]}
+      {'attachments': [da.json for da in DeviceAttachment.select().where(DeviceAttachment.parent_id == device_id)]}
     )
 
-  def post(self, *args, **kwargs):
-    kind = self.params.get('kind', None)
-    name = self.params.get('name', None)
-    self.node.add_device(kind, name)
+  def post(self, device_id, *args):
+    dvc = Device.get_by_id(device_id)
+    print("INSIDE POST", *self.params)
+    attachment_id = self.params.get('attachment_id', None)
+    da = DeviceAttachment(attachment_id=attachment_id, parent_id=device_id)
+    da.save()
 
-    self.write("success")
+    
+    # self.node.add_device(kind, name)
+
+    self.write({"attachment": da})
     #   dict(
     #     baud_rates=SerialConnection.baud_rates(),
     #     ports=SerialConnection.list_ports()

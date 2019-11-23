@@ -14,5 +14,6 @@ from .print     import PrintResource
 from .camera    import CameraResource
 from .webcam    import WebcamHandler
 from .device    import DeviceResource
+from .device_attachment import DeviceAttachmentResource
 
 

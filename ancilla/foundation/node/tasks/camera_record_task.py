@@ -10,18 +10,21 @@ import json
 from tornado.ioloop import IOLoop
 from zmq.eventloop.ioloop import PeriodicCallback
 from ..zhelpers import zpipe
-from ...data.models import Printer, Print, SliceFile, DeviceRequest, CameraRecording
+from ...data.models import SliceFile, DeviceRequest, CameraRecording
 # from .devices import *
 from tornado.gen        import sleep
 from .device_task import DeviceTask
 
 from ...utils import Dotdict
 from ...env import Env
+from ..services.events import Camera
 
 import datetime
 import pickle
 import cv2
 import numpy as np
+
+
 
 class CameraRecordTask(DeviceTask):
   def __init__(self, name, device, payload, *args):
@@ -194,19 +197,19 @@ class CameraRecordTask(DeviceTask):
       self.recording.save(force_insert=True) 
 
       self.device.state.recording = True
-      self.device.fire_event("camera.state", self.device.state)
+      self.device.fire_event(Camera.state.changed, self.device.state)
 
       self.state.status = "recording"
       self.state.model = self.recording.json
       self.state.id = self.recording.id
       
-      self.device.fire_event("camera_recording.started", self.state)
+      self.device.fire_event(Camera.recording.started, self.state)
       self.flush_callback = PeriodicCallback(self.flush_camera_frame, self.timelapse)
       self.flush_callback.start()
       # num_commands = file_len(sf.path)
     except Exception as e:
       print(f"Cant record from camera {str(e)}", flush=True)
-      self.device.fire_event("camera_recording.failed", {"status": "failed", "reason": str(e)})
+      self.device.fire_event(Camera.recording.failed, {"status": "failed", "reason": str(e)})
       return {"status": "failed"}
 
     # self.state.status = "running"
@@ -217,7 +220,7 @@ class CameraRecordTask(DeviceTask):
     print("FINSIHED RECORDING", flush=True)
 
       
-    self.device.fire_event("camera_recording." + self.state.status, self.state)
+    self.device.fire_event(Camera.recording.state.changed, self.state)
     self.device.state.recording = False
     self.event_stream.close()
     self.flush_callback.stop()
@@ -235,7 +238,7 @@ class CameraRecordTask(DeviceTask):
   def get_state(self):
     print("get state", flush=True)
     self.state.model = self.device.current_print.json
-    self.device.fire_event("camera_recording.state", self.state)
+    self.device.fire_event(Camera.recording.state.changed, self.state)
     
     # self.publish_request(request)
   

@@ -10,12 +10,14 @@ import json
 from tornado.ioloop import IOLoop
 from zmq.eventloop.ioloop import PeriodicCallback
 from ..zhelpers import zpipe
-from ...data.models import Printer, Print, SliceFile, DeviceRequest
-# from .devices import *
+from ...data.models import Print, SliceFile, DeviceRequest
+
 from tornado.gen        import sleep
 from .device_task import DeviceTask
 
 from ...utils import Dotdict
+
+from ..services.events import Printer
 
 class PrintTask(DeviceTask):
   def __init__(self, name, request_id, payload, *args):
@@ -43,17 +45,17 @@ class PrintTask(DeviceTask):
       device.current_print = Print(name=name, status="running", request_id=request.id, printer_snapshot=device.record, printer=device.printer, slice_file=sf)
       device.current_print.save(force_insert=True)   
       device.state.printing = True
-      self.device.fire_event("printer.state", self.device.state)
+      self.device.fire_event(Printer.state.changed, self.device.state)
 
       self.state.status = "running"
       self.state.model = device.current_print.json
       self.state.id = device.current_print.id
       
-      device.fire_event("print.started", self.state)
+      device.fire_event(Printer.print.started, self.state)
       # num_commands = file_len(sf.path)
     except Exception as e:
       print(f"Cant get file to print {str(e)}", flush=True)
-      device.fire_event("print.failed", {"status": "failed", "reason": str(e)})
+      device.fire_event(Printer.print.failed, {"status": "failed", "reason": str(e)})
       # request.status = "failed"
       # request.save()
       # self.publish_request(request)
@@ -130,14 +132,18 @@ class PrintTask(DeviceTask):
     device.current_print.status = self.state.status
     device.current_print.save()
     self.state.model = device.current_print.json
-    device.fire_event("print."+self.state.status, self.state)
+    if self.state.status == "failed":
+      device.fire_event(Printer.print.failed, self.state)  
+    elif self.state.status == "finished":
+      device.fire_event(Printer.print.finished, self.state)  
+
     print(f"FINISHED PRINT {self.state}", flush=True)
     device.print_queued = False
     device.current_print = None
     self.state_callback.stop()
-    self.device.fire_event("print.state", self.state)
+    device.fire_event(Printer.print.state.changed, self.state)
     self.device.state.printing = False
-    self.device.fire_event("printer.state", self.device.state)
+    self.device.fire_event(Printer.state.changed, self.device.state)
     return {"state": self.state}
 
   def cancel(self, request_id):
@@ -149,8 +155,10 @@ class PrintTask(DeviceTask):
 
   def get_state(self):
     print("get state", flush=True)
+    st = self.state.json
     self.state.model = self.device.current_print.json
-    self.device.fire_event("print.state", self.state)
+    if st != self.state.json:
+      self.device.fire_event(Printer.print.state.changed, self.state)
     
     # self.publish_request(request)
   

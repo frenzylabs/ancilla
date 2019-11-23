@@ -29,7 +29,8 @@ from .resources import (
   CameraResource,
   WebcamHandler,
   DeviceResource,
-  PrintResource
+  PrintResource,
+  DeviceAttachmentResource
 )
 
 # Sockets
@@ -378,6 +379,8 @@ class APIServer(object):
       (r"/document",  DocumentResource, dict(document=self.document_store)),
       (r"/files",     FileResource, dict(node=self.node_server)),
       (r"/devices",  DeviceResource, dict(node=self.node_server)),
+      (r"/devices/(.*)/attachments",  DeviceAttachmentResource, dict(node=self.node_server)),
+      (r"/device_attachments/(.*)",  DeviceAttachmentResource, dict(node=self.node_server)),
       (r"/printers",  PrinterResource),
       (r"/prints",  PrintResource),
       (r"/cameras",   CameraResource),

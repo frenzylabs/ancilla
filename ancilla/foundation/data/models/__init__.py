@@ -14,3 +14,4 @@ from .print import Print
 from .slice_file import SliceFile
 from .camera import Camera
 from .camera_recording import CameraRecording
+from .device_attachment import DeviceAttachment

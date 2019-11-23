@@ -8,7 +8,7 @@ from tornado.ioloop import IOLoop
 
 from ..zhelpers import zpipe, socket_set_hwm
 from ...data.models import Printer as PrinterModel
-from ..device import Device
+from . import BaseService
 from .serial_connector import SerialConnector
 from ...env import Env
 from ...data.models import DeviceRequest, PrinterCommand, SliceFile, Print
@@ -22,6 +22,7 @@ from collections import OrderedDict
 import struct # for packing integers
 from zmq.eventloop.ioloop import PeriodicCallback
 
+from .events import Printer as PrinterEvent
 
 from ..tasks.device_task import PeriodicTask
 from ..tasks.print_task import PrintTask
@@ -68,7 +69,7 @@ class CommandQueue(object):
         return address
     
 
-class Printer(Device):
+class Printer(BaseService):
     connector = None
     endpoint = None         # Server identity/endpoint
     identity = None
@@ -82,6 +83,7 @@ class Printer(Device):
     task_queue = Queue()
     command_queue = CommandQueue()
 
+    # events = PrinterEvents
     def __init__(self, ctx, name, **kwargs):
         query = PrinterModel.select().where(PrinterModel.name == name).limit(1)
         self.printer = query[0]
@@ -122,16 +124,16 @@ class Printer(Device):
           print("Printer Connect", flush=True)
           self.connector.run()
           self.state.connected = True
-          self.fire_event("connection.opened", {"status": "success"})
+          self.fire_event(PrinterEvent.connection.opened, {"status": "success"})
           return {"status": "connected"}
         else:
           print("Printer Connect False", flush=True)
           self.state.connected = False
-          self.fire_event("connection.failed", res)
+          self.fire_event(PrinterEvent.connection.failed, res)
           return res
       except Exception as e:
         print(f'Exception Open Conn: {str(e)}')
-        self.fire_event("connection.failed", {"error": str(e)})
+        self.fire_event(PrinterEvent.connection.failed, {"error": str(e)})
         return {"error": str(e), "status": "failed"}
         # self.pusher.send_multipart([self.identity, b'error', str(e).encode('ascii')])
 
@@ -140,7 +142,7 @@ class Printer(Device):
       res = self.connector.close()
       self.command_queue.clear()      
       self.state.connected = False
-      self.fire_event("connection.closed", res)
+      self.fire_event(PrinterEvent.connection.closed, res)
       return res
 
     def close(self, *args):

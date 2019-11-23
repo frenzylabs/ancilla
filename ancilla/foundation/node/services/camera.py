@@ -20,7 +20,7 @@ from tornado.ioloop import IOLoop
 
 from ..zhelpers import zpipe, socket_set_hwm
 from ...data.models import Camera as CameraModel
-from ..device import Device
+from . import BaseService
 from ...env import Env
 from ...data.models import DeviceRequest
 from .camera_connector import CameraConnector
@@ -35,6 +35,7 @@ import struct # for packing integers
 from zmq.eventloop.ioloop import PeriodicCallback
 
 
+from .events import Camera as CameraEvent
 from ..tasks.device_task import PeriodicTask
 from ..tasks.camera_record_task import CameraRecordTask
 
@@ -43,7 +44,7 @@ from ...utils import Dotdict
 
     
 
-class Camera(Device):
+class Camera(BaseService):
     connector = None
     endpoint = None         # Server identity/endpoint
     identity = None
@@ -89,18 +90,18 @@ class Camera(Device):
         self.connector.open()
         print("Camera Connect", flush=True)
         self.connector.run()
-        self.fire_event("connection.opened", {"status": "success"})
+        self.fire_event(CameraEvent.connection.opened, {"status": "success"})
         return {"status": "connected"}
       except Exception as e:
         print(f'Exception Open Conn: {str(e)}')
-        self.fire_event("connection.failed", {"error": str(e)})
+        self.fire_event(CameraEvent.connection.failed, {"error": str(e)})
         return {"error": str(e), "status": "failed"}
         # self.pusher.send_multipart([self.identity, b'error', str(e).encode('ascii')])
 
     def stop(self, *args):
       print("Camera Stop", flush=True)
       self.connector.close()
-      self.fire_event("connection.closed", {"status": "success"})
+      self.fire_event(CameraEvent.connection.closed, {"status": "success"})
 
     def close(self, *args):
       self.stop(args)

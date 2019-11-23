@@ -1,4 +1,5 @@
 from .data_handler import DataHandler
+from ..events import Printer
 import json
 
 class PrinterHandler(DataHandler):
@@ -27,7 +28,7 @@ class PrinterHandler(DataHandler):
 
       if eventkind == b'connection.closed':
         self.device.state.connected = False
-        self.device.fire_event("connection.closed", self.device.state)
+        self.device.fire_event(Printer.connection.closed, self.device.state)
 
 
       # newmsg = msg

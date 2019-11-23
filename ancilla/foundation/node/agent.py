@@ -4,7 +4,7 @@ import zmq
 import importlib
 import json
 
-from .device import Device
+
 from ..data.models import Device
 
 class NodeAgent(object):
@@ -35,7 +35,7 @@ class NodeAgent(object):
         
     def __connect_device(self, identifier, model):
       try:
-        DeviceCls = getattr(importlib.import_module("ancilla.foundation.node.devices"), model.device_type)
+        DeviceCls = getattr(importlib.import_module("ancilla.foundation.node.services"), model.device_type)
         device = DeviceCls(self.ctx, identifier)
         device.start()
         time.sleep(0.1) # Allow connection to come up
