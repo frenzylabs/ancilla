@@ -45,17 +45,28 @@ class FileResource(BaseHandler):
     self.write(
       {'files': [slice_file.json for slice_file in SliceFile.select()]}
     )
+
     self.finish()
 
   def delete(self):
-    id          = self.get_argument('file_id', None)
-    slice_file  = SliceFile.get_by_id(id)
+    id = self.get_argument('file_id', None)
 
-    os.remove(slice_file.path)
-    slice_file.delete()
+    if not id:
+      self.set_status(404, "Not found")
+      self.write("File with id {} not found".format(id))
+      self.finish()
+
+      return
+
+    slice_file  = SliceFile.get_by_id(id)
+    slice_file.delete_instance()
+
+    if os.path.exists(slice_file.path):
+      os.remove(slice_file.path)
+
 
     self.set_status(200, "")
-    self.write()
+    self.write("")
 
   def _path_for_file(self, filename):
     return "{}/{}".format(self.root_path, filename)
