@@ -110,16 +110,18 @@ class ZMQNodePubSub(object):
         # self.request.on_recv(callback)
       self.subscriber.setsockopt(zmq.UNSUBSCRIBE, subscribetopic)
 
-    def make_request(self, to, action, msg = None):
-      if msg and type(msg) == dict:
-        msg = json.dumps(msg)
+    def make_request(self, target, action, msg = None):
+      # if msg and type(msg) == dict:
+      #   msg = json.dumps(msg)
         
       kind, *cmds = action.split(".")
       method = action
       if len(cmds) > 0:
         method = cmds[0]
+
+      wrapped = {"data": msg}
       
-      return self.node.run_action(method, msg, to) 
+      return self.node.run_action(method, wrapped, target) 
       
       # response = [to+".request"]
       # if to == "":
@@ -279,7 +281,7 @@ class NodeSocket(WebSocketHandler):
         try:
           msg     = json.loads(message)
           print(msg, flush=True)
-          to = msg.pop(0)
+          target = msg.pop(0)
           action = None
           
           action = msg.pop(0)
@@ -289,20 +291,13 @@ class NodeSocket(WebSocketHandler):
 
           # ['CONTROL', 'ADD|REMOVE' ]
           # ['to', 'SUBSCRIBE', '']
-          if to == "CMD":
-            if action == "ADD":
-              kind = content.get("kind")
-              name = content.get("name")
-              res = self.node.add_device(kind, name)
-              print(res, flush=True)
-              self.write_message(res, binary=True)
-          elif action == 'SUB':
-            self.node_connector.subscribe(to, content)
+          if action == 'SUB':
+            self.node_connector.subscribe(target, content)
           elif action == 'UNSUB':
-            self.node_connector.unsubscribe(to, content)
+            self.node_connector.unsubscribe(target, content)
           else:
 
-            res = self.node_connector.make_request(to, action, content)
+            res = self.node_connector.make_request(target, action, content)
             print(f"MAKE REQUEST = {res}", flush=True)
             self.write_message(json.dumps(res))
         except Exception as err:
@@ -385,21 +380,15 @@ class APIServer(object):
 
     _app = Application([
       (r"/document",  DocumentResource, dict(document=self.document_store)),
+      (r"/files",     FileResource, dict(node=self.node_server)),
       (r"/files(.*)",     FileResource, dict(node=self.node_server)),
-      # (r"/devices",  DeviceResource, dict(node=self.node_server)),
-      # (r"/devices/(.*)/attachments",  DeviceAttachmentResource, dict(node=self.node_server)),
-      # (r"/device_attachments/(.*)",  DeviceAttachmentResource, dict(node=self.node_server)),
-      # (r"/printers",  PrinterResource),
-      # (r"/prints",  PrintResource),
-      # (r"/cameras",   CameraResource),
       (r"/ports",     PortsResource),
-      # (r"/serial",    SerialResource),      
-      # (r"/files(.*)",   NodeApiHandler, dict(node=self.node_server)),
       (r"/smodel/(.*)",   NodeApiHandler, dict(node=self.node_server)),
       (r"/services/(.*)",   NodeApiHandler, dict(node=self.node_server)),
       (r"/services",   NodeApiHandler, dict(node=self.node_server)),
-      (r"/node/(.*)",   NodeSocket, dict(node=self.node_server)),
-      (r"/node",   NodeSocket, dict(node=self.node_server)),
+      (r"/node/(.*)",   NodeApiHandler, dict(node=self.node_server)),
+      (r"/node",   NodeApiHandler, dict(node=self.node_server)),
+      (r"/ws",   NodeSocket, dict(node=self.node_server)),
       (r"/webcam/(.*)",   WebcamHandler, dict(node=self.node_server)),
       (r"/app/(.*)",  StaticFileHandler, dict(path = STATIC_FOLDER)),
     ], **settings)

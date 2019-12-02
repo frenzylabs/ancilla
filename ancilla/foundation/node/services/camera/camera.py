@@ -19,7 +19,7 @@ import json
 from tornado.ioloop import IOLoop
 
 # from ..zhelpers import zpipe, socket_set_hwm
-from ....data.models import Camera as CameraModel
+from ....data.models import Camera as CameraModel, CameraRecording
 from ...base_service import BaseService
 
 # from ...data.models import DeviceRequest
@@ -33,11 +33,12 @@ from tornado.gen        import coroutine, sleep
 from collections import OrderedDict
 import struct # for packing integers
 from zmq.eventloop.ioloop import PeriodicCallback
+import string, random
 
 
 
 # from ..tasks.device_task import PeriodicTask
-# from ..tasks.camera_record_task import CameraRecordTask
+from ...tasks.camera_record_task import CameraRecordTask
 from ...events.camera import Camera as CameraEvent
 from ...middleware.camera_handler import CameraHandler
 from ...api.camera import CameraApi
@@ -55,7 +56,8 @@ class Camera(BaseService):
     
     # command_queue = CommandQueue()
     __actions__ = [
-      "start_recording"
+      "start_recording",
+      "stop_recording"
     ]
 
     def __init__(self, model, **kwargs):
@@ -171,21 +173,62 @@ class Camera(BaseService):
 
     #     return {"status": "failed", "reason": str(e)}
 
-    # def start_recording(self, request_id, data):
-    #   try:
+    def stop_recording(self, msg):
+      print(f"STOP RECORDING {msg}", flush=True)      
+      try:
+        payload = msg.get('data')
+        task_name = payload.get("task_name")
+        cr = None
+        if payload.get("recording_id"):
+          cr = CameraRecording.get_by_id(payload.get("recording_id"))
+          task_name = cr.task_name
+        elif task_name:          
+          cr = CameraRecording.select().where(CameraRecording.task_name == task_name).first()
+        else:
+          cr = CameraRecording.select().where(CameraRecording.status != "finished").first()
+          if cr:
+            task_name = cr.task_name
+
+        for k, v in self.current_task.items():
+            print(f"TASKkey = {k} and v = {v}", flush=True)
+
+        if task_name:
+          if self.current_task.get(task_name):
+            self.current_task[task_name].cancel()
+          else:
+            if not cr.status.startswith("finished"):
+              cr.status = "finished"
+              cr.reason = "Cleanup No Task"
+              cr.save()
+          return {"status": "success"}
+        else:
+          return {"status": "error", "error": "Task Not Found"}
+
+      except Exception as e:
+        print(f"Cant cancel recording task {str(e)}", flush=True)
+        return {"status": "error", "error": f"Could not cancel task {str(e)}"}
+
+    def start_recording(self, msg):
+      print(f"START RECORDING {msg}", flush=True)
+      
+      # return {"started": True}
+      try:
+        payload = msg.get('data')
     #     res = data.decode('utf-8')
     #     payload = json.loads(res)
-    #     name = payload.get("print_id") or "recording"
+        name = payload.get("print_id") or "".join(random.choice(string.ascii_lowercase + string.digits) for x in range(6))
     #     # method = payload.get("method")
-    #     pt = CameraRecordTask(name, self, payload)
-    #     self.task_queue.put(pt)
-    #     loop = IOLoop().current()
-    #     loop.add_callback(partial(self._process_tasks))
 
-    #   except Exception as e:
-    #     print(f"Cant record task {str(e)}", flush=True)
+        pt = CameraRecordTask(name, self, payload)
+        self.task_queue.put(pt)
+        loop = IOLoop().current()
+        loop.add_callback(partial(self._process_tasks))
+        return {"status": "success", "task": name}
 
-    #   return {"queued": "success"}
+      except Exception as e:
+        print(f"Cant record task {str(e)}", flush=True)
+        return {"status": "error", "error": f"Could not record {str(e)}"}
+
 
 
     # def publish_request(self, request):

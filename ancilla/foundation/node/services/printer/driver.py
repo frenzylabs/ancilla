@@ -90,7 +90,7 @@ class SerialConnector(object):
                   data = b''
           except Exception as e:
               # except socket.error as msg: 
-              print('Serial Reader: {}'.format(e))
+              print('Serial Reader Error: {}'.format(e))
               # probably got disconnected
               # self.serial.close()
               publisher.send_multipart([self.identity + b'.data_received', b'error', str(e).encode('ascii')])

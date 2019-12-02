@@ -36,10 +36,16 @@ class Service(BaseModel):
       'settings':  self.settings
     }
   
-  # @property
-  # def model(self):
-  #   if self.kind == "printer":
-  #     Printer
+  @property
+  def model(self):    
+    _model = None
+    if self.kind == "printer":
+      from .printer import Printer
+      _model = Printer.select().where(Printer.service == self).first()
+    elif self.kind == "camera":
+      from .camera import Camera
+      _model = Camera.select().where(Camera.service == self).first()
+    return _model
 
   @property
   def api_prefix(self):

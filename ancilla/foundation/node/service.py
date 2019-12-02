@@ -23,6 +23,7 @@ from ..data.models import Camera, Printer, Service
 from .api import NodeApi
 
 class NodeService(App):
+    __actions__ = []
     
     def __init__(self, identity=b'localhost'):
         super().__init__()
@@ -90,12 +91,13 @@ class NodeService(App):
 
         # self.data_stream.stop_on_recv()
 
+    def list_actions(self, *args):
+      return self.__actions__
 
     def mount_service(self, model):
-      print("MINSIDE MOUTN SERVICE")
+      print("INSIDE MOUNT SERVICE")
       prefix = model.api_prefix #f"/services/{model.kind}/{model.id}/"
       res = next((item for item in self._mounts if item.config['_mount.prefix'] == prefix), None)
-      print("RES = ", res)
       if res:
         return ["exist", res]
       ServiceCls = getattr(importlib.import_module("ancilla.foundation.node.services"), model.class_name)  
@@ -131,14 +133,12 @@ class NodeService(App):
         oldname = model.name
         model = instance
         if oldname != instance.name:
-          
-          print("Name changed", flush=True)
           self.handle_name_change(oldname, instance.name)
           
         if srv:
-          print(f"CURSETTINGS = {cur_settings}", flush=True)
-          print(f"ModelNEWSETTINGS = {json.dumps(model.settings)}", flush=True)
-          print(f"NEWSETTINGS = {json.dumps(srv.model.settings)}", flush=True)
+          # print(f"CURSETTINGS = {cur_settings}", flush=True)
+          # print(f"ModelNEWSETTINGS = {json.dumps(model.settings)}", flush=True)
+          # print(f"NEWSETTINGS = {json.dumps(srv.model.settings)}", flush=True)
           # "name": "myend", 
           # curconfig = json.dumps(self.model.configuration)
           srv.model = model
@@ -152,19 +152,28 @@ class NodeService(App):
       # self.service_models = {"printers": {}, "cameras": {"id": 1}, "files": {}}
       # res = [c for c in Camera.select()]
       # for c in Camera.select():
+      filemodel = Service.select().where(Service.kind == "file").first()
+      if not filemodel:
+        self.__create_file_service()
+
       for s in Service.select():
         self._services.append(s)
-        if s.kind == "file":
+        if s.kind == "file":          
           ServiceCls = getattr(importlib.import_module("ancilla.foundation.node.services"), s.class_name)  
           service = ServiceCls(s)
+          fileserviceexist = True
       
           self.mount(f"/services/{s.kind}/{s.id}/", service)
           
+      # if not fileserviceexist:
+        
       #   ServiceCls = getattr(importlib.import_module("ancilla.foundation.node.services"), s.class_name)  
       #   service = ServiceCls(s)
       #   self.mount(f"/services/{s.kind}s/{s.id}/", service)
-      # query = Service.select().where(Service.kind == "file").limit(1)
-      # if len(query) > 0:
+      # filemodel = Service.select().where(Service.kind == "file").first()
+      # if not filemodel:
+      #   self.__create_file_service()
+
       #   filemodel = query.get()
       # else:
       #   filemodel = self.__create_file_service()
@@ -191,21 +200,21 @@ class NodeService(App):
       # self.mount()
     def __create_file_service(self):
       service = Service(name="local", kind="file", class_name="FileService")
-      service.save()
+      service.save(force_insert=True)
       return service
 
-    def __connect_service(self, identifier, model):
-      try:
-        ServiceCls = getattr(importlib.import_module("ancilla.foundation.node.services"), model.device_type)
-        device = ServiceCls(self.ctx, identifier)
-        device.start()
-        time.sleep(0.1) # Allow connection to come up
-        # print("CONNECT DEVICE", flush=True)
-        self.active_devices[identifier] = device
-        return device
-      except Exception as e:
-          print(f"EXception connecting to device {str(e)}", flush=True)
-          raise Exception(f'Could Not Connect to Device: {str(e)}')
+    # def __connect_service(self, identifier, model):
+    #   try:
+    #     ServiceCls = getattr(importlib.import_module("ancilla.foundation.node.services"), model.device_type)
+    #     device = ServiceCls(self.ctx, identifier)
+    #     device.start()
+    #     time.sleep(0.1) # Allow connection to come up
+    #     # print("CONNECT DEVICE", flush=True)
+    #     self.active_devices[identifier] = device
+    #     return device
+    #   except Exception as e:
+    #       print(f"EXception connecting to device {str(e)}", flush=True)
+    #       raise Exception(f'Could Not Connect to Device: {str(e)}')
         
 
     def send(self, environ = {}, **kwargs):
@@ -217,16 +226,11 @@ class NodeService(App):
       if not target:
         target = self
       else:
-        print("has target", flush=True)
-        print(self._mounts, flush=True)
-        for item in self._mounts:
-          print(item)
-          print(item.name)
         target = next((item for item in self._mounts if item.name == target), self)
       
       print(f"target= {target} ", flush=True)
       try:
-        if action in target.__actions__:
+        if action in target.list_actions():
           method = getattr(target, action)
           res = method(payload)
           return res

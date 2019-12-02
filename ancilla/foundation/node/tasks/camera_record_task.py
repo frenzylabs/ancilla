@@ -10,14 +10,14 @@ import json
 from tornado.ioloop import IOLoop
 from zmq.eventloop.ioloop import PeriodicCallback
 from ..zhelpers import zpipe
-from ...data.models import SliceFile, DeviceRequest, CameraRecording
+from ...data.models import SliceFile, CameraRecording
 # from .devices import *
 from tornado.gen        import sleep
 from .ancilla_task import AncillaTask
 
 from ...utils import Dotdict
 from ...env import Env
-from ..services.events import Camera
+from ..events.camera import Camera
 
 import datetime
 import pickle
@@ -27,15 +27,15 @@ import numpy as np
 
 
 class CameraRecordTask(AncillaTask):
-  def __init__(self, name, device, payload, *args):
+  def __init__(self, name, service, payload, *args):
     super().__init__(name, *args)
     # self.request_id = request_id
     self.payload = payload
-    self.device = device
+    self.service = service
     # self.state = Dotdict({"status": "pending", "model": {}})
     self.state.update({"status": "pending", "model": {}})
     
-    self.root_path = "/".join([Env.ancilla, "devices", device.name, "recordings", self.name])
+    self.root_path = "/".join([Env.ancilla, "services", service.name, "recordings", self.name])
     if not os.path.exists(self.root_path):
       os.makedirs(self.root_path)
     self.image_path = self.root_path + "/images"
@@ -45,12 +45,17 @@ class CameraRecordTask(AncillaTask):
     if not os.path.exists(self.video_path):
       os.makedirs(self.video_path)
     
+    self.recording = CameraRecording(task_name=name, image_path=self.image_path, video_path=self.video_path, settings=self.payload, status="pending")
+    self.recording.camera = self.service.camera_model
+    self.recording.save(force_insert=True) 
+    # self.name = self.recording.id
 
     print(f"CR root path = {self.root_path}")
 
-    self.event_socket = self.device.ctx.socket(zmq.SUB)
+    self.event_socket = self.service.ctx.socket(zmq.SUB)
     self.event_socket.connect("ipc://publisher")
-    self.event_socket.setsockopt(zmq.SUBSCRIBE, self.device.identity + b'.events.camera.data_received')
+    self.event_socket.setsockopt(zmq.SUBSCRIBE, self.service.identity + b'.events.camera.data_received')
+    self.event_socket.setsockopt(zmq.SUBSCRIBE, self.service.identity + b'.events.camera.connection.closed')
     self.event_stream = ZMQStream(self.event_socket)
     self.event_stream.linger = 0
     self.event_stream.on_recv(self.on_data)
@@ -63,9 +68,14 @@ class CameraRecordTask(AncillaTask):
   # return [b'events.camera.data_received', identifier, frm_num, frame]
   def on_data(self, data):
     # identity, identifier, frm_num, frame = data
-    topic, device, framenum, imgdata = data
+    if len(data) == 4:
+      topic, service, framenum, imgdata = data
     # print("CR Task, ON DATA", flush=True)
-    self.current_frame = imgdata
+      self.current_frame = imgdata
+    else:
+      if data[0].endswith(b'connection.closed'):
+        self.state.status = "finished"
+        self.state.reason = "Connection Disconnected"
     # fnum = int(framenum.decode('utf-8'))
 
     # imgname = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
@@ -193,25 +203,27 @@ class CameraRecordTask(AncillaTask):
       # name = self.payload.get("name") or ""
       # sf = SliceFile.get(fid)
       
-      self.recording = CameraRecording(image_path=self.image_path, video_path=self.video_path)
-      self.recording.camera = self.device.camera_model
-      self.recording.save(force_insert=True) 
+      
 
-      self.device.state.recording = True
-      self.device.fire_event(Camera.state.changed, self.device.state)
+      self.service.state.recording = True
+      self.service.fire_event(Camera.state.changed, self.service.state)
 
       self.state.status = "recording"
-      self.state.model = self.recording.json
+      self.recording.status = self.state.status
+      self.recording.save()
+      self.state.model = self.recording
       self.state.id = self.recording.id
       
-      self.device.fire_event(Camera.recording.started, self.state)
+      self.service.fire_event(Camera.recording.started, self.state)
       self.flush_callback = PeriodicCallback(self.flush_camera_frame, self.timelapse)
       self.flush_callback.start()
       # num_commands = file_len(sf.path)
     except Exception as e:
       print(f"Cant record from camera {str(e)}", flush=True)
-      self.device.fire_event(Camera.recording.failed, {"status": "failed", "reason": str(e)})
-      return {"status": "failed"}
+      self.state.status = "failed"
+      self.state.reason = f"Cant record from camera {str(e)}"
+      self.service.fire_event(Camera.recording.failed, {"status": "failed", "reason": str(e)})
+      # return {"status": "failed"}
 
     # self.state.status = "running"
     while self.state.status == "recording":
@@ -220,9 +232,11 @@ class CameraRecordTask(AncillaTask):
 
     print("FINSIHED RECORDING", flush=True)
 
-      
-    self.device.fire_event(Camera.recording.state.changed, self.state)
-    self.device.state.recording = False
+    self.recording.status = "finished"
+    self.recording.reason = self.state.reason or ""
+    self.recording.save()
+    self.service.fire_event(Camera.recording.state.changed, self.state)
+    self.service.state.recording = False
     self.event_stream.close()
     self.flush_callback.stop()
     if self.video_writer:
@@ -231,6 +245,9 @@ class CameraRecordTask(AncillaTask):
 
   def cancel(self):
     self.state.status = "cancelled"
+  
+  def finished(self):
+    self.state.status = "finished"
     # self.device.add_command(request_id, 0, 'M0\n', True, True)
 
   def pause(self):
@@ -238,8 +255,8 @@ class CameraRecordTask(AncillaTask):
 
   def get_state(self):
     print("get state", flush=True)
-    self.state.model = self.device.current_print.json
-    self.device.fire_event(Camera.recording.state.changed, self.state)
+    self.state.model = self.service.current_print.json
+    self.service.fire_event(Camera.recording.state.changed, self.state)
     
     # self.publish_request(request)
   

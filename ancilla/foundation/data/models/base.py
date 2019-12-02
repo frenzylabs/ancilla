@@ -39,6 +39,12 @@ class BaseModel(Model):
   def json(self):
     return model_to_dict(self)
 
+  def to_json(self, **kwargs):
+    return model_to_dict(self, **kwargs)
+  # model_to_dict(model, recurse=True, backrefs=False, only=None,
+  #                 exclude=None, seen=None, extra_attrs=None,
+  #                 fields_from_query=None, max_depth=None, manytomany=False):
+
   @property
   def is_valid(self):
     self.validator = ModelValidator(self)

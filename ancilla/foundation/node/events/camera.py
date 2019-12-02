@@ -4,6 +4,7 @@ class CameraRecording(Event):
   events = dict(
     started = "started",
     failed = "failed",
+    finished = "finished",
     state = State
   )
 

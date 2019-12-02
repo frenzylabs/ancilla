@@ -18,12 +18,14 @@ from peewee import (
 from playhouse.sqlite_ext import JSONField
 
 class CameraRecording(BaseModel):
-  # name      = CharField(unique=True)
-  image_path   = CharField()
-  video_path   = CharField(null=True)
-  settings     = JSONField(default={})
-  camera       = ForeignKeyField(Camera, backref='recordings')
+  task_name       = CharField(default="")
+  image_path      = CharField()
+  video_path      = CharField(null=True)
+  settings        = JSONField(default={})
+  camera          = ForeignKeyField(Camera, backref='recordings')
   camera_snapshot = JSONField(default={})
+  status          = CharField(null=True)
+  reason          = CharField(null=True)
 
   @property
   def serialize(self):

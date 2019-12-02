@@ -20,46 +20,20 @@ from playhouse.signals import Signal, post_save
 
 class ServiceJsonEncoder(json.JSONEncoder):
     def default(self, obj):
-        print(f"JSONTYPE = {type(obj)}", flush=True)
         if hasattr(obj, "to_json"):
-            # print("Has TO JSON")
             res = obj.to_json()
-            print(f"Has TO JSON rs={res}", flush=True)
             return self.default(res)
-            # return obj.to_json()
         if isinstance(obj, ConfigDict):
-          print("INSIDE IS ConfigDict")
           return self.default(obj.__dict__)
-          # return json.JSONEncoder.default(self, obj.__dict__)
         if isinstance(obj, App):
             print(f"OBJ {obj.__dict__}")
-            print(f"CONFIG = {obj.config}", flush=True)
             # return "node"
-            print(f"self = {self}", flush=True)
+            # print(f"self = {self}", flush=True)
             return self.default(obj.config)
             json.dumps(obj.config)
         return obj
         # return json.JSONEncoder.default(self, obj)
 
-# def serializer(obj):
-#     if hasattr(obj, "to_json"):
-#             return obj.to_json()
-#         elif hasattr(obj, "__dict__"):
-#             d = dict(
-#                 (key, value)
-#                 for key, value in inspect.getmembers(obj)
-#                 if not key.startswith("__")
-#                 and not inspect.isabstract(value)
-#                 and not inspect.isbuiltin(value)
-#                 and not inspect.isfunction(value)
-#                 and not inspect.isgenerator(value)
-#                 and not inspect.isgeneratorfunction(value)
-#                 and not inspect.ismethod(value)
-#                 and not inspect.ismethoddescriptor(value)
-#                 and not inspect.isroutine(value)
-#             )
-#             return self.default(d)
-#         return obj
 
 class BaseService(App):    
 
@@ -174,7 +148,7 @@ class BaseService(App):
 
     
     def state_changed(self, event, oldval, key, newval):
-      print(f"INSIDE STATE CHANGED HOOK EVENT: {event}, {oldval},  {key}, {newval}", flush=True)
+      # print(f"INSIDE STATE CHANGED HOOK EVENT: {event}, {oldval},  {key}, {newval}", flush=True)
       self.fire_event(self.event_class.state.changed, {f"{key}": newval})    
 
     def get_state(self, *args):      
@@ -308,7 +282,7 @@ class BaseService(App):
         # print('consuming {}...'.format(item))
         self.current_task[dtask.name] = dtask
         res = await dtask.run(self)
-        rj = json.dumps(res).encode('ascii')
+        rj = json.dumps(res, cls=ServiceJsonEncoder).encode('ascii')
         self.pusher.send_multipart([self.identity+b'.task', b'finished', rj])
 
         # self.pusher.publish()

@@ -8,7 +8,6 @@ import asyncio
 class NodeApi(Api):
 
   def setup(self):
-    print("INSIDE setup NODE API")
     self.service.route('/services', 'GET', self.services)
     self.service.route('/services/testing/<name>', 'GET', self.testname)
     self.service.route('/test', 'GET', self.test)
@@ -22,9 +21,19 @@ class NodeApi(Api):
     # self.service.route('/services/<service>/<service_id><other:re:.*>', ['GET', 'PUT', 'POST', 'DELETE', 'PATCH'], self.catchUnmountedServices)  
     # self.service.route('/services/<name><other:re:.*>', 'GET', self.catchIt)
 
-
+  # _SERVICE_MODELS_ = ['printer', 'camera']
   def services(self, *args):
-    return {'services': [service.json for service in Service.select()]}
+    allservices = []
+    for service in Service.select():
+      js = service.json
+      model = service.model
+      if model:
+        js.update(model=model.to_json(recurse=False))
+      allservices.append(js)
+    
+    return {'services': allservices}
+
+    # return {'services': [service.json for service in Service.select()]}
 
   def actions(self, *args):
     return {"actions": self.service.actions()}

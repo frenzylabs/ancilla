@@ -84,7 +84,6 @@ class NodeApiHandler(BaseHandler):
     def prepare(self):
       super().prepare()
       myparams = { k: self.get_argument(k) for k in self.request.arguments } 
-      print("INSIDE INIT= ", myparams)
       self.params.update(myparams)
       self.environ = {"REQUEST_METHOD": self.request.method.upper(), "PATH": self.request.path, "params": self.params}
       if self.request.files:
@@ -169,7 +168,7 @@ class NodeApiHandler(BaseHandler):
           # print(f"del env= {self.environ}", flush=True)
           resp = await self.node._handle(self.environ)
           # resp = await self.node.make_request(self.request)
-          print(f"DELETE REPONSE= {resp}", flush=True)
+          # print(f"DELETE REPONSE= {resp}", flush=True)
           self.write(resp)
         except Exception as e:
           print(f"deleteexception = {e}", flush=True)          
@@ -189,7 +188,7 @@ class NodeApiHandler(BaseHandler):
           # resp = await self.test()
           resp = await self.node._handle(self.environ)
           # resp = await self.node.make_request(self.request)
-          print(f"PATCH REPONSE= {resp}", flush=True)
+          # print(f"PATCH REPONSE= {resp}", flush=True)
           self.write(resp)
         except Exception as e:
           print(f"postexception = {e}", flush=True)          
@@ -202,7 +201,7 @@ class NodeApiHandler(BaseHandler):
           # resp = await self.test()
           resp = await self.node._handle(self.environ)
           # resp = await self.node.make_request(self.request)
-          print(f"POST REPONSE= {resp}", flush=True)
+          # print(f"POST REPONSE= {resp}", flush=True)
           self.write(resp)
         except Exception as e:
           print(f"postexception = {e}", flush=True)          
@@ -233,7 +232,7 @@ class NodeApiHandler(BaseHandler):
           # resp = await self.test()
           resp = await self.node._handle(self.environ)
           # resp = await self.node.make_request(self.request)
-          print(f"REPONSE= {resp}", flush=True)
+          # print(f"REPONSE= {resp}", flush=True)
           self.write(resp)
         except Exception as e:
           print(f"getexception = {e}", flush=True)    

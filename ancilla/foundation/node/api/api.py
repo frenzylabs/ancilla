@@ -71,7 +71,7 @@ class Api(object):
       return {"status": 404, "error": "No Attachment Found"}
       
     def add_attachment(self, request, *args):
-      service_id = request.params.get("service_id")
+      service_id = request.params.get("attachment_id")
       attachment = Service.get_by_id(service_id)
       sa = ServiceAttachment(parent=self.service.model, attachment=attachment)
       sa.save()

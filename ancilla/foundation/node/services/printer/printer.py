@@ -300,7 +300,8 @@ class Printer(BaseService):
         print(f"Cant periodic task {str(e)}", flush=True)
 
 
-    def command(self, cmd):
+    def command(self, msg):
+      cmd = msg.get("data")
       # print("CONNECT WRITE", data)
       # request = DeviceRequest.get_by_id(request_id)
       status = "success"

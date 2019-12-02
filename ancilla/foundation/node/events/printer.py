@@ -6,6 +6,7 @@ class Print(Event):
       started = "started", 
       paused = "paused",
       finished = "finished",
+      failed = "failed",
       state = State,
     )
 
