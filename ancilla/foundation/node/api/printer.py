@@ -1,7 +1,7 @@
 import time
-from ...api import Api
-from .events import Printer as PrinterEvent
-from ....data.models import Print, Printer
+from .api import Api
+from ..events.printer import Printer as PrinterEvent
+from ...data.models import Print, Printer
 
 import asyncio
 class PrinterApi(Api):

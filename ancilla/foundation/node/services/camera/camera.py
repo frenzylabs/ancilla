@@ -35,14 +35,12 @@ import struct # for packing integers
 from zmq.eventloop.ioloop import PeriodicCallback
 
 
-from .events.camera import Camera as CameraEvent
+
 # from ..tasks.device_task import PeriodicTask
 # from ..tasks.camera_record_task import CameraRecordTask
-
-from .middleware.camera_handler import CameraHandler
-from ....utils import Dotdict
-
-from .api import CameraApi
+from ...events.camera import Camera as CameraEvent
+from ...middleware.camera_handler import CameraHandler
+from ...api.camera import CameraApi
     
 
 class Camera(BaseService):

@@ -18,7 +18,7 @@ from .ancilla_task import AncillaTask
 
 from ...utils import Dotdict
 
-from ..services.printer.events import Printer
+from ..events.printer import Printer
 
 class CommandTask(AncillaTask):
   def __init__(self, name, payload, *args):

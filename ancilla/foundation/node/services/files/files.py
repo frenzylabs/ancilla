@@ -9,21 +9,17 @@ from tornado.ioloop import IOLoop
 
 from ....data.models import SliceFile
 from ...base_service import BaseService
+from ...events.file import FileEvent
+from ...api.file import FileApi
+from ....env import Env
 
 import asyncio
 from functools import partial
 import struct # for packing integers
 from zmq.eventloop.ioloop import PeriodicCallback
 
-from ...events.file import FileEvent
-from ...api.file import FileApi
-from ....env import Env
 
 
-# from .middleware import PrinterHandler
-# from ...utils import Dotdict
-
-    
 
 class FileService(BaseService):    
     # state = "IDLE"    

@@ -1,16 +1,16 @@
-# # from .event_class import Event
-# from .base import Event, Connection, State
+from .base import Event, Connection, State, Service
 
-# class CameraRecording(Event):
-#   events = dict(
-#     started = "started",
-#     failed = "failed",
-#     state = State
-#   )
+class CameraRecording(Event):
+  events = dict(
+    started = "started",
+    failed = "failed",
+    state = State
+  )
 
-# class Camera(Event):
-#   events = dict(
-#     recording = CameraRecording,
-#     connection = Connection,
-#     state = State
-#   )
+class Camera(Service):
+  events = dict(
+    recording = CameraRecording,
+    connection = Connection,
+    state = State,
+    data_received = "data_received",
+  )

@@ -1,17 +1,11 @@
 import time
-from ...api import Api
-from .events import Camera as CameraEvent
-from ....data.models import Service
-
-# from ...app import BaseRequest as request
+from .api import Api
+from ..events.camera import Camera as CameraEvent
+from ...data.models import Camera
 
 import asyncio
 
 class CameraApi(Api):
-  # def __init__(self, service):
-  #   super().__init__(service)
-  #   self.setup_api()
-    
 
   def setup(self):
     super().setup()
@@ -64,13 +58,4 @@ class CameraApi(Api):
     if self.service.connector:
         self.service.stop()
     return {"status": "disconnected"}
-
-  
-# @app.route('/hello/<name>')
-# def hello(name):
-#   return 'Hello %s' % name
-
-# def state(service, *args):
-#   return "State"
-
 

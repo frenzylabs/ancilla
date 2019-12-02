@@ -6,13 +6,12 @@ from zmq.eventloop.zmqstream import ZMQStream
 import zmq.asyncio
 
 from tornado.ioloop import IOLoop
-from ..zhelpers import zpipe
-from ...data.models import Printer
-
 from tornado.gen        import sleep
 from functools import partial
 
+from ...data.models import Printer
 from ..app import ConfigDict
+
 
 global TASK_ID
 TASK_ID = 0

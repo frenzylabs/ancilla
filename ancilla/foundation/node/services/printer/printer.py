@@ -24,14 +24,12 @@ from zmq.eventloop.ioloop import PeriodicCallback
 
 import functools
 
-from .events import Printer as PrinterEvent
-
 from ...tasks.ancilla_task import PeriodicTask
 from ...tasks.print_task import PrintTask
 
-from .api import PrinterApi
-from .middleware import PrinterHandler
-from ....utils import Dotdict
+from ...events.printer import Printer as PrinterEvent
+from ...api.printer import PrinterApi
+from ...middleware.printer_handler import PrinterHandler
 
 from ...app import ConfigDict
 

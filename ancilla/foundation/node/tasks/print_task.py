@@ -9,23 +9,20 @@ import json
 
 from tornado.ioloop import IOLoop
 from zmq.eventloop.ioloop import PeriodicCallback
-# from ..zhelpers import zpipe
-from ...data.models import Print, SliceFile
 
 import functools
 from tornado.gen        import sleep
+
 from .ancilla_task import AncillaTask
+from ..events.printer import Printer
+from ...data.models import Print, SliceFile
 
-from ...utils import Dotdict
-
-from ..services.printer.events import Printer
 
 class PrintTask(AncillaTask):
   def __init__(self, name, payload, *args):
     super().__init__(name, *args)
     # self.request_id = request_id    
     self.payload = payload
-    # self.state = Dotdict({"status": "pending", "model": {}})
     self.state.update({"status": "pending", "model": {}})
     # self.state._add_change_listener(
     #         functools.partial(self.trigger_hook, 'state'))

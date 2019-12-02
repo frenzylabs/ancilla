@@ -1,5 +1,5 @@
 from .data_handler import DataHandler
-from ..events import Printer
+from ..events.printer import Printer
 import json
 
 class PrinterHandler(DataHandler):
@@ -17,7 +17,7 @@ class PrinterHandler(DataHandler):
       newmsg = ""
       decodedmsg = ""
       if type(msg) == bytes:
-          decodedmsg = msg.decode('utf-8')
+        decodedmsg = msg.decode('utf-8')
       else:
         decodedmsg = msg
 
@@ -42,7 +42,7 @@ class PrinterHandler(DataHandler):
       cmd = self.device.command_queue.current_command
       if cmd:
         # identifier = identifier + b'.printer.log'
-        print(f"INSIDE CMD on data {cmd.command}", flush=True)
+        # print(f"INSIDE CMD on data {cmd.command}", flush=True)
         cmdstatus = None
 
 
@@ -64,7 +64,7 @@ class PrinterHandler(DataHandler):
             cmdstatus = "finished"
             self.device.command_queue.finish_command()
 
-        payload = {"status": cmdstatus, "sequence": cmd.sequence, "command": cmd.command, "resp": newmsg, "req_id": cmd.request_id}
+        payload = {"status": cmdstatus, "sequence": cmd.sequence, "command": cmd.command, "resp": newmsg, "req_id": cmd.parent_id}
       else:
         payload = {"status": status.decode('utf-8'), "resp": newmsg}
 

@@ -1,4 +1,5 @@
 from .data_handler import DataHandler
+from ..events.camera import Camera
 import json
 
 class CameraHandler(DataHandler):
@@ -11,6 +12,8 @@ class CameraHandler(DataHandler):
 
       identifier, frm_num, frame = data
 
-      return [b'events.camera.data_received', identifier, frm_num, frame]
+      evt = "events." + Camera.data_received.value()
+      return [evt.encode('ascii'), identifier, frm_num, frame]
+      # return [b'events.camera.data_received', identifier, frm_num, frame]
       # super().on_data(data)
       # return data
