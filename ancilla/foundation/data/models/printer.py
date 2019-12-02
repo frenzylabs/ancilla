@@ -7,19 +7,23 @@
 '''
 
 from .base import BaseModel
-from .device import Device
+from .service import Service
 
 from peewee import (
   CharField,
   TextField,
-  ForeignKeyField
+  ForeignKeyField,
+  IntegerField
 )
 
 class Printer(BaseModel):
   name      = CharField(unique=True)
   port      = CharField(unique=True)
   baud_rate = CharField()
-  device    = ForeignKeyField(Device, backref='specific')
+  # service    = ForeignKeyField(Service, backref='printer')
+  service    = ForeignKeyField(Service, null=True, default=None)
+  # service_id = IntegerField(null=True)
+  layerkeep_id = IntegerField(null=True)
 
   @property
   def serialize(self):
@@ -40,38 +44,38 @@ class Printer(BaseModel):
   # def device(self):
   #   Device.select().where()
   
-  def save(self, *args, **kwargs):
+  # def save(self, *args, **kwargs):
 
-    with self._meta.database.atomic() as transaction:    
-      try:
-        if not self.device_id:
-          # if self.name != 
-          clsname = self.__class__.__name__
-          device = Device(name=self.name, device_type=clsname)
-          device.save()
-          self.device_id = device.id
-        else:
-          if self.name != self.device.name:
-            self.device.name = self.name
-            self.device.save()
+  #   with self._meta.database.atomic() as transaction:    
+  #     try:
+  #       if not self.service_id:
+  #         # if self.name != 
+  #         clsname = self.__class__.__name__
+  #         service = Service(name=self.name, class_name=clsname)
+  #         service.save()
+  #         self.service_id = service.id
+  #       else:
+  #         if self.name != self.service.name:
+  #           self.service.name = self.name
+  #           self.service.save()
 
-        super().save(*args, **kwargs)  
+  #       super().save(*args, **kwargs)  
         
         
-      except Exception as e:
-        print(f"Couldn't save model {str(e)}")
-        # Because this block of code is wrapped with "atomic", a
-        # new transaction will begin automatically after the call
-        # to rollback().
-        transaction.rollback()
-        error_saving = True
+  #     except Exception as e:
+  #       print(f"Couldn't save model {str(e)}")
+  #       # Because this block of code is wrapped with "atomic", a
+  #       # new transaction will begin automatically after the call
+  #       # to rollback().
+  #       transaction.rollback()
+  #       error_saving = True
 
   class Meta:
     table_name = "printers"
 
-class PrinterLog(BaseModel):
-  content = TextField()
-  printer = ForeignKeyField(Printer, backref='logs')
+# class PrinterLog(BaseModel):
+#   content = TextField()
+#   printer = ForeignKeyField(Printer, backref='logs')
 
-  class Meta:
-    table_name = "printer_logs"
+#   class Meta:
+#     table_name = "printer_logs"

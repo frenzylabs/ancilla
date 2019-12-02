@@ -39,7 +39,6 @@ def migrate(migrator, database, fake=False, **kwargs):
     """Write your migrations here."""
     # database.drop_tables([Printer])
     database.create_tables([
-        Print,
         SliceFile
     ])
 
@@ -51,7 +50,6 @@ def migrate(migrator, database, fake=False, **kwargs):
 def rollback(migrator, database, fake=False, **kwargs):
     """Write your rollback migrations here."""
     database.drop_tables([
-        Print,
         SliceFile
     ])
 

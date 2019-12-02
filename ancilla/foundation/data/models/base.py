@@ -7,15 +7,33 @@
 '''
 
 import time
-from peewee               import Model, DateTimeField, AutoField, BigIntegerField
+from peewee               import DateTimeField, AutoField, BigIntegerField
 from playhouse.shortcuts  import model_to_dict
 from peewee_validates     import ModelValidator
 from ..db                 import Database
+
+from playhouse.signals import Model
 
 class BaseModel(Model):
   id = AutoField()
   created_at = BigIntegerField() 
   updated_at = BigIntegerField() 
+
+  def __init__(self, *args, **kwargs):
+    super().__init__(*args, **kwargs)
+    t = time.time()
+    if not self.created_at:
+      self.created_at = t
+      self.updated_at = t
+        # if kwargs.pop('__no_default__', None):
+        #     self.__data__ = {}
+        # else:
+        #     self.__data__ = self._meta.get_default_dict()
+        # self._dirty = set(self.__data__)
+        # self.__rel__ = {}
+
+        # for k in kwargs:
+        #     setattr(self, k, kwargs[k])
 
   @property
   def json(self):

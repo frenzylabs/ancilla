@@ -13,7 +13,7 @@ from ..zhelpers import zpipe
 from ...data.models import SliceFile, DeviceRequest, CameraRecording
 # from .devices import *
 from tornado.gen        import sleep
-from .device_task import DeviceTask
+from .ancilla_task import AncillaTask
 
 from ...utils import Dotdict
 from ...env import Env
@@ -26,13 +26,14 @@ import numpy as np
 
 
 
-class CameraRecordTask(DeviceTask):
+class CameraRecordTask(AncillaTask):
   def __init__(self, name, device, payload, *args):
     super().__init__(name, *args)
     # self.request_id = request_id
     self.payload = payload
     self.device = device
-    self.state = Dotdict({"status": "pending", "model": {}})
+    # self.state = Dotdict({"status": "pending", "model": {}})
+    self.state.update({"status": "pending", "model": {}})
     
     self.root_path = "/".join([Env.ancilla, "devices", device.name, "recordings", self.name])
     if not os.path.exists(self.root_path):

@@ -11,6 +11,9 @@ import json
 from tornado.web    import RequestHandler
 from .base      import BaseHandler
 from ...serial  import SerialConnection
+
+from ...data.models import Service
+
 import re
 import pickle 
 import numpy as np
@@ -55,7 +58,7 @@ class ZMQCameraPubSub(object):
       if len(topic) > 0:
         subscribeto = f"{subscribeto}.{topic}"
       subscribeto = subscribeto.encode('ascii')
-      # print("topic = ", subscribeto)
+      print("topic = ", subscribeto)
       # if callback:
       #   self.subscriber.on_recv(callback)
       self.subscriber.setsockopt(zmq.SUBSCRIBE, subscribeto)
@@ -122,6 +125,7 @@ class WebcamHandler(RequestHandler):
         self.pubsub = ZMQCameraPubSub(callback=self.on_message)
         self.pubsub.connect()
         self.pubsub.subscribe(subscription)
+        # "events.camera')
         # IOLoop.current().add_callback(self.flushit)
         while True:
           if self.ready:
@@ -132,19 +136,20 @@ class WebcamHandler(RequestHandler):
 
     async def get(self, *args):
         # def open(self, *args, **kwargs):
-        device = ""
+        name = ""
         if (len(args) > 0):
-          device = args[0]
+          name = args[0]
         
-        subscription = device + ".events.camera.data_received"
-        print(f"Camera SUBSCRIBE = {subscription}", flush=True)
-        
+        self.subscription = name + ".events.camera.data_received"
 
+        q = Service.select().where(Service.name == name).limit(1)
+        if len(q) > 0:
+          service = q.get()
+        else:
+          self.set_status(404)
+          self.write({"error": "Service Not Found"})
+          return
 
-        
-        self.subscription = subscription
-        # self.pubsub = ZMQNodePubSub(self.node, self.on_data, self.subscribe_callback)
-        
 
         self.set_header('Cache-Control',
         'no-store, no-cache, must-revalidate, pre-check=0, post-check=0, max-age=0')
@@ -153,18 +158,19 @@ class WebcamHandler(RequestHandler):
         self.set_header('Content-Type', 'multipart/x-mixed-replace; boundary=frame')
         # mimetype='multipart/x-mixed-replace; boundary=frame')
         
-        print("Start request")
-        payload = [device.encode('ascii'), b'get_state', b'']
-        # if msg:
-        #   payload.append(msg.encode('ascii'))
-        resp = self.node.device_request(payload)
+        print("Start Camera request", flush=True)
+
+        environ = {"REQUEST_METHOD": "GET", "PATH": f"/services/{service.kind}/{service.id}/state"}
+        resp = await self.node.send(environ)
+        # resp = self.node.device_request(payload)
         try: 
-          resp = json.loads(resp).get("resp")
+          print(resp, flush=True)
+          # resp = json.loads(resp)
         except Exception as e:
+          print(f"Cam ERRor {str(e)}", flush=True)
           resp = {"error": str(e)}
           # pass
-        # response.append(resp)
-
+        # response.append(resp)        
         # resp = self.node.request([device.encode('ascii'), b'get_state', b''])
         # jresp = json.loads(resp)
         # print(f'NODE REQ: {resp}', flush=True)
@@ -174,8 +180,8 @@ class WebcamHandler(RequestHandler):
         else:
           try:
             await self.camera_frame(self.subscription)
-          except:
-            print("exception")
+          except Exception as e:
+            print(f"exception {str(e)}", flush=True)
           finally:
             self.pubsub.close()
 

@@ -9,22 +9,26 @@ import json
 
 from tornado.ioloop import IOLoop
 from zmq.eventloop.ioloop import PeriodicCallback
-from ..zhelpers import zpipe
-from ...data.models import Print, SliceFile, DeviceRequest
+# from ..zhelpers import zpipe
+from ...data.models import Print, SliceFile
 
+import functools
 from tornado.gen        import sleep
-from .device_task import DeviceTask
+from .ancilla_task import AncillaTask
 
 from ...utils import Dotdict
 
-from ..services.events import Printer
+from ..services.printer.events import Printer
 
-class PrintTask(DeviceTask):
-  def __init__(self, name, request_id, payload, *args):
+class PrintTask(AncillaTask):
+  def __init__(self, name, payload, *args):
     super().__init__(name, *args)
-    self.request_id = request_id
+    # self.request_id = request_id    
     self.payload = payload
-    self.state = Dotdict({"status": "pending", "model": {}})
+    # self.state = Dotdict({"status": "pending", "model": {}})
+    self.state.update({"status": "pending", "model": {}})
+    # self.state._add_change_listener(
+    #         functools.partial(self.trigger_hook, 'state'))
 
     # ["wessender", "start_print", {"name": "printit", "file_id": 1}]
 
@@ -33,7 +37,7 @@ class PrintTask(DeviceTask):
     self.state_callback = PeriodicCallback(self.get_state, 3000)
     self.state_callback.start()
     
-    request = DeviceRequest.get_by_id(self.request_id)
+    # request = DeviceRequest.get_by_id(self.request_id)
     self.device = device
     sf = None
     num_commands = -1
@@ -42,7 +46,7 @@ class PrintTask(DeviceTask):
       fid = self.payload.get("file_id")
       name = self.payload.get("name") or ""
       sf = SliceFile.get(fid)
-      device.current_print = Print(name=name, status="running", request_id=request.id, printer_snapshot=device.record, printer=device.printer, slice_file=sf)
+      device.current_print = Print(name=name, status="running", printer_snapshot=device.record, printer=device.printer, slice_file=sf)
       device.current_print.save(force_insert=True)   
       device.state.printing = True
       self.device.fire_event(Printer.state.changed, self.device.state)
@@ -94,7 +98,7 @@ class PrintTask(DeviceTask):
           print("Line {}, POS: {} : {}".format(cnt, pos, line))    
 
           is_comment = line.startswith(";")
-          self.current_command = device.add_command(self.request_id, cnt, line, is_comment)
+          self.current_command = device.add_command(self.task_id, cnt, line, is_comment)
 
           print(f"CurCmd: {self.current_command.command}", flush=True)
           
@@ -108,8 +112,8 @@ class PrintTask(DeviceTask):
 
           print(f'InsidePrintTask curcmd= {self.current_command}', flush=True)
           if self.current_command.status == "error":
-            request.status = "failed"
-            request.save()
+            # request.status = "failed"
+            # request.save()
             device.current_print.status = "failed"
             self.state.status = "failed"
             self.state.reason = "Could Not Execute Command: " + self.current_command.command
@@ -146,7 +150,7 @@ class PrintTask(DeviceTask):
     self.device.fire_event(Printer.state.changed, self.device.state)
     return {"state": self.state}
 
-  def cancel(self, request_id):
+  def cancel(self, task_id):
     self.state.status = "cancelled"
     # self.device.add_command(request_id, 0, 'M0\n', True, True)
 

@@ -17,14 +17,14 @@ from .foundation.env  import Env
 from .foundation import (
   Beacon,
   APIServer,
-  Document,
-  NodeServer
+  Document
 )
+
+from .foundation.node.service import NodeService
 
 from .foundation.data.db      import Database
 from .foundation.data.models  import (
-  Printer, 
-  PrinterLog
+  Printer
 )
 
 class Application(toga.App):
@@ -66,13 +66,13 @@ class Application(toga.App):
     # ])
 
   def _start_dev(self):
-    print("START DEV", flush=True)
+    print("START DEV 1", flush=True)
     # self.th = threading.Thread(target=self.api_server.start)
     # self.th.daemon = True
     # self.th.start()
     # subprocess.
     # self.api_server     = APIServer(self.document_store)
-    self.node_server    = NodeServer()
+    self.node_server    = NodeService() # NodeServer()
     self.api_server     = APIServer(self.document_store, self.node_server)
     self.api_server.start()
     

@@ -28,17 +28,18 @@ from .resources import (
   DocumentResource,
   CameraResource,
   WebcamHandler,
-  DeviceResource,
+  ServiceResource,
   PrintResource,
-  DeviceAttachmentResource
+  ServiceAttachmentResource
 )
 
+from .resources.node_api import NodeApiHandler
 # Sockets
 from ..socket import (
   SerialResource
 )
 
-from ..data.models import Device, DeviceRequest
+from ..data.models import Service
 
 STATIC_FOLDER = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'ui/dist')
 
@@ -118,50 +119,57 @@ class ZMQNodePubSub(object):
       if len(cmds) > 0:
         method = cmds[0]
       
-      response = [to+".request"]
-      if to == "":
-          payload = [method.encode('ascii')]
-          if msg:
-            payload.append(msg.encode('ascii'))
-          resp = self.node.request(payload)
-          try: 
-            resp = json.loads(resp)
-          except:
-            pass
-          response.append(resp)
-          # return resp
+      return self.node.run_action(method, msg, to) 
+      
+      # response = [to+".request"]
+      # if to == "":
+      #     payload = [method.encode('ascii')]
+      #     if msg:
+      #       payload.append(msg.encode('ascii'))
+      #     resp = self.node.request(payload)
+      #     try: 
+      #       resp = json.loads(resp)
+      #     except:
+      #       pass
+      #     response.append(resp)
+      #     return resp
 
-      if kind == "REQUEST":
-          payload = [to.encode('ascii'), method.encode('ascii')]
-          if msg:
-            payload.append(msg.encode('ascii'))
-          resp = self.node.device_request(payload)
-          try: 
-            resp = json.loads(resp)
-          except:
-            pass
-          response.append(resp)
-          # return resp
-      else:
-        if to != "":
-          device = Device.select().where(Device.name == to)
-          if len(device) > 0:
-            device = device.get()
-          else:
-            raise Exception(f"No Device With Name {to}")
+      # if kind == "REQUEST":
+      #     payload = [to.encode('ascii'), method.encode('ascii')]
+      #     if msg:
+      #       payload.append(msg.encode('ascii'))
+      #     resp = self.node.device_request(payload)
+      #     try: 
+      #       resp = json.loads(resp)
+      #     except:
+      #       pass
+      #     response.append(resp)
+      #     # return resp
+      # else:
+      #   if to != "":
+      #     device = Service.select().where(Service.name == to)
+      #     if len(device) > 0:
+      #       device = device.get()
+      #     else:
+      #       raise Exception(f"No Device With Name {to}")
 
-          dr = DeviceRequest(device_id=device.id, status="pending", action=method, payload=msg)
-          dr.save()
-          print(dr, flush=True)
-          payload = [self.node.identity, f'{dr.id}'.encode('ascii'), to.encode('ascii'), action.encode('ascii')]
-          if msg:
-            payload.append(msg.encode('ascii'))
+      #     # dr = DeviceRequest(device_id=device.id, status="pending", action=method, payload=msg)
+      #     # dr.save()
 
-          self.socket.send_multipart(payload)
-          response.append({"status": "pending", "request": dr.json})
+      #     # print(dr, flush=True)
+
+      #     # payload = [self.node.identity, to.encode('ascii'), action.encode('ascii')]
+      #     # if msg:
+      #     #   payload.append(msg.encode('ascii'))
+          
+      #     print("payload = ", payload)
+      #     return self.node.run_action(method, msg, to)     
+
+          # self.socket.send_multipart(payload)
+          # response.append({"status": "pending", "request": dr.json})
           # return [to + ".request", {"status": "pending", "request": dr.json}
           
-      return response
+      # return response
           
 
       # if to == "":
@@ -267,7 +275,7 @@ class NodeSocket(WebSocketHandler):
         # self.pubsub.stream.send(message.encode("ascii"))
         # self.pubsub.socket.send_multipart([b'', b'', message.encode("ascii")])
         # self.write_message(message, binary=True)
-
+        to = ""
         try:
           msg     = json.loads(message)
           print(msg, flush=True)
@@ -377,15 +385,19 @@ class APIServer(object):
 
     _app = Application([
       (r"/document",  DocumentResource, dict(document=self.document_store)),
-      (r"/files",     FileResource, dict(node=self.node_server)),
-      (r"/devices",  DeviceResource, dict(node=self.node_server)),
-      (r"/devices/(.*)/attachments",  DeviceAttachmentResource, dict(node=self.node_server)),
-      (r"/device_attachments/(.*)",  DeviceAttachmentResource, dict(node=self.node_server)),
-      (r"/printers",  PrinterResource),
-      (r"/prints",  PrintResource),
-      (r"/cameras",   CameraResource),
+      (r"/files(.*)",     FileResource, dict(node=self.node_server)),
+      # (r"/devices",  DeviceResource, dict(node=self.node_server)),
+      # (r"/devices/(.*)/attachments",  DeviceAttachmentResource, dict(node=self.node_server)),
+      # (r"/device_attachments/(.*)",  DeviceAttachmentResource, dict(node=self.node_server)),
+      # (r"/printers",  PrinterResource),
+      # (r"/prints",  PrintResource),
+      # (r"/cameras",   CameraResource),
       (r"/ports",     PortsResource),
-      (r"/serial",    SerialResource),      
+      # (r"/serial",    SerialResource),      
+      # (r"/files(.*)",   NodeApiHandler, dict(node=self.node_server)),
+      (r"/smodel/(.*)",   NodeApiHandler, dict(node=self.node_server)),
+      (r"/services/(.*)",   NodeApiHandler, dict(node=self.node_server)),
+      (r"/services",   NodeApiHandler, dict(node=self.node_server)),
       (r"/node/(.*)",   NodeSocket, dict(node=self.node_server)),
       (r"/node",   NodeSocket, dict(node=self.node_server)),
       (r"/webcam/(.*)",   WebcamHandler, dict(node=self.node_server)),

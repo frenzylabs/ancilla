@@ -9,7 +9,7 @@
 from .base import BaseModel
 
 from .slice_file import SliceFile
-from .device_request import DeviceRequest
+# from .device_request import DeviceRequest
 from .printer import Printer
 
 from peewee import (
@@ -25,7 +25,7 @@ class Print(BaseModel):
   name      = CharField(null=True)
   status    = CharField(null=True)
   state     = JSONField(default={})
-  request_id    = IntegerField()
+  # request_id    = IntegerField()
   printer_snapshot = JSONField(default={})
   printer    = ForeignKeyField(Printer, backref='prints')
   slice_file    = ForeignKeyField(SliceFile, backref='prints')

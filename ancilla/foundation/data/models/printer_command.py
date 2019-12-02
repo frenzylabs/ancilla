@@ -8,8 +8,10 @@
 
 from .base import BaseModel
 from .device import Device
-from .device_request import DeviceRequest
+# from .device_request import DeviceRequest
 from .printer import Printer
+from .print import Print
+from .service import Service
 
 from peewee import (
   CharField,
@@ -22,14 +24,19 @@ from peewee import (
 from playhouse.sqlite_ext import JSONField
 
 class PrinterCommand(BaseModel):
-  sequence   = IntegerField(default=1)
-  command    = CharField()
-  status     = CharField(default="pending")
-  nowait     = BooleanField(default=False)
+  sequence    = IntegerField(default=1)
+  command     = CharField()
+  status      = CharField(default="pending")
+  nowait      = BooleanField(default=False)
   # response   = TextField(default="")
-  response   = JSONField(default=[])
-  printer    = ForeignKeyField(Printer, backref='commands')
-  request    = ForeignKeyField(DeviceRequest, backref='commands')
+  response    = JSONField(default=[])
+  # printer     = ForeignKeyField(Printer, backref='commands')
+  printer     = ForeignKeyField(Printer, on_delete="CASCADE", related_name="commands", null=True, default=None, backref='commands')
+  print = ForeignKeyField(Print, related_name='commands', null=True, default=None)
+  # printer_id  = IntegerField(index=True)
+  # request    = ForeignKeyField(DeviceRequest, backref='commands')
+  parent_id   = IntegerField(default=0)
+  parent_type = CharField(null=True)
 
 
   # def __init__(self, request_id, num, data):
@@ -42,7 +49,7 @@ class PrinterCommand(BaseModel):
   #   self.response = []
 
   def identifier(self):
-    return f'{self.request_id}:{self.sequence}'
+    return f'{self.parent_id}:{self.command}'
 
   
   @property
