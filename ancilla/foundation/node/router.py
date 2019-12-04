@@ -387,6 +387,7 @@ class Router(object):
                     allowed.add(method)
         if allowed:
             allow_header = ",".join(sorted(allowed))
+            print(f"ALLOW HEADER = {allow_header}", flush=True)
             raise RouterError(405, "Method not allowed.", Allow=allow_header)
 
         # No matching route and no alternative method found. We give up

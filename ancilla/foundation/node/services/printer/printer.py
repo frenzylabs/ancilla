@@ -30,7 +30,6 @@ from ...tasks.print_task import PrintTask
 from ...events.printer import Printer as PrinterEvent
 from ...api.printer import PrinterApi
 from ...middleware.printer_handler import PrinterHandler
-
 from ...app import ConfigDict
 
 class CommandQueue(object):
@@ -72,11 +71,7 @@ class CommandQueue(object):
         return address
     
 
-class Printer(BaseService):
-    connector = None
-    endpoint = None         # Server identity/endpoint
-    identity = None
-    alive = True            # 1 if known to be alive
+class Printer(BaseService):    
     ping_at = 0             # Next ping at this time
     expires = 0             # Expires at this time
     workers = []
@@ -99,6 +94,7 @@ class Printer(BaseService):
         self.record = self.printer.json
         self.api = PrinterApi(self)
         self.event_class = PrinterEvent
+        self.connector = None
         # self.state = Dotdict({
         #   "status": "Idle",
         #   "connected": False, 

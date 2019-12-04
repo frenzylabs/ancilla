@@ -8,6 +8,8 @@ import asyncio
 class NodeApi(Api):
 
   def setup(self):
+    super().setup()
+    # self.service.route('/services', 'GET', self.services)
     self.service.route('/services', 'GET', self.services)
     self.service.route('/services/testing/<name>', 'GET', self.testname)
     self.service.route('/test', 'GET', self.test)
@@ -36,7 +38,7 @@ class NodeApi(Api):
     # return {'services': [service.json for service in Service.select()]}
 
   def actions(self, *args):
-    return {"actions": self.service.actions()}
+    return {"actions": self.service.list_actions()}
 
   def service_model(self, request, model_id, *args):  
     s = Service.get_by_id(model_id)
@@ -58,10 +60,12 @@ class NodeApi(Api):
         obj.name = newname
         if not obj.is_valid:
           return {"errors": obj.errors}
+        obj.save()
 
           
     s.settings = request.params.get('settings') or s.settings
     s.configuration = request.params.get('configuration') or s.configuration
+    s.event_listeners = request.params.get('event_listeners') or s.event_listeners
     s.save()
     return {"service_model": s.json}
   # def register_event_listeners(self, *args):

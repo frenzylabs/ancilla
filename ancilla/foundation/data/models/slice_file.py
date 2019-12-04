@@ -20,6 +20,7 @@ class SliceFile(BaseModel):
   generated_name  = CharField()
   path            = CharField(unique=True)
   layerkeep_id    = IntegerField(null=True)
+  # source          = CharField(default="local")
 
   @property
   def serialize(self):

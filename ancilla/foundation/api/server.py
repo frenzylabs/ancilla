@@ -391,6 +391,7 @@ class APIServer(object):
       (r"/ws",   NodeSocket, dict(node=self.node_server)),
       (r"/webcam/(.*)",   WebcamHandler, dict(node=self.node_server)),
       (r"/app/(.*)",  StaticFileHandler, dict(path = STATIC_FOLDER)),
+      (r"/(.*)",   NodeApiHandler, dict(node=self.node_server)),
     ], **settings)
 
     return _app

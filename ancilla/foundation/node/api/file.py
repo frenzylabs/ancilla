@@ -14,6 +14,7 @@ class FileApi(Api):
     
 
   def setup(self):
+    super().setup()
     self.service.route('/<file_id>', 'GET', self.get)
     self.service.route('/', 'GET', self.list_files)
     self.service.route('/', 'POST', self.post)
@@ -42,6 +43,7 @@ class FileApi(Api):
     output.write(incoming['body'])
     sf = SliceFile(name=original_name, generated_name=filename, path=filepath)
     sf.save()
+    self.service.fire_event(FileEvent.created, sf.json)
     return {"file": sf.json}
     # self.finish({"file": sf.json})
 
@@ -56,7 +58,7 @@ class FileApi(Api):
     return {"file": slice_file.json}
 
   def delete(self, request, file_id, *args):
-    
+    print("INSIDE DELETE FILE", flush=True)
     slice_file  = SliceFile.get_by_id(file_id)
     if self.service.delete_file({"data": slice_file.json}):
       return {"status": 200}

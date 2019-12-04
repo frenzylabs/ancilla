@@ -24,5 +24,25 @@ class FileResource(NodeApiHandler):
     q = Service.select().where(Service.kind == "file" and Service.name == "local")
     if (len(q) > 0):
       service = q.get()
-      self.environ["PATH"] = service.api_prefix
+      path = ""
+      if self.request.path.startswith("/files/"):
+        path = self.request.path[len("/files/"):]
+      self.environ["PATH"] = service.api_prefix + path 
+
+  # async def delete(self, *args):    
+  #   print("Start delete request", self.request)
+  #   try:
+
+  #     # resp = await self.test()
+  #     # file_id = self.get_argument('file_id', None)
+  #     # print(f"Fileid = {file_id}", flush=True)
+  #     # print(f"del env= {self.environ}", flush=True)
+  #     resp = await self.node._handle(self.environ)
+  #     # resp = await self.node.make_request(self.request)
+  #     # print(f"DELETE REPONSE= {resp}", flush=True)
+  #     self.write(resp)
+  #   except Exception as e:
+  #     print(f"deleteexception = {e}", flush=True)          
+  #   finally:
+  #     self.finish()
 

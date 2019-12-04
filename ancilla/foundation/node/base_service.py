@@ -63,7 +63,7 @@ class BaseService(App):
         self.data_handlers = []
         self.task_queue = Queue()
         self.current_task = {}
-        event_handlers = model.settings.get("event_handlers") or {}
+        # event_handlers = model.settings.get("event_handlers") or {}
 
         self.settings = self.config._make_overlay()
         # self.settings
@@ -101,9 +101,12 @@ class BaseService(App):
         self.settings._add_change_listener(
             functools.partial(self.settings_changed, 'settings'))
         
-        self.settings.update(model.settings)
+        self.settings.load_dict(model.settings)
 
-        self.event_handlers = ConfigDict()._make_overlay()
+        self.event_handlers = ConfigDict()._make_overlay()        
+        self.event_handlers._add_change_listener(
+            functools.partial(self.events_changed, 'event'))
+        self.event_handlers.update(model.event_listeners)
 
         self.state = ConfigDict()._make_overlay()
         self.state._add_change_listener(
@@ -122,19 +125,28 @@ class BaseService(App):
     #   self.data_stream.on_recv(self.on_data)
       # self.input_stream.on_recv(self.on_message)
 
+    def events_changed(self, event, oldval, key, newval):
+      print(f"INSIDE event_changed CHANGED HOOK EVENT: {event}, {oldval},  {key}, {newval}", flush=True)
+      if not newval:
+        print(f"UNSUBSCRIBING from event {key}", flush=True)
+        self.event_stream.setsockopt(zmq.UNSUBSCRIBE, key.encode('ascii'))
+      else:
+        print(f"SUBSCRIBING TO event {key}", flush=True)
+        self.event_stream.setsockopt(zmq.SUBSCRIBE, key.encode('ascii'))
+
     def settings_changed(self, event, oldval, key, newval):
       print(f"INSIDE settings CHANGED HOOK EVENT: {event}, {oldval},  {key}, {newval}", flush=True)
       # self.event_stream.setsockopt(zmq.SUBSCRIBE, b"test")
       # self.event_stream.setsockopt(zmq.SUBSCRIBE, b"test")
-      if key == "event_handlers":
-        oldkeys = []
-        if "event_handlers" in oldval:
-          oldkeys = oldval["event_handlers"].keys()
-        newkeys = newval.keys()
-        for t in oldkeys - newkeys:
-          self.event_stream.setsockopt(zmq.UNSUBSCRIBE, t.encode('ascii'))
-        for t in newkeys - oldkeys:
-          self.event_stream.setsockopt(zmq.SUBSCRIBE, t.encode('ascii'))
+      # if key == "event_handlers":
+      #   oldkeys = []
+      #   if "event_handlers" in oldval:
+      #     oldkeys = oldval["event_handlers"].keys()
+      #   newkeys = newval.keys()
+      #   for t in oldkeys - newkeys:
+      #     self.event_stream.setsockopt(zmq.UNSUBSCRIBE, t.encode('ascii'))
+      #   for t in newkeys - oldkeys:
+      #     self.event_stream.setsockopt(zmq.SUBSCRIBE, t.encode('ascii'))
       #   if key in oldval:
 
       #   for item in newval:
@@ -207,8 +219,9 @@ class BaseService(App):
 
       epack = EventPack(topic, ident, data)
 
-      el = self.settings.get("event_handlers") or {}
-      for ekey in el.keys():
+      # el = self.settings.get("event_handlers") or {}
+      el = self.event_handlers or {}
+      for ekey in self.event_handlers.keys():
         if topic.startswith(ekey):
           for action_item in el.get(ekey) or []:
             action = action_item.get("action")

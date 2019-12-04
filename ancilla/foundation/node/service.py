@@ -18,7 +18,7 @@ from zmq.eventloop.future import Context
 
 from playhouse.signals import Signal, post_save
 
-from .app import App, yields
+from .app import App, yields, ConfigDict
 from ..data.models import Camera, Printer, Service
 from .api import NodeApi
 
@@ -106,17 +106,19 @@ class NodeService(App):
       return ["created", service]
 
     def handle_name_change(self, oldname, newname):
-      sc = Service.settings["event_handlers"].children().alias('children')
+      sc = Service.event_listeners.children().alias('children')
       services = Service.select().from_(Service, sc).where(sc.c.Key.startswith(oldname))[:]      
       for s in services:
         evhandlers = {}
-        for (k, v) in s.settings["event_handlers"].items():
-          if k.startswith(oldname):
+        print(f"EVTservice= {s.json}", flush=True)
+        for (k, v) in s.event_listeners.items():
+          # print(f"EVT lISTNER: {k}")
+          if k.startswith(oldname + "."):
             newkey = newname + k[len(oldname):]
             evhandlers[newkey] = v
           else:
             evhandlers[k] = v
-        s.settings["event_handlers"] = evhandlers
+        s.event_listeners = evhandlers
         s.save()
 
     # services = Service.update(Service.settings["event_handlers"].update(evhandlers)).where
@@ -126,25 +128,64 @@ class NodeService(App):
       model = next((item for item in self._services if item.id == instance.id), None)
       
       if model:
+        oldmodel = model
         srv = next((item for item in self._mounts if item.model.id == instance.id), None)
-        cur_settings = json.dumps(model.settings)
+        # cur_settings = json.dumps(model.settings)
+        # cur_events = json.dumps(model.event_listeners)
         print(f"POST SAVE SERVICE= args= {args} {srv}", flush=True)
         
         oldname = model.name
         model = instance
+        print(f"OLDName = {oldname}, instan= {instance.name}", flush=True)
         if oldname != instance.name:
+          print("Handle name change")
           self.handle_name_change(oldname, instance.name)
           
         if srv:
           # print(f"CURSETTINGS = {cur_settings}", flush=True)
           # print(f"ModelNEWSETTINGS = {json.dumps(model.settings)}", flush=True)
-          # print(f"NEWSETTINGS = {json.dumps(srv.model.settings)}", flush=True)
+          
           # "name": "myend", 
           # curconfig = json.dumps(self.model.configuration)
+          
           srv.model = model
+
+          old_settings = srv.settings.to_json()
+          old_event_listeners = srv.event_handlers.to_json()
+          
+
+          # print(f"NEWListeners = {json.dumps(srv.model.event_listeners)}", flush=True)
+          # print(f"OldListeners = {json.dumps(oldmodel.event_listeners)}", flush=True)
+          new_settings = ConfigDict().load_dict(srv.model.settings).to_json() 
+          new_event_listeners = ConfigDict().load_dict(srv.model.event_listeners).to_json() 
+          # if cur_settings != json.dumps(srv.model.settings):
+          if old_settings != new_settings:
             
-          if cur_settings != json.dumps(srv.model.settings):
-            srv.settings.update(srv.model.settings)
+            srv.settings.update(new_settings)
+            oldkeys = old_settings.keys()
+            newkeys = new_settings.keys()
+            for key in oldkeys - newkeys:
+              if key not in srv.settings._virtual_keys:
+                del srv.settings[key]
+          if old_event_listeners != new_event_listeners:
+            
+            
+            srv.event_handlers.update(new_event_listeners)
+            # srv.event_handlers.update(srv.model.event_listeners)
+
+            # print(f"NEWListeners = {srv.event_handlers.to_json()}", flush=True)
+            print(f"OldListeners = {old_event_listeners}", flush=True)
+            print(f"NEWListeners = {new_event_listeners}", flush=True)
+            oldkeys = old_event_listeners.keys()            
+            newkeys = new_event_listeners.keys()
+            for key in oldkeys - newkeys:
+              if key not in srv.settings._virtual_keys:
+                del srv.event_handlers[key]
+              # del srv.event_handlers[t]
+              # self.event_stream.setsockopt(zmq.UNSUBSCRIBE, t.encode('ascii'))
+            # for t in newkeys - oldkeys:
+            # print(f"OldListeners = {oldevt}", flush=True)
+            # srv.settings.update(srv.model.settings)
       #     self.fire_event(self.event_class.settings_changed, self.settings)
 
     def init_services(self):
@@ -155,14 +196,20 @@ class NodeService(App):
       filemodel = Service.select().where(Service.kind == "file").first()
       if not filemodel:
         self.__create_file_service()
+      
+      lkmodel = Service.select().where(Service.kind == "layerkeep").first()
+      if not lkmodel:
+        self.__create_layerkeep_service()
 
       for s in Service.select():
         self._services.append(s)
         if s.kind == "file":          
           ServiceCls = getattr(importlib.import_module("ancilla.foundation.node.services"), s.class_name)  
-          service = ServiceCls(s)
-          fileserviceexist = True
-      
+          service = ServiceCls(s)      
+          self.mount(f"/services/{s.kind}/{s.id}/", service)
+        elif s.kind == "layerkeep":          
+          ServiceCls = getattr(importlib.import_module("ancilla.foundation.node.services"), s.class_name)  
+          service = ServiceCls(s) 
           self.mount(f"/services/{s.kind}/{s.id}/", service)
           
       # if not fileserviceexist:
@@ -198,6 +245,11 @@ class NodeService(App):
       #     self.service_models[service.id] = service
       # pass
       # self.mount()
+    def __create_layerkeep_service(self):
+      service = Service(name="layerkeep", kind="layerkeep", class_name="Layerkeep")
+      service.save(force_insert=True)
+      return service
+
     def __create_file_service(self):
       service = Service(name="local", kind="file", class_name="FileService")
       service.save(force_insert=True)
