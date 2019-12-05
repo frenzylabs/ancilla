@@ -89,13 +89,12 @@ class CommandTask(AncillaTask):
             cmd += '\n'
 
 
-          print("Line {}: {}".format(cmdIndex, cmd))    
+          # print("Line {}: {}".format(cmdIndex, cmd))    
 
           is_comment = cmd.startswith(";")
-          
-          self.current_command = self.service.add_command(self.task_id, cnt, cmd, is_comment)
+          self.current_command = self.service.add_command(self.task_id, cmdIndex, cmd, is_comment)
 
-          print(f"CurCmd: {self.current_command.command}", flush=True)
+          # print(f"CurCmd: {self.current_command.command}", flush=True)
           
           while (self.current_command.status == "pending" or 
                 self.current_command.status == "running" or 

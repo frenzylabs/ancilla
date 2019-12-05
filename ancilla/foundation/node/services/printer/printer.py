@@ -51,7 +51,7 @@ class CommandQueue(object):
       return self.current_command 
 
     def finish_command(self, status="finished"):
-      print("FINISH Cmd", flush=True)
+      # print("FINISH Cmd", flush=True)
       if self.current_command:
         self.current_command.status = status
         self.current_command.save()
@@ -78,7 +78,9 @@ class Printer(BaseService):
     # state = "IDLE"
     
     __actions__ = [
-        "command"
+        "command",
+        "start_print",
+        "cancel_print"
       ]
 
     # events = PrinterEvents
@@ -206,14 +208,14 @@ class Printer(BaseService):
       if not cmd:
         return
       
-      print(f"Process CMD {cmd.command}", flush=True)
+      # print(f"Process CMD {cmd.command}", flush=True)
       # request = cmd.request
       if cmd.status == "pending":
         cmd.status = "running"
         
         res = self.connector.write(cmd.command.encode('ascii'))
         err = res.get("error")
-        print(f"CMD response: {res}")
+        # print(f"CMD response: {res}")
         if err:
           print(f"CMD ERR response: {err}")
           cmd.status = "error"
@@ -226,7 +228,7 @@ class Printer(BaseService):
       elif cmd.status != "running":
         self.command_queue.finish_command(status=cmd.status)     
       else:
-        print(f"CMD is Running {cmd.command}", flush=True)
+        # print(f"CMD is Running {cmd.command}", flush=True)
         IOLoop.current().add_callback(self.process_commands)
 
     def add_command(self, parent_id, num, data, nowait=False, skip_queue=False):
@@ -315,6 +317,37 @@ class Printer(BaseService):
       return {"status": status, "reason": reason}
 
 
+    def cancel_print(self, msg):
+      print(f"STOP Printing {msg}", flush=True)      
+      try:
+        payload = msg.get('data') or {}
+        task_name = payload.get("task_name")
+        # cr = None
+        # if payload.get("recording_id"):
+        #   cr = CameraRecording.get_by_id(payload.get("recording_id"))
+        #   task_name = cr.task_name
+        # elif task_name:          
+        #   cr = CameraRecording.select().where(CameraRecording.task_name == task_name).first()
+        # else:
+        #   cr = CameraRecording.select().where(CameraRecording.status != "finished").first()
+        #   if cr:
+        #     task_name = cr.task_name
+
+        # for k, v in self.current_task.items():
+        #     print(f"TASKkey = {k} and v = {v}", flush=True)
+
+        task_name = "print"        
+        if self.current_task.get(task_name):
+          self.current_task[task_name].cancel()
+          
+          return {"status": "success"}
+        else:
+          return {"status": "error", "error": "Task Not Found"}
+
+      except Exception as e:
+        print(f"Cant cancel recording task {str(e)}", flush=True)
+        return {"status": "error", "error": f"Could not cancel task {str(e)}"}
+
     def start_print(self, data):
       try:
         # res = data.decode('utf-8')
@@ -324,7 +357,7 @@ class Printer(BaseService):
         print_id = data.get("print_id")
         if print_id:
           prt = Print.get_by_id(print_id)
-          name = prt.name
+          # name = prt.name
         # Print(name=name, status="running", printer_snapshot=device.record, printer=device.printer, slice_file=sf)
         pt = PrintTask(name, data)
         self.task_queue.put(pt)

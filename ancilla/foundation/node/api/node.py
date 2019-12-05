@@ -23,6 +23,7 @@ class NodeApi(Api):
     # self.service.route('/services/<service>/<service_id><other:re:.*>', ['GET', 'PUT', 'POST', 'DELETE', 'PATCH'], self.catchUnmountedServices)  
     # self.service.route('/services/<name><other:re:.*>', 'GET', self.catchIt)
 
+
   # _SERVICE_MODELS_ = ['printer', 'camera']
   def services(self, *args):
     allservices = []

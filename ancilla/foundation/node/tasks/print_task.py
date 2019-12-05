@@ -92,12 +92,12 @@ class PrintTask(AncillaTask):
             line = fp.readline()
             continue
 
-          print("Line {}, POS: {} : {}".format(cnt, pos, line))    
+          # print("Line {}, POS: {} : {}".format(cnt, pos, line))    
 
           is_comment = line.startswith(";")
           self.current_command = device.add_command(self.task_id, cnt, line, is_comment)
 
-          print(f"CurCmd: {self.current_command.command}", flush=True)
+          # print(f"CurCmd: {self.current_command.command}", flush=True)
           
           while (self.current_command.status == "pending" or 
                 self.current_command.status == "running" or 
@@ -107,7 +107,7 @@ class PrintTask(AncillaTask):
               self.current_command.status = self.state.status
               break
 
-          print(f'InsidePrintTask curcmd= {self.current_command}', flush=True)
+          # print(f'InsidePrintTask curcmd= {self.current_command}', flush=True)
           if self.current_command.status == "error":
             # request.status = "failed"
             # request.save()

@@ -147,18 +147,27 @@ class NodeService(App):
           
           # "name": "myend", 
           # curconfig = json.dumps(self.model.configuration)
+          old_config = oldmodel.configuration
+          # old_config = json.dumps(oldmodel.configuration)
+          # new_config = json.dumps(model.configuration)
           
           srv.model = model
 
+          # old_config = srv.config.to_json()
           old_settings = srv.settings.to_json()
           old_event_listeners = srv.event_handlers.to_json()
           
 
           # print(f"NEWListeners = {json.dumps(srv.model.event_listeners)}", flush=True)
           # print(f"OldListeners = {json.dumps(oldmodel.event_listeners)}", flush=True)
+          new_config = ConfigDict().load_dict(srv.model.configuration).to_json() 
           new_settings = ConfigDict().load_dict(srv.model.settings).to_json() 
           new_event_listeners = ConfigDict().load_dict(srv.model.event_listeners).to_json() 
           # if cur_settings != json.dumps(srv.model.settings):
+          if old_config != new_config:
+            print(f"OldConfig = {old_config}", flush=True)
+            print(f"NEWConfig = {new_config}", flush=True)
+            srv.config.update(new_config)
           if old_settings != new_settings:
             
             srv.settings.update(new_settings)

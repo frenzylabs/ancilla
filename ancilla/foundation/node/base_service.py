@@ -46,6 +46,8 @@ class BaseService(App):
 
         self.model = model
         self.config.load_dict(model.configuration)
+        self.config._add_change_listener(
+            functools.partial(self.config_changed, 'config'))
         # self.add_hook("config", functools.partial(self.settings_changed, "config"))
         self.name = model.name
         self.identity = self.name.encode('ascii')
@@ -66,10 +68,8 @@ class BaseService(App):
         # event_handlers = model.settings.get("event_handlers") or {}
 
         self.settings = self.config._make_overlay()
-        # self.settings
           
-        # self.settings = ConfigDict()._make_overlay()
-        
+        # self.settings = ConfigDict()._make_overlay()        
         # def state_changed(event, oldstate, key, newval):
         #   print(f"INSIDE STATE CHANGED HOOK EVENT: {event}, {oldstate},  {key}, {newval}", flush=True)
         # st._add_change_listener(functools.partial(state_changed, 'state'))
@@ -133,6 +133,9 @@ class BaseService(App):
       else:
         print(f"SUBSCRIBING TO event {key}", flush=True)
         self.event_stream.setsockopt(zmq.SUBSCRIBE, key.encode('ascii'))
+
+    def config_changed(self, event, oldval, key, newval):
+      print(f"INSIDE config CHANGED HOOK EVENT: {event}, {oldval},  {key}, {newval}", flush=True)
 
     def settings_changed(self, event, oldval, key, newval):
       print(f"INSIDE settings CHANGED HOOK EVENT: {event}, {oldval},  {key}, {newval}", flush=True)
