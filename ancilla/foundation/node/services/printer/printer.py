@@ -54,7 +54,7 @@ class CommandQueue(object):
       # print("FINISH Cmd", flush=True)
       if self.current_command:
         self.current_command.status = status
-        self.current_command.save()
+        # self.current_command.save()
       self.current_command = None
       self.current_expiry = None
 
@@ -223,8 +223,8 @@ class Printer(BaseService):
           self.command_queue.finish_command(status="error")
         elif cmd.nowait:
           self.command_queue.finish_command()
-        else:
-          cmd.save()
+        # else:
+        #   cmd.save()
       elif cmd.status != "running":
         self.command_queue.finish_command(status=cmd.status)     
       else:
@@ -235,7 +235,7 @@ class Printer(BaseService):
       if type(data) == bytes:
         data = data.decode('utf-8')
       pc = PrinterCommand(parent_id=parent_id, sequence=num, command=data, printer_id=self.record["id"], nowait=nowait)
-      pc.save(force_insert=True)
+      # pc.save(force_insert=True)
       # if data == "RUN SETUP":
       #   ct = CommandTask(pc)        
       #   self.task_queue.put(ct)
