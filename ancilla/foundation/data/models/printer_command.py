@@ -23,16 +23,17 @@ from peewee import (
 
 from playhouse.sqlite_ext import JSONField
 
+
 class PrinterCommand(BaseModel):
   sequence    = IntegerField(default=1)
   command     = CharField()
   status      = CharField(default="pending")
   nowait      = BooleanField(default=False)
   # response   = TextField(default="")
-  response    = JSONField(default=[])
+  response    = JSONField(default=list)
   # printer     = ForeignKeyField(Printer, backref='commands')
   printer     = ForeignKeyField(Printer, on_delete="CASCADE", related_name="commands", null=True, default=None, backref='commands')
-  print = ForeignKeyField(Print, related_name='commands', null=True, default=None)
+  print = ForeignKeyField(Print, related_name='commands', backref='commands', null=True, default=None)
   # printer_id  = IntegerField(index=True)
   # request    = ForeignKeyField(DeviceRequest, backref='commands')
   parent_id   = IntegerField(default=0)
@@ -49,7 +50,7 @@ class PrinterCommand(BaseModel):
   #   self.response = []
 
   def identifier(self):
-    return f'{self.parent_id}:{self.command}'
+    return f'{self.id}:{self.parent_id}:{self.command}'
 
   
   @property

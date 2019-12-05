@@ -40,7 +40,8 @@ class PrinterHandler(DataHandler):
 
       
       cmd = self.device.command_queue.current_command
-      if cmd:
+      
+      if cmd:        
         # identifier = identifier + b'.printer.log'
         # print(f"INSIDE CMD on data {cmd.command}", flush=True)
         cmdstatus = None
@@ -65,6 +66,7 @@ class PrinterHandler(DataHandler):
             self.device.command_queue.finish_command()
 
         payload = {"status": cmdstatus, "sequence": cmd.sequence, "command": cmd.command, "resp": newmsg, "req_id": cmd.parent_id}
+        cmd = None
       else:
         payload = {"status": status.decode('utf-8'), "resp": newmsg}
 

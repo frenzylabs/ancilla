@@ -33,11 +33,11 @@ from ...middleware.printer_handler import PrinterHandler
 from ...app import ConfigDict
 
 class CommandQueue(object):
-    current_command = None
-    current_expiry = None
 
     def __init__(self):
         self.queue = OrderedDict()
+        self.current_command = None
+        self.current_expiry = None
 
     def add(self, cmd):
         self.queue.pop(cmd.identifier(), None)
@@ -54,7 +54,7 @@ class CommandQueue(object):
       # print("FINISH Cmd", flush=True)
       if self.current_command:
         self.current_command.status = status
-        # self.current_command.save()
+        self.current_command.save()
       self.current_command = None
       self.current_expiry = None
 
@@ -72,9 +72,9 @@ class CommandQueue(object):
     
 
 class Printer(BaseService):    
-    ping_at = 0             # Next ping at this time
-    expires = 0             # Expires at this time
-    workers = []
+    # ping_at = 0             # Next ping at this time
+    # expires = 0             # Expires at this time
+    # workers = []
     # state = "IDLE"
     
     __actions__ = [
@@ -208,14 +208,13 @@ class Printer(BaseService):
       if not cmd:
         return
       
-      # print(f"Process CMD {cmd.command}", flush=True)
+      # print(f"Process CMD {cmd.json}", flush=True)
       # request = cmd.request
       if cmd.status == "pending":
         cmd.status = "running"
         
         res = self.connector.write(cmd.command.encode('ascii'))
         err = res.get("error")
-        # print(f"CMD response: {res}")
         if err:
           print(f"CMD ERR response: {err}")
           cmd.status = "error"
@@ -223,8 +222,8 @@ class Printer(BaseService):
           self.command_queue.finish_command(status="error")
         elif cmd.nowait:
           self.command_queue.finish_command()
-        # else:
-        #   cmd.save()
+        else:
+          cmd.save()
       elif cmd.status != "running":
         self.command_queue.finish_command(status=cmd.status)     
       else:
@@ -234,8 +233,9 @@ class Printer(BaseService):
     def add_command(self, parent_id, num, data, nowait=False, skip_queue=False):
       if type(data) == bytes:
         data = data.decode('utf-8')
-      pc = PrinterCommand(parent_id=parent_id, sequence=num, command=data, printer_id=self.record["id"], nowait=nowait)
-      # pc.save(force_insert=True)
+      pc = PrinterCommand(parent_id=parent_id, sequence=num, command=data, printer_id=self.printer.id, nowait=nowait)
+      pc.save(force_insert=True)
+
       # if data == "RUN SETUP":
       #   ct = CommandTask(pc)        
       #   self.task_queue.put(ct)
@@ -249,8 +249,8 @@ class Printer(BaseService):
 
     def get_state(self, *args):
       # print(self.connector.serial)
-      print(f"inside get state", flush=True)
-      print(f"inside get state {self.state}", flush=True)
+      # print(f"inside get state", flush=True)
+      # print(f"inside get state {self.state}", flush=True)
       serialopen = False
       if self.connector and self.connector.serial:
         serialopen = self.connector.serial.is_open

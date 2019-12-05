@@ -55,7 +55,7 @@ def rollback(migrator, database, fake=False, **kwargs):
     ])
 
 
-# from ancilla.foundation.data.models import Service, Printer, PrinterCommand
+# from ancilla.foundation.data.models import Service, Printer, PrinterCommand, Print
 # from ancilla.foundation.env import Env
 # from peewee import SqliteDatabase
 # from peewee_migrate import Router

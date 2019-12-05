@@ -85,7 +85,7 @@ class PrintTask(AncillaTask):
             # request.status = "finished"
             # request.save()
             device.current_print.status = "finished"
-            # device.current_print.save()
+            device.current_print.save()
             break
 
           if not line.strip():
@@ -102,8 +102,8 @@ class PrintTask(AncillaTask):
           while (self.current_command.status == "pending" or 
                 self.current_command.status == "running" or 
                 self.current_command.status == "busy"):
-            await sleep(0)    
-            # await sleep(0.01)
+
+            await sleep(0.01)
             if self.state.status != "running":
               self.current_command.status = self.state.status
               break
@@ -119,7 +119,7 @@ class PrintTask(AncillaTask):
 
           if self.current_command.status == "finished":
             device.current_print.state["pos"] = pos
-            # device.current_print.save()
+            device.current_print.save()
             line = fp.readline()
             cnt += 1                  
 

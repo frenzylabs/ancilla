@@ -19,12 +19,12 @@ from playhouse.sqlite_ext import JSONField
 
 
 class Service(BaseModel):
-  name          = CharField()
-  kind          = CharField()
-  class_name    = CharField()
-  configuration = JSONField(default={})
-  settings      = JSONField(default={})
-  event_listeners = JSONField(default={})
+  name             = CharField()
+  kind             = CharField()
+  class_name       = CharField()
+  configuration    = JSONField(default={})
+  settings         = JSONField(default={})
+  event_listeners  = JSONField(default={})
 
   @property
   def serialize(self):

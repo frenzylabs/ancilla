@@ -129,7 +129,9 @@ class NodeApi(Api):
       return {"status": 400, "errors": printer.errors}
 
     printer.save()
-    return {"printer": printer.json} 
+    printerservice = service.json
+    printerservice.update(model=printer.json)
+    return {"printer": printerservice} 
 
 
 
