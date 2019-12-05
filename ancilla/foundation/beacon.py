@@ -28,9 +28,9 @@ from zeroconf import Zeroconf, ServiceInfo
     # ) -> None:
 
 class Beacon(object):
-  conf  = Zeroconf()
-  
+
   def __init__(self, name="ancilla", port=5000, *args, **kwargs):
+    self.conf  = Zeroconf()
     self.name       = "{}".format(name.capitalize())
     self.type       = "_{}._tcp.local.".format(name.lower())
     self.port       = port
@@ -46,6 +46,9 @@ class Beacon(object):
   @property
   def peers(self):
     _broadcast  = self.conf.get_service_info(self.type, "{}.{}".format(self.name, self.type))
+    if not _broadcast:
+      return []
+
     _addrs      = [("%s" % socket.inet_ntoa(a)) for a in _broadcast.addresses]
 
     return list(
