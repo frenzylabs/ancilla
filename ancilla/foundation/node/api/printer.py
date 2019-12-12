@@ -2,6 +2,7 @@ import time
 from .api import Api
 from ..events.printer import Printer as PrinterEvent
 from ...data.models import Print, Printer, Service
+from ..response import AncillaError
 
 import asyncio
 class PrinterApi(Api):
@@ -38,7 +39,8 @@ class PrinterApi(Api):
               model.__setattr__(k, kval)
 
           if not model.is_valid:
-            return {"errors": model.errors}
+            raise AncillaError(400, {"errors": model.errors})
+            # return {"errors": model.errors}
           
           lksync = request.params.get("layerkeep_sync")
 

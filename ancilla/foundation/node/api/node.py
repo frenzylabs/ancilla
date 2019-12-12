@@ -148,10 +148,6 @@ class NodeApi(Api):
 
   def create_camera(self, request, *args, **kwargs):
     print("INSIDE CREATE CAMERAs", flush=True)
-    print(f"args = {args}", flush=True)
-    print(f"kwargs = {kwargs}", flush=True)
-    print(f"name = {request}", flush=True)
-    print(f"name = {request.params}", flush=True)
 
     with Service._meta.database.atomic() as transaction:
       try:
@@ -166,7 +162,9 @@ class NodeApi(Api):
           return {"status": 400, "errors": camera.errors}
 
         camera.save()
-        return {"camera": camera.json}
+        camera_service = service.json
+        camera_service.update(model=camera.json)
+        return {"camera": camera_service} 
       except Exception as e:
         # Because this block of code is wrapped with "atomic", a
         # new transaction will begin automatically after the call
@@ -176,10 +174,7 @@ class NodeApi(Api):
 
   async def create_printer(self, request, layerkeep, *args, **kwargs):
     print("INSIDE CREATE Printer", flush=True)
-    print(f"args = {args}", flush=True)
-    print(f"kwargs = {kwargs}", flush=True)
-    print(f"name = {request}", flush=True)
-    print(f"name = {request.params}", flush=True)
+
 
     with Service._meta.database.atomic() as transaction:
       try:

@@ -2,6 +2,7 @@ import time
 from .api import Api
 from ..events.camera import Camera as CameraEvent
 from ...data.models import Camera, Service
+from ..response import AncillaError
 
 import asyncio
 
@@ -34,7 +35,8 @@ class CameraApi(Api):
               model.__setattr__(k, kval)
 
           if not model.is_valid:
-            return {"errors": model.errors}
+            raise AncillaError(400, {"errors": model.errors})
+
           model.save()
 
         if request.params.get('configuration') != None:
