@@ -148,7 +148,8 @@ class NodeApiHandler(BaseHandler):
           resp = await self.node(self.environ)
           # resp = await self.node.make_request(self.request)
           # print(f"DELETE REPONSE= {resp}", flush=True)
-          self.write(resp)
+          self.set_status(resp.status_code)
+          self.write(resp.body)
         except AncillaResponse as e:
           print(f"ancillpostexception = {e}", flush=True)       
           self.set_status(e.status_code)

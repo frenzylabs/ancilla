@@ -34,10 +34,13 @@ class NodeApi(Api):
     with Service._meta.database.atomic() as transaction:
       try:
         if model:          
-          if request.params.get("layerkeep_sync") == True:
+          # if request.params.get("layerkeep_sync") and request.params.get("layerkeep_sync") != "false":
+          if model.layerkeep_id:
             if layerkeep and smodel.kind == "printer" and model.layerkeep_id:
               response = await layerkeep.delete_printer({"data": {"layerkeep_id": model.layerkeep_id}})
               print(f"LK response = {response.status}  {response.body}", flush=True)
+              if not response.success:
+                raise response
           model.delete_instance(recursive=True)
               
         smodel.delete_instance(recursive=True)

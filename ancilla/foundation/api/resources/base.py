@@ -21,7 +21,6 @@ class BaseHandler(RequestHandler):
     self.set_header('Access-Control-Allow-Headers', 'Content-Type, Access-Control-Allow-Origin, Access-Control-Allow-Headers, X-Requested-By, X-Requested-With, Access-Control-Allow-Methods')
   
   def prepare(self):
-    print(f'prepare request = {self.request.headers}', flush=True)
     self.params = {}
     if self.request.method == 'POST' or self.request.method == 'PATCH' or self.request.method == 'PUT':
       if not self.request.headers.get('Content-Type').startswith('multipart/form-data'):
