@@ -9,31 +9,16 @@ import json
 from tornado.queues import Queue
 # from tornado.ioloop import IOLoop
 # from ..zhelpers import zpipe
-from .events import Event, EventPack
+from .events import Event, EventPack, Service as EventService
 # from .devices.events import Event
 # from .devices import *
 from ..data.models import Service
 
 from .app import App, ConfigDict
 
+from ..utils import ServiceJsonEncoder
+
 from playhouse.signals import Signal, post_save
-
-class ServiceJsonEncoder(json.JSONEncoder):
-    def default(self, obj):
-        if hasattr(obj, "to_json"):
-            res = obj.to_json()
-            return self.default(res)
-        if isinstance(obj, ConfigDict):
-          return self.default(obj.__dict__)
-        if isinstance(obj, App):
-            print(f"OBJ {obj.__dict__}")
-            # return "node"
-            # print(f"self = {self}", flush=True)
-            return self.default(obj.config)
-            json.dumps(obj.config)
-        return obj
-        # return json.JSONEncoder.default(self, obj)
-
 
 class BaseService(App):    
 
@@ -45,7 +30,8 @@ class BaseService(App):
         super().__init__()
 
         self.model = model
-        self.config.load_dict(model.configuration)
+        # self.config.load_dict(model.configuration)
+        self.load_config(model.configuration)
         self.config._add_change_listener(
             functools.partial(self.config_changed, 'config'))
         # self.add_hook("config", functools.partial(self.settings_changed, "config"))
@@ -114,8 +100,10 @@ class BaseService(App):
 
         self.setup_routes()
 
-        self.event_class = Event
+        self.event_class = EventService
 
+    def load_config(self, dic):
+      self.config.load_dict(dic)
 
     # def __repr__(self):
     #     return json.dumps({"sname": self.name, "settings": self.model.settings})

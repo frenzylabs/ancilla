@@ -20,9 +20,11 @@ class Printer(BaseModel):
   name      = CharField(unique=True)
   port      = CharField(unique=True)
   baud_rate = CharField()
-  # service    = ForeignKeyField(Service, backref='printer')
+  model     = CharField(null=True)
+  description = CharField(null=True)
+
   service    = ForeignKeyField(Service, null=True, default=None)
-  # service_id = IntegerField(null=True)
+  
   layerkeep_id = IntegerField(null=True)
 
   @property

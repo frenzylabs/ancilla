@@ -15,5 +15,6 @@ from .camera    import CameraResource
 from .webcam    import WebcamHandler
 from .service    import ServiceResource
 from .service_attachment import ServiceAttachmentResource
+from .layerkeep    import LayerkeepResource
 
 

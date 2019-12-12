@@ -45,13 +45,17 @@ class Api(object):
         # self.data_stream.stop_on_recv()
 
     def setup(self):
+      self.service.route('/settings', 'GET', self.settings)
       self.service.route('/actions', 'GET', self.actions)
       self.service.route('/routes', 'GET', self.routes)
       self.service.route('/events', 'GET', self.events)
       self.service.route('/attachments/<service_id>', 'DELETE', self.delete_attachment)
       self.service.route('/attachments', 'POST', self.add_attachment)
       self.service.route('/attachments', 'GET', self.attachments)
-      
+
+    def settings(self, *args):
+      return {"settings": self.service.settings.to_json()}
+
     def routes(self, *args):
       return {"routes": [f"{r}" for r in self.service.routes]}
 

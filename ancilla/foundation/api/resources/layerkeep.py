@@ -17,16 +17,15 @@ import string
 
 from .node_api import NodeApiHandler
 
-class FileResource(NodeApiHandler):
+class LayerkeepResource(NodeApiHandler):
   
   def prepare(self):
     super().prepare()
-    service = Service.select().where(Service.kind == "file").where(Service.name == "local").first()
-    print(f"Q = {service}", flush=True)
-    if service:
+    service = Service.select().where(Service.kind == "layerkeep").first()
+    if service:    
       path = ""
-      if self.request.path.startswith("/files/"):
-        path = self.request.path[len("/files/"):]
+      if self.request.path.startswith("/layerkeep/"):
+        path = self.request.path[len("/layerkeep/"):]
       self.environ["PATH"] = service.api_prefix + path 
 
   # async def delete(self, *args):    

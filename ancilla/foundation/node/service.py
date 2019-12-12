@@ -27,6 +27,10 @@ class NodeService(App):
     
     def __init__(self, identity=b'localhost'):
         super().__init__()
+        self.config.update({
+            "catchall": True
+        })
+        
         self.identity = identity
         self.name = identity.decode('utf-8')
         # self.ctx = Context()
@@ -62,6 +66,9 @@ class NodeService(App):
         #         if res:
         #           return res
         
+        self.settings = self.config._make_overlay()
+        self.file_service = None
+        self.layerkeep_service = None
         self._services = []
         self.init_services()
         
@@ -94,14 +101,23 @@ class NodeService(App):
     def list_actions(self, *args):
       return self.__actions__
 
+    def list_plugins(self):
+      import os
+      for module in os.listdir(os.path.dirname(__file__)):
+        if module == '__init__.py' or module[-3:] != '.py':
+          continue
+        __import__(module[:-3], locals(), globals())
+
     def mount_service(self, model):
       print("INSIDE MOUNT SERVICE")
       prefix = model.api_prefix #f"/services/{model.kind}/{model.id}/"
       res = next((item for item in self._mounts if item.config['_mount.prefix'] == prefix), None)
       if res:
         return ["exist", res]
+      LayerkeepCls = getattr(importlib.import_module("ancilla.foundation.node.plugins"), "LayerkeepPlugin")    
       ServiceCls = getattr(importlib.import_module("ancilla.foundation.node.services"), model.class_name)  
       service = ServiceCls(model)
+      service.install(LayerkeepCls())
       self.mount(prefix, service)
       return ["created", service]
 
@@ -125,7 +141,11 @@ class NodeService(App):
     # .from_(Service, sc).where(sc.c.Key.startswith(oldname))[:]      
             
     def post_save_handler(self, sender, instance, *args, **kwargs):
-      model = next((item for item in self._services if item.id == instance.id), None)
+      model = None
+      for idx, item in enumerate(self._services):
+        if item.id == instance.id:
+            model = item
+            self._services[idx] = instance
       
       if model:
         oldmodel = model
@@ -133,7 +153,8 @@ class NodeService(App):
         # cur_settings = json.dumps(model.settings)
         # cur_events = json.dumps(model.event_listeners)
         print(f"POST SAVE SERVICE= args= {args} {srv}", flush=True)
-        
+        # print(f"OldMod = {model.to_json()}", flush=True)
+        # print(f"NewMod = {instance.to_json()}", flush=True)
         oldname = model.name
         model = instance
         print(f"OLDName = {oldname}, instan= {instance.name}", flush=True)
@@ -142,18 +163,9 @@ class NodeService(App):
           self.handle_name_change(oldname, instance.name)
           
         if srv:
-          # print(f"CURSETTINGS = {cur_settings}", flush=True)
-          # print(f"ModelNEWSETTINGS = {json.dumps(model.settings)}", flush=True)
-          
-          # "name": "myend", 
-          # curconfig = json.dumps(self.model.configuration)
-          old_config = oldmodel.configuration
-          # old_config = json.dumps(oldmodel.configuration)
-          # new_config = json.dumps(model.configuration)
-          
           srv.model = model
 
-          # old_config = srv.config.to_json()
+          old_config = oldmodel.configuration          
           old_settings = srv.settings.to_json()
           old_event_listeners = srv.event_handlers.to_json()
           
@@ -164,12 +176,21 @@ class NodeService(App):
           new_settings = ConfigDict().load_dict(srv.model.settings).to_json() 
           new_event_listeners = ConfigDict().load_dict(srv.model.event_listeners).to_json() 
           # if cur_settings != json.dumps(srv.model.settings):
+          
+
           if old_config != new_config:
             print(f"OldConfig = {old_config}", flush=True)
-            print(f"NEWConfig = {new_config}", flush=True)
+            print(f"NEWConfig = {new_config}", flush=True)  
+            print(f"ConfVke {srv.config._virtual_keys}", flush=True)
             srv.config.update(new_config)
+            oldkeys = old_config.keys()
+            newkeys = new_config.keys()
+            for key in oldkeys - newkeys:
+              if key not in srv.config._virtual_keys:                
+                del srv.config[key]
           if old_settings != new_settings:
-            
+            print(f"OldSet = {old_settings}", flush=True)
+            print(f"NEWSet = {new_settings}", flush=True)
             srv.settings.update(new_settings)
             oldkeys = old_settings.keys()
             newkeys = new_settings.keys()
@@ -202,25 +223,55 @@ class NodeService(App):
       # self.service_models = {"printers": {}, "cameras": {"id": 1}, "files": {}}
       # res = [c for c in Camera.select()]
       # for c in Camera.select():
+      LayerkeepCls = getattr(importlib.import_module("ancilla.foundation.node.plugins"), "LayerkeepPlugin")    
+      self.install(LayerkeepCls())
+      lkmodel = Service.select().where(Service.kind == "layerkeep").first()
+      if not lkmodel:
+        self.__create_layerkeep_service()
+
       filemodel = Service.select().where(Service.kind == "file").first()
       if not filemodel:
         self.__create_file_service()
       
-      lkmodel = Service.select().where(Service.kind == "layerkeep").first()
-      if not lkmodel:
-        self.__create_layerkeep_service()
+      
 
       for s in Service.select():
         self._services.append(s)
         if s.kind == "file":          
           ServiceCls = getattr(importlib.import_module("ancilla.foundation.node.services"), s.class_name)  
-          service = ServiceCls(s)      
-          self.mount(f"/services/{s.kind}/{s.id}/", service)
+          # service = ServiceCls(s)      
+          # service.install(LayerkeepCls())
+          # self.file_service = service
+          # self.mount(f"/services/{s.kind}/{s.id}/", service)
         elif s.kind == "layerkeep":          
           ServiceCls = getattr(importlib.import_module("ancilla.foundation.node.services"), s.class_name)  
           service = ServiceCls(s) 
+          self.layerkeep_service = service
           self.mount(f"/services/{s.kind}/{s.id}/", service)
           
+    def delete_service(self, service):
+      self._services = [item for item in self._services if item.id != service.id]
+      print("removing services")
+      srv = next((item for item in self._mounts if item.model.id == service.id), None)
+      print(f"Srv = {srv}", flush=True)
+      if srv:
+        self.unmount(srv)
+
+    def stop_service(self, service):
+      srv = next((item for item in self._mounts if item.model.id == service.id), None)
+      print(f"Srv = {srv}", flush=True)
+      if srv:
+        self.unmount(srv)
+
+    def unmount(self, app):
+      curmounts = self._mounts
+      curmounts.remove(app)
+      self.reset_app()
+      self.api.setup()
+      print("reseting app", flush=True)
+      print(f"CurMounts = {curmounts}", flush=True)
+      self.remount_apps(curmounts)
+        
       # if not fileserviceexist:
         
       #   ServiceCls = getattr(importlib.import_module("ancilla.foundation.node.services"), s.class_name)  

@@ -19,9 +19,10 @@ from ...data.models import Print, SliceFile
 
 
 class PrintTask(AncillaTask):
-  def __init__(self, name, payload, *args):
+  def __init__(self, name, service, payload, *args):
     super().__init__(name, *args)
     # self.request_id = request_id    
+    self.service = service
     self.payload = payload
     self.state.update({"status": "pending", "model": {}})
     # self.state._add_change_listener(
@@ -35,28 +36,32 @@ class PrintTask(AncillaTask):
     self.state_callback.start()
     
     # request = DeviceRequest.get_by_id(self.request_id)
-    self.device = device
-    sf = None
+    # self.device = device
+    if not self.service.current_print:
+      return {"error": "No Print to send to Printer"}
+      
+    sf = self.service.current_print.slice_file
     num_commands = -1
     try:
       # print(f"CONTENT = {content}", flush=True)
-      fid = self.payload.get("file_id")
-      name = self.payload.get("name") or ""
-      sf = SliceFile.get(fid)
-      device.current_print = Print(name=name, status="running", printer_snapshot=device.record, printer=device.printer, slice_file=sf)
-      device.current_print.save(force_insert=True)   
-      device.state.printing = True
-      self.device.fire_event(Printer.state.changed, self.device.state)
+      # fid = self.payload.get("file_id")
+      # name = self.payload.get("name") or ""
+      # sf = SliceFile.get(fid)
+      # device.current_print = Print(name=name, status="running", printer_snapshot=device.record, printer=device.printer, slice_file=sf)
+      # device.current_print.save(force_insert=True)   
+
+      self.service.state.printing = True
+      # self.service.fire_event(Printer.state.changed, self.service.state)
 
       self.state.status = "running"
-      self.state.model = device.current_print.json
-      self.state.id = device.current_print.id
+      self.state.model = self.service.current_print.json
+      self.state.id = self.service.current_print.id
       
-      device.fire_event(Printer.print.started, self.state)
+      self.service.fire_event(Printer.print.started, self.state)
       # num_commands = file_len(sf.path)
     except Exception as e:
       print(f"Cant get file to print {str(e)}", flush=True)
-      device.fire_event(Printer.print.failed, {"status": "failed", "reason": str(e)})
+      self.service.fire_event(Printer.print.failed, {"status": "failed", "reason": str(e)})
       # request.status = "failed"
       # request.save()
       # self.publish_request(request)
@@ -71,10 +76,10 @@ class PrintTask(AncillaTask):
         fp.seek(0, os.SEEK_END)
         endfp = fp.tell()
         # print("End File POS: ", endfp)
-        device.current_print.state["end_pos"] = endfp
-        fp.seek(0)
+        self.service.current_print.state["end_pos"] = endfp
+        current_pos = self.service.current_print.state.get("pos", 0)
+        fp.seek(current_pos)
         line = fp.readline()
-        lastpos = 0
         while self.state.status == "running":
           # for line in fp:
           pos = fp.tell()
@@ -84,8 +89,8 @@ class PrintTask(AncillaTask):
             self.state.status = "finished"
             # request.status = "finished"
             # request.save()
-            device.current_print.status = "finished"
-            device.current_print.save()
+            self.service.current_print.status = "finished"
+            self.service.current_print.save()
             break
 
           if not line.strip():
@@ -95,7 +100,7 @@ class PrintTask(AncillaTask):
           # print("Line {}, POS: {} : {}".format(cnt, pos, line))    
 
           is_comment = line.startswith(";")
-          self.current_command = device.add_command(self.task_id, cnt, line, is_comment)
+          self.current_command = self.service.add_command(self.task_id, cnt, line, is_comment)
 
           # print(f"CurCmd: {self.current_command.command}", flush=True)
           
@@ -112,43 +117,43 @@ class PrintTask(AncillaTask):
           if self.current_command.status == "error":
             # request.status = "failed"
             # request.save()
-            device.current_print.status = "failed"
+            self.service.current_print.status = "failed"
             self.state.status = "failed"
             self.state.reason = "Could Not Execute Command: " + self.current_command.command
             break
 
           if self.current_command.status == "finished":
-            device.current_print.state["pos"] = pos
-            device.current_print.save()
+            self.service.current_print.state["pos"] = pos
+            self.service.current_print.save()
             line = fp.readline()
             cnt += 1                  
 
         
     except Exception as e:
-      device.current_print.status = "failed"
+      self.service.current_print.status = "failed"
       # device.current_print.save()
       self.state.status = "failed"
       self.state.reason = str(e)
       print(f"Print Exception: {str(e)}", flush=True)
 
-    device.current_print.status = self.state.status
-    device.current_print.save()
-    self.state.model = device.current_print.json
+    self.service.current_print.status = self.state.status
+    self.service.current_print.save()
+    self.state.model = self.service.current_print.json
     if self.state.status == "failed":
-      device.fire_event(Printer.print.failed, self.state)  
+      self.service.fire_event(Printer.print.failed, self.state)  
     elif self.state.status == "finished":
-      device.fire_event(Printer.print.finished, self.state)  
+      self.service.fire_event(Printer.print.finished, self.state)  
 
     print(f"FINISHED PRINT {self.state}", flush=True)
-    device.print_queued = False
-    device.current_print = None
+    self.service.print_queued = False
+    self.service.current_print = None
     self.state_callback.stop()
-    device.fire_event(Printer.print.state.changed, self.state)
-    self.device.state.printing = False
-    self.device.fire_event(Printer.state.changed, self.device.state)
+    self.service.fire_event(Printer.print.state.changed, self.state)
+    self.service.state.printing = False
+    self.service.fire_event(Printer.state.changed, self.service.state)
     return {"state": self.state}
 
-  def cancel(self, task_id):
+  def cancel(self, *args):
     self.state.status = "cancelled"
     # self.device.add_command(request_id, 0, 'M0\n', True, True)
 
@@ -157,10 +162,11 @@ class PrintTask(AncillaTask):
 
   def get_state(self):
     # print("get state", flush=True)
+
     st = self.state.json
-    self.state.model = self.device.current_print.json
+    self.state.model = self.service.current_print.json
     if st != self.state.json:
-      self.device.fire_event(Printer.print.state.changed, self.state)
+      self.service.fire_event(Printer.print.state.changed, self.state)
     
     # self.publish_request(request)
   

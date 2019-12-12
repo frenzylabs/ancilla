@@ -3,8 +3,8 @@ import time
 import zmq
 from tornado.ioloop import IOLoop
 
-
-from .router import Route, Router, DictProperty, lazy_attribute, RouterError
+from .response import AncillaResponse, AncillaError
+from .router import Route, Router, DictProperty, lazy_attribute, RouterError, getargspec
 
 import sys
 import base64, cgi, email.utils, functools, hmac, imp, itertools, mimetypes,\
@@ -497,7 +497,8 @@ class BaseRequest(object):
         """ The ``REQUEST_METHOD`` value as an uppercase string. """
         return self.environ.get('REQUEST_METHOD', 'GET').upper()
 
-    @property
+    # @property
+    @DictProperty('environ', 'PATH')
     def path(self):
         """ The ``REQUEST_METHOD`` value as an uppercase string. """
         return self.environ.get('PATH', '')
@@ -580,6 +581,54 @@ Request = BaseRequest
 
 # request = LocalRequest()
 
+def yieldroutes(func):
+    """ Return a generator for routes that match the signature (name, args)
+    of the func parameter. This may yield more than one route if the function
+    takes optional keyword arguments. The output is best described by example::
+
+        a()         -> '/a'
+        b(x, y)     -> '/b/<x>/<y>'
+        c(x, y=5)   -> '/c/<x>' and '/c/<x>/<y>'
+        d(x=5, y=6) -> '/d' and '/d/<x>' and '/d/<x>/<y>'
+    """
+    path = '/' + func.__name__.replace('__', '/').lstrip('/')
+    spec = getargspec(func)
+    argc = len(spec[0]) - len(spec[3] or [])
+    path += ('/<%s>' * argc) % tuple(spec[0][:argc])
+    yield path
+    for arg in spec[0][argc:]:
+        path += '/<%s>' % arg
+        yield path
+
+def path_shift(script_name, path_info, shift=1):
+    """ Shift path fragments from PATH_INFO to SCRIPT_NAME and vice versa.
+
+        :return: The modified paths.
+        :param script_name: The SCRIPT_NAME path.
+        :param script_name: The PATH_INFO path.
+        :param shift: The number of path fragments to shift. May be negative to
+          change the shift direction. (default: 1)
+    """
+    if shift == 0: return script_name, path_info
+    pathlist = path_info.strip('/').split('/')
+    scriptlist = script_name.strip('/').split('/')
+    if pathlist and pathlist[0] == '': pathlist = []
+    if scriptlist and scriptlist[0] == '': scriptlist = []
+    if 0 < shift <= len(pathlist):
+        moved = pathlist[:shift]
+        scriptlist = scriptlist + moved
+        pathlist = pathlist[shift:]
+    elif 0 > shift >= -len(scriptlist):
+        moved = scriptlist[shift:]
+        pathlist = moved + pathlist
+        scriptlist = scriptlist[:shift]
+    else:
+        empty = 'SCRIPT_NAME' if shift < 0 else 'PATH_INFO'
+        raise AssertionError("Cannot shift. Nothing left from %s" % empty)
+    new_script_name = '/' + '/'.join(scriptlist)
+    new_path_info = '/' + '/'.join(pathlist)
+    if path_info.endswith('/') and pathlist: new_path_info += '/'
+    return new_script_name, new_path_info        
 
 class App(object):
     """ Each Bottle object represents a single, distinct web application and
@@ -602,7 +651,7 @@ class App(object):
             functools.partial(self.trigger_hook, 'config'))
 
         self.config.update({
-            "catchall": True
+            "catchall": False
         })
 
         # if kwargs.get('catchall') is False:
@@ -631,7 +680,7 @@ class App(object):
         # self.install(TemplatePlugin())
 
     #: If true, most exceptions are caught and returned as :exc:`HTTPError`
-    catchall = True #DictProperty('config', 'catchall')
+    catchall = DictProperty('config', 'catchall')
 
     __hook_names = 'before_request', 'after_request', 'app_reset', 'config'
     __hook_reversed = {'after_request'}
@@ -679,6 +728,92 @@ class App(object):
 
         return decorator
 
+
+    def reset_app(self):
+        self.router = Router()
+        self.routes = []
+        # self.plugins = []
+
+    def remount_apps(self, apps):
+        self._mounts = []
+        for app in apps:
+            self._mount_app(app.config['_mount.prefix'], app)
+                
+
+    def _mount_wsgi(self, prefix, app, **options):
+        segments = [p for p in prefix.split('/') if p]
+        if not segments:
+            raise ValueError('WSGI applications cannot be mounted to "/".')
+        path_depth = len(segments)
+        self._mounts.append(app)
+        app.config['_mount.prefix'] = prefix
+        app.config['_mount.app'] = self
+
+        print(f"App= {app}", flush=True)
+        
+        # def check_authorization(f):
+        #     def wrapper(self, *args, **kwargs):
+        #         print(f'Authusername = {self.settings.get("auth.user.username")}', flush=True)
+        #         print(f'Settings = {self.settings}', flush=True)
+        #         if not self.settings.get("auth.user.username"):
+        #         raise AncillaError(status= 401, body={"error": "Not Signed In"})
+        #         return f(self, *args, **kwargs)
+        #     return wrapper
+        tada = self
+
+        async def mountpoint_wrapper(request, *args, **kwargs):
+            print("INSIDE MOUNTPOINT WRAPPER", flush=True)
+            # rs = AncillaResponse()
+            print(f"TAD= {tada}", flush=True)
+            # print(f"RS= {rs}", flush=True)
+            # print(f"App= {app}", flush=True)
+            # return app({})
+            # return {"success": True}
+            try:
+                # request.path_shift(path_depth)
+                print(f"Path dep {path_depth}", flush=True)
+                request.environ["PATH"] = "/" + request.path[len(prefix):]
+                print("INSIDE MOUNTPOINT WRAPPER", flush=True)
+                print(f"PATH= {request.path}", flush=True)
+                print(f"ARGS MOUNTPOINT= {args} kwargs= {kwargs}", flush=True)
+                # print(f"Request= {request.environ}", flush=True)
+
+                rs = AncillaResponse()
+
+                # print(f"App= {dir(app)}", flush=True)
+
+                # def start_response(status, headerlist, exc_info=None):
+                #     if exc_info:
+                #         _raise(*exc_info)
+                #     rs.status = status
+                #     for name, value in headerlist:
+                #         rs.add_header(name, value)
+                #     return rs.body.append
+                
+                
+                body = await app(request.environ, rs)
+                print(f"BODY = {body}", flush=True)
+                if isinstance(body, AncillaResponse):
+                    return body
+                else:
+                    rs.body = body
+                    return rs
+                
+                # rs.body = body
+                # # rs.body = itertools.chain(rs.body, body) if rs.body else body
+                # return rs
+            finally:
+                print("mountpoint finall")
+                # request.path_shift(-path_depth)
+
+        options.setdefault('skip', True)
+        options.setdefault('method', 'PROXY')
+        options.setdefault('mountpoint', {'prefix': prefix, 'target': app})
+        options['callback'] = mountpoint_wrapper
+
+        self.route('/%s/<:re:.*>' % '/'.join(segments), **options)
+        # if not prefix.endswith('/'):
+        #     self.route('/' + '/'.join(segments), **options)
     
 
     def _mount_app(self, prefix, app, **options):
@@ -729,7 +864,8 @@ class App(object):
         if not prefix.startswith('/'):
             raise ValueError("Prefix must start with '/'")
 
-        return self._mount_app(prefix, app, **options)
+        # return self._mount_app(prefix, app, **options)
+        return self._mount_wsgi(prefix, app, **options)
 
     def merge(self, routes):
         """ Merge the routes of another :class:`Bottle` application or a list of
@@ -848,7 +984,7 @@ class App(object):
 
         def decorator(callback):
             if isinstance(callback, str): callback = load(callback)
-            for rule in makelist(path): # or yieldroutes(callback):
+            for rule in makelist(path) or yieldroutes(callback):
                 for verb in makelist(method):
                     verb = verb.upper()
                     route = Route(self, rule, verb, callback,
@@ -905,8 +1041,8 @@ class App(object):
     # def default_error_handler(self, res):
     #     return tob(template(ERROR_PAGE_TEMPLATE, e=res, template_settings=dict(name='__ERROR_PAGE_TEMPLATE')))
 
-    @asyncio.coroutine
-    def _handle(self, environ):
+    # @asyncio.coroutine
+    async def _handle(self, environ, rs = None):
         # path = environ['bottle.raw_path'] = environ['PATH_INFO']
         # if py3k:
         #     environ['PATH_INFO'] = path.encode('latin1').decode('utf8', 'ignore')
@@ -915,31 +1051,47 @@ class App(object):
         environ['bottle.app'] = self
         request = BaseRequest(environ)
 
+        if not rs:
+            rs = AncillaResponse()
+        print(f"RS = {rs}", flush=True)
         try:
             # while True: # Remove in 0.14 together with RouteReset
                 out = None
                 try:
                     # self.trigger_hook('before_request')
+                    res = self.router.match(environ)
+                    print(f"router match", flush=True)
+                    print(f"router matchres= {res}", flush=True)
                     route, args = self.router.match(environ)
+                    
                     print(f"ROUTE = {route}", flush=True)
                     environ['route.handle'] = route
                     environ['bottle.route'] = route
                     environ['route.url_args'] = args
                     # print(f"Route.call = {route.call}", flush=True)
-                    result = yield from call_maybe_yield(route.call, *[request], **args)
-                    return result
+                    # result = yield from call_maybe_yield(route.call, *[request], **args)
+                    out = await call_maybe_yield(route.call, *[request], **args)
+                    
+                    # return result
 
                 except RouterError as e:
                     print(f"RouterError = {e}", flush=True)
+                    print(self.catchall)
+
+                    if not self.catchall:
+                        raise e
+                    
                     re_pattern = re.compile('^(/services/(?P<service>[^/]+)/(?P<service_id>[^/]+))(?P<other>.*)$')
                     re_match = re_pattern.match(request.path)
                     # print(f"Request path = {request.path}", flush=True)
                     # print(f"Request Match = {re_match}", flush=True)
                     if re_match:
                         gargs = re_match.groupdict()
-                        result = yield from call_maybe_yield(self.api.catchUnmountedServices, *[request], **gargs)
-                        return result
-                    raise e
+                        # result = yield from call_maybe_yield(self.api.catchUnmountedServices, *[request], **gargs)
+                        out = await call_maybe_yield(self.api.catchUnmountedServices, *[request], **gargs)
+                        # return result
+                    else:
+                        raise e
 
                 except Exception as e:
                     print(f"Exception = {e}", flush=True)
@@ -981,14 +1133,94 @@ class App(object):
             # environ['wsgi.errors'].flush()
             # # out = HTTPError(500, "Internal Server Error", E, stacktrace)
             # out.apply(response)
-
-        return out
+        print(f'The result = {out}', flush=True)
+        print(f"Mountapp = {self.config.get('_mount.app')}", flush=True)
+        if isinstance(out, AncillaResponse):
+            return out
+        else:
+            rs.body = out
+            return rs
+        # return out
 
     
+    # def _cast(self, out, peek=None):
+    #     """ Try to convert the parameter into something WSGI compatible and set
+    #     correct HTTP headers when possible.
+    #     Support: False, str, unicode, dict, HTTPResponse, HTTPError, file-like,
+    #     iterable of strings and iterable of unicodes
+    #     """
 
-    def __call__(self, method, path, msg):
+    #     # Empty output is done here
+    #     if not out:
+    #         if 'Content-Length' not in response:
+    #             response['Content-Length'] = 0
+    #         return []
+    #     # Join lists of byte or unicode strings. Mixed lists are NOT supported
+    #     if isinstance(out, (tuple, list))\
+    #     and isinstance(out[0], (bytes, unicode)):
+    #         out = out[0][0:0].join(out)  # b'abc'[0:0] -> b''
+    #     # Encode unicode strings
+    #     if isinstance(out, unicode):
+    #         out = out.encode(response.charset)
+    #     # Byte Strings are just returned
+    #     if isinstance(out, bytes):
+    #         if 'Content-Length' not in response:
+    #             response['Content-Length'] = len(out)
+    #         return [out]
+    #     # HTTPError or HTTPException (recursive, because they may wrap anything)
+    #     # TODO: Handle these explicitly in handle() or make them iterable.
+    #     if isinstance(out, HTTPError):
+    #         out.apply(response)
+    #         out = self.error_handler.get(out.status_code,
+    #                                      self.default_error_handler)(out)
+    #         return self._cast(out)
+    #     if isinstance(out, HTTPResponse):
+    #         out.apply(response)
+    #         return self._cast(out.body)
+
+    #     # File-like objects.
+    #     if hasattr(out, 'read'):
+    #         if 'wsgi.file_wrapper' in request.environ:
+    #             return request.environ['wsgi.file_wrapper'](out)
+    #         elif hasattr(out, 'close') or not hasattr(out, '__iter__'):
+    #             return WSGIFileWrapper(out)
+
+    #     # Handle Iterables. We peek into them to detect their inner type.
+    #     try:
+    #         iout = iter(out)
+    #         first = next(iout)
+    #         while not first:
+    #             first = next(iout)
+    #     except StopIteration:
+    #         return self._cast('')
+    #     except HTTPResponse as E:
+    #         first = E
+    #     except (KeyboardInterrupt, SystemExit, MemoryError):
+    #         raise
+    #     except Exception as error:
+    #         if not self.catchall: raise
+    #         first = HTTPError(500, 'Unhandled exception', error, format_exc())
+
+    #     # These are the inner types allowed in iterator or generator objects.
+    #     if isinstance(first, HTTPResponse):
+    #         return self._cast(first)
+    #     elif isinstance(first, bytes):
+    #         new_iter = itertools.chain([first], iout)
+    #     elif isinstance(first, unicode):
+    #         encoder = lambda x: x.encode(response.charset)
+    #         new_iter = imap(encoder, itertools.chain([first], iout))
+    #     else:
+    #         msg = 'Unsupported response type: %s' % type(first)
+    #         return self._cast(HTTPError(500, msg))
+    #     if hasattr(out, 'close'):
+    #         new_iter = _closeiter(new_iter, out.close)
+    #     return new_iter
+
+    # def __call__(self, method, path, msg):
+    def __call__(self, environ, rs = None):
         """ Each instance of :class:'Bottle' is a WSGI application. """
-        return self._handle(method, path, msg)
+        print("INSIDE APP CALL", flush=True)
+        return self._handle(environ, rs)
         # return self.wsgi(environ, start_response)
 
     # def __enter__(self):
@@ -1010,9 +1242,15 @@ def yields(value):
     return isinstance(value, asyncio.futures.Future) or inspect.isgenerator(value) or \
            isinstance(value, CoroutineType)
 
-@asyncio.coroutine
-def call_maybe_yield(func, *args, **kwargs):
+# @asyncio.coroutine
+# def call_maybe_yield(func, *args, **kwargs):
+#     rv = func(*args, **kwargs)
+#     if yields(rv):
+#         rv = yield from rv
+#     return rv
+
+async def call_maybe_yield(func, *args, **kwargs):
     rv = func(*args, **kwargs)
     if yields(rv):
-        rv = yield from rv
+        rv = await rv
     return rv

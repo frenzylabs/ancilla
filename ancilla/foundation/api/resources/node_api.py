@@ -21,73 +21,52 @@ import asyncio
 import cv2
 import time
 
-from tornado.escape import json_decode
+# from tornado.escape import json_decode
+from tornado.escape import utf8, _unicode
+from tornado.util import unicode_type
+from typing import (
+    Dict,
+    Any,
+    Union
+)
 
 from ...node.router import RouterError
 
-numbers = re.compile(r'(\d+)')
-def numericalSort(value):
-    parts = numbers.split(value)
-    parts[1::2] = map(int, parts[1::2])
-    return parts
+from ...utils import ServiceJsonEncoder
+from ...node.response import AncillaResponse
 
-
-class ZMQCameraPubSub(object):
-
-    def __init__(self, callback):
-        self.callback = callback
-        # self.subscribe_callback = subscribe_callback
-        # self.node = node
-
-    def connect(self):
-        self.context = zmq.Context()
-        self.subscriber = self.context.socket(zmq.SUB)
-        self.subscriber.connect('ipc://publisher')
-        # self.request.connect('tcp://127.0.0.1:5557')
-        # self.request.connect('ipc://devicepublisher')
-        self.subscriber = ZMQStream(self.subscriber)
-        self.subscriber.on_recv(self.callback)
-        
-
-        # self.request.linger = 0
-        # self.request.setsockopt(zmq.SUBSCRIBE, b"")
-
-    def close(self):
-      self.subscriber.close()
-
-    def subscribe(self, to, topic=''):
-      subscribeto = to
-      if len(topic) > 0:
-        subscribeto = f"{subscribeto}.{topic}"
-      subscribeto = subscribeto.encode('ascii')
-      # print("topic = ", subscribeto)
-      # if callback:
-      #   self.subscriber.on_recv(callback)
-      self.subscriber.setsockopt(zmq.SUBSCRIBE, subscribeto)
-    
-    def unsubscribe(self, to, topic=''):
-      subscribetopic = to
-      if len(topic) > 0:
-        subscribetopic = f"{subscribetopic}.{topic}"
-      subscribetopic = subscribetopic.encode('ascii')
-
-        # if type(topic) != bytes:
-        #   topic = topic.encode('ascii')
-      # print("subtopic= ", subscribetopic)
-        # self.request.on_recv(callback)
-      self.subscriber.setsockopt(zmq.UNSUBSCRIBE, subscribetopic)    
+# from ..utils import ServiceJsonEncoder
 
 class NodeApiHandler(BaseHandler):
     def initialize(self, node):
       self.node = node
-      
+          
     def prepare(self):
       super().prepare()
       myparams = { k: self.get_argument(k) for k in self.request.arguments } 
       self.params.update(myparams)
+      print(f"PREPARE {self.request.method}", flush=True)
       self.environ = {"REQUEST_METHOD": self.request.method.upper(), "PATH": self.request.path, "params": self.params}
       if self.request.files:
         self.environ["files"] = self.request.files
+
+    def write(self, chunk: Union[str, bytes, dict]) -> None:
+      if self._finished:
+          raise RuntimeError("Cannot write() after finish()")
+      if not isinstance(chunk, (bytes, unicode_type, dict)):
+          message = "write() only accepts bytes, unicode, and dict objects"
+          if isinstance(chunk, list):
+              message += (
+                  ". Lists not accepted for security reasons; see "
+                  + "http://www.tornadoweb.org/en/stable/web.html#tornado.web.RequestHandler.write"  # noqa: E501
+              )
+          raise TypeError(message)
+      if isinstance(chunk, dict):
+          # chunk = escape.json_encode(chunk)
+          chunk = json.dumps(chunk, cls=ServiceJsonEncoder)
+          self.set_header("Content-Type", "application/json; charset=UTF-8")
+      chunk = utf8(chunk)
+      self._write_buffer.append(chunk)
       # self.running = True
       # self.data = None
       # myctx = zmq.Context()
@@ -166,10 +145,14 @@ class NodeApiHandler(BaseHandler):
           # file_id = self.get_argument('file_id', None)
           # print(f"Fileid = {file_id}", flush=True)
           # print(f"del env= {self.environ}", flush=True)
-          resp = await self.node._handle(self.environ)
+          resp = await self.node(self.environ)
           # resp = await self.node.make_request(self.request)
           # print(f"DELETE REPONSE= {resp}", flush=True)
           self.write(resp)
+        except AncillaResponse as e:
+          print(f"ancillpostexception = {e}", flush=True)       
+          self.set_status(e.status_code)
+          self.write(e.body)
         except Exception as e:
           print(f"deleteexception = {e}", flush=True)          
         finally:
@@ -186,10 +169,15 @@ class NodeApiHandler(BaseHandler):
         print("Start patch request", self.request)
         try:
           # resp = await self.test()
-          resp = await self.node._handle(self.environ)
+          resp = await self.node(self.environ)
           # resp = await self.node.make_request(self.request)
           # print(f"PATCH REPONSE= {resp}", flush=True)
-          self.write(resp)
+          self.set_status(resp.status_code)
+          self.write(resp.body)
+        except AncillaResponse as e:
+          print(f"ancillpostexception = {e}", flush=True)       
+          self.set_status(e.status_code)
+          self.write(e.body)
         except Exception as e:
           print(f"postexception = {e}", flush=True)          
         finally:
@@ -199,10 +187,16 @@ class NodeApiHandler(BaseHandler):
         print("Start post request", self.request)
         try:
           # resp = await self.test()
-          resp = await self.node._handle(self.environ)
+          resp = await self.node(self.environ)
           # resp = await self.node.make_request(self.request)
           # print(f"POST REPONSE= {resp}", flush=True)
-          self.write(resp)
+          self.set_status(resp.status_code)
+          self.write(resp.body)
+          # self.write(resp)
+        except AncillaResponse as e:
+          print(f"ancillpostexception = {e}", flush=True)       
+          self.set_status(e.status_code)
+          self.write(e.body)
         except Exception as e:
           print(f"postexception = {e}", flush=True)          
         finally:
@@ -217,23 +211,19 @@ class NodeApiHandler(BaseHandler):
 
     async def get(self, *args):
 
-        
         print("Start request", self.request)
-        # payload = [device.encode('ascii'), b'get_state', b'']
-        # payload = self.params
-        # if msg:
-        #   payload.append(msg.encode('ascii'))
-        # print(f"INSIDE make request = {self.node.router_address}")
-        # print(self.request.body, flush=True)
         print(f"self.envrion= {self.environ}", flush=True)
-        
-
         try:
           # resp = await self.test()
-          resp = await self.node._handle(self.environ)
+          resp = await self.node(self.environ)
           # resp = await self.node.make_request(self.request)
           # print(f"REPONSE= {resp}", flush=True)
-          self.write(resp)
+          self.set_status(resp.status_code)
+          self.write(resp.body)
+        except AncillaResponse as e:
+          print(f"ancillpostexception = {e}", flush=True)       
+          self.set_status(e.status_code)
+          self.write(e.body)
         except Exception as e:
           print(f"getexception = {e}", flush=True)    
           if type(e) == RouterError:

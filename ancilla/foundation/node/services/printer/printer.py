@@ -153,6 +153,7 @@ class Printer(BaseService):
         #   return res
       except Exception as e:
         print(f'Exception Open Conn: {str(e)}')
+        self.state.connected = False
         self.fire_event(PrinterEvent.connection.failed, {"error": str(e)})
         return {"error": str(e), "status": "failed"}
         # self.pusher.send_multipart([self.identity, b'error', str(e).encode('ascii')])
@@ -167,40 +168,7 @@ class Printer(BaseService):
 
     def close(self, *args):
       self.stop(args)
-    # def serialcmd(self, *args):
-    #   cmd = args[0]
 
-    # def reset(self, *args):
-    #   s = self.connector.serial
-    #   # s._reconfigurePort()
-    #   # s.setDTR(True) # Drop DTR
-    #   # time.sleep(0.022)    # Read somewhere that 22ms is what the UI does.
-    #   # s.setDTR(True)
-
-    # def flush(self, *args):
-    #   self.connector.serial.flush()
-
-    # def sendbreak(self, *args):
-    #   print(f'break = serial = {self.connector.serial}', flush=True)
-    #   self.connector.serial.break_condition
-    #   self.connector.serial.send_break(1.0)
-    #   print(self.connector.serial.break_condition)
-
-    # def resetinput(self, *args):
-    #   print(f'serial = {self.connector.serial}', flush=True)
-    #   self.connector.serial.reset_input_buffer()
-
-    # def resetoutput(self, *args):
-    #   print(f'serial = {self.connector.serial}', flush=True)
-    #   self.connector.serial.reset_output_buffer()      
-
-    # def close(self, *args):
-    #   print("Printer Close", flush=True)
-    #   self.connector.close()
-
-    # def on_message(self, msg):
-    #   print("ON MESSAge", msg)  
-      # identifier, request_id, cmd, *data = msg
 
     def process_commands(self):
       # print("INSIDE PROCESS COMMANDS")
@@ -216,7 +184,6 @@ class Printer(BaseService):
         res = self.connector.write(cmd.command.encode('ascii'))
         err = res.get("error")
         if err:
-          print(f"CMD ERR response: {err}")
           cmd.status = "error"
           cmd.response.append(err)
           self.command_queue.finish_command(status="error")
@@ -251,14 +218,14 @@ class Printer(BaseService):
       # print(self.connector.serial)
       # print(f"inside get state", flush=True)
       # print(f"inside get state {self.state}", flush=True)
-      serialopen = False
-      if self.connector and self.connector.serial:
-        serialopen = self.connector.serial.is_open
-        self.state.connected = True
-        self.state.status = 'Ready'
-      else:
-        self.state.connected = False
-        self.state.status = 'Disconnected'
+      # serialopen = False
+      # if self.connector and self.connector.serial:
+      #   serialopen = self.connector.serial.is_open
+      #   self.state.connected = True
+      #   self.state.status = 'Ready'
+      # else:
+      #   self.state.connected = False
+      #   self.state.status = 'Disconnected'
 
       return self.state
 
@@ -336,7 +303,7 @@ class Printer(BaseService):
         # for k, v in self.current_task.items():
         #     print(f"TASKkey = {k} and v = {v}", flush=True)
 
-        task_name = "print"        
+        task_name = self.current_print.name #"print"        
         if self.current_task.get(task_name):
           self.current_task[task_name].cancel()
           
@@ -353,19 +320,39 @@ class Printer(BaseService):
         # res = data.decode('utf-8')
         # payload = json.loads(res)
         # name = payload.get("name") or "PrintTask"
+        if self.current_print and self.current_print.status != "running" and self.current_print.status != "idle":
+          return {"status": "error", "error": "There is already a print"}
+        
+
         name = "print"
         print_id = data.get("print_id")
+        self.current_print = None
         if print_id:
           prt = Print.get_by_id(print_id)
+          if prt.status != "finished" and prt.status != "failed":
+            self.current_print = prt
+        
+        if not self.current_print:
+          fid = data.get("file_id")
+          if not fid:
+            return {"status": "error", "error": "No file to print"}
+
+          sf = SliceFile.get(fid)  
+          name = data.get("name") or f"print-{sf.name}"
+          
+          self.current_print = Print(name=name, status="idle", printer_snapshot=self.record, printer=self.printer, slice_file=sf)
+          self.current_print.save(force_insert=True)
+
           # name = prt.name
         # Print(name=name, status="running", printer_snapshot=device.record, printer=device.printer, slice_file=sf)
-        pt = PrintTask(name, data)
+        pt = PrintTask(self.current_print.name, self, data)
         self.task_queue.put(pt)
         loop = IOLoop().current()
         loop.add_callback(partial(self._process_tasks))
 
       except Exception as e:
         print(f"Cant Start Print task {str(e)}", flush=True)
+        return {"status": "error", "error": f"Cant Start Print task {str(e)}"}
 
       return {"queued": "success"}
 

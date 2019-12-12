@@ -8,6 +8,7 @@ from types import FunctionType
 
 import sys, base64, cgi, email.utils, functools, hmac, imp, itertools, mimetypes,\
         os, re, tempfile, threading, time, warnings, weakref, hashlib
+from urllib.parse import urlencode
 
 DEBUG = False
 
@@ -387,7 +388,6 @@ class Router(object):
                     allowed.add(method)
         if allowed:
             allow_header = ",".join(sorted(allowed))
-            print(f"ALLOW HEADER = {allow_header}", flush=True)
             raise RouterError(405, "Method not allowed.", Allow=allow_header)
 
         # No matching route and no alternative method found. We give up
@@ -473,11 +473,10 @@ class Route(object):
         while hasattr(func, closure_attr) and getattr(func, closure_attr):
             attributes = getattr(func, closure_attr)
             func = attributes[0].cell_contents
-
             # in case of decorators with multiple arguments
-            if not isinstance(func, FunctionType):
+            if not isinstance(func, FunctionType) and not callable(func):
                 # pick first FunctionType instance from multiple arguments
-                func = filter(lambda x: isinstance(x, FunctionType),
+                func = filter(lambda x: isinstance(x, FunctionType) or callable(x),
                               map(lambda x: x.cell_contents, attributes))
                 func = list(func)[0]  # py3 support
         return func

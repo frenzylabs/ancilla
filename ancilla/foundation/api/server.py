@@ -30,7 +30,8 @@ from .resources import (
   WebcamHandler,
   ServiceResource,
   PrintResource,
-  ServiceAttachmentResource
+  ServiceAttachmentResource,
+  LayerkeepResource
 )
 
 from .resources.node_api import NodeApiHandler
@@ -375,13 +376,14 @@ class APIServer(object):
   def app(self):
     settings = {
       'debug' : Env.get('RUN_ENV') == 'DEV',
-      'static_path' : STATIC_FOLDER
+      'static_path' : STATIC_FOLDER      
     }
 
     _app = Application([
       (r"/document",  DocumentResource, dict(document=self.document_store)),
       (r"/files",     FileResource, dict(node=self.node_server)),
       (r"/files(.*)",     FileResource, dict(node=self.node_server)),
+      (r"/layerkeep(.*)",     LayerkeepResource, dict(node=self.node_server)),
       (r"/ports",     PortsResource),
       (r"/smodel/(.*)",   NodeApiHandler, dict(node=self.node_server)),
       (r"/services/(.*)",   NodeApiHandler, dict(node=self.node_server)),
@@ -402,7 +404,7 @@ class APIServer(object):
     # server = tornado.httpserver.HTTPServer(self.app)
     # server.bind(5000)
     # server.start(0)
-    self.app.listen(5000)
+    self.app.listen(5000, **{'max_buffer_size': 10485760000})
     IOLoop.current().start()
 
   def stop(self):

@@ -1,7 +1,9 @@
 import time
 from .api import Api
-from ..events import Event
+from ..events import LayerkeepEvent
 from ...data.models import Service, Printer, Camera
+
+from ..response import AncillaResponse
 
 import asyncio
 import functools
@@ -11,8 +13,9 @@ class LayerkeepApi(Api):
 
   def setup(self):
     super().setup()
-    self.service.route('/gcode_files', 'GET', self.gcodes)
+    self.service.route('/gcode_files', 'GET', self.gcode_files)
     self.service.route('/sign_in', 'POST', self.sign_in)
+    self.service.route('/sign_out', 'GET', self.sign_out)
     self.service.route('/current_user', 'GET', self.current_user)
     # self.service.route('/services/testing/<name>', 'GET', self.testname)
     # self.service.route('/test', 'GET', self.test)
@@ -30,39 +33,85 @@ class LayerkeepApi(Api):
   def _wrap_request(self, *args):
     pass
 
-  def gcodes(self, *args):
-    allservices = []
-    for service in Service.select():
-      js = service.json
-      model = service.model
-      if model:
-        js.update(model=model.to_json(recurse=False))
-      allservices.append(js)
-    
-    return {'services': allservices}
-
-  async def current_user(self, *args):
-    url = "{}{}".format(self.service.config.api_url, "users/me")
+  async def features(self, request, *args):
+    print(f"requestparam = {request.params}", flush=True)    
+    if not self.service.settings.get("auth.user.username"):
+      return {"status": 401, "error": "Not Signed In"}
+    url = f'{self.service.config.api_url}{self.service.settings["auth.user.username"]}/features'
     req = requests.Request('GET', url)
-    prepped = self.service.session.prepare_request(req)
-    print(f"prepped = {prepped.headers}", flush=True)
-    print(f"session = {self.service.session.headers}", flush=True)
-    loop = asyncio.get_event_loop()
-    makerequest = functools.partial(self.service.session.send, prepped)
-    # req = requests.Request('POST', url, headers=default_headers, params= payload)
-    future = loop.run_in_executor(None, makerequest)
-    # future = loop.run_in_executor(None, self.service.session.send, prepped)
-    response = await future
+    response = await self.service.make_request(req)
     print(f"response = {response}", flush=True)    
     if response.status_code == 200:
-      print(f"response.json = {response.json()}", flush=True)
-      user = response.json()      
+      features = response.body    
+      auth = self.service.model.settings.get('auth') or {}
+      auth['features'] = features
+      self.service.model.settings.update(auth=auth)
+      self.service.model.save()
+      return {"features": features}
+    else:
+      return {"status": 400, "error": "Could Not Sign In"}
+
+  async def gcode_files(self, request, *args):
+    res = await self.service.list_gcode_files({"data": request.params})
+    print(f"Res = {res}", flush=True)
+    return res
+    # print(f"requestparam = {request.params}", flush=True)    
+    # if not self.service.settings.get("auth.user.username"):
+    #   return {"status": 401, "error": "Not Signed In"}
+    # url = f'{self.service.config.api_url}{self.service.settings["auth.user.username"]}/slices'
+    # req = requests.Request('GET', url, params=request.params)
+    # response = await self.service.make_request(req)
+    # print(f"response = {response}", flush=True)    
+    # if response.status_code == 200:
+    #   slices = response.json()    
+    #   return slices      
+    # elif response.status_code == 401:
+    #   return {"status": 401, "error": "Unauthorized"}
+    # else:
+    #   return {"status": 400, "error": "Could Not Sign In"}
+
+  async def create_printer(self, request, *args):
+    print(f"requestparam = {request.params}", flush=True)    
+    if not self.service.settings.get("auth.user.username"):
+      return {"status": 401, "error": "Not Signed In"}
+    url = f'{self.service.config.api_url}{self.service.settings["auth.user.username"]}/printers'
+    req = requests.Request('POST', url, json=request.params)
+    response = await self.service.make_request(req)
+    print(f"response = {response}", flush=True)    
+    if response.status_code == 200:
+      printer = response.body    
+      return printer
+    elif response.status_code == 401:
+      return {"status": 401, "error": "Unauthorized"}
+    else:
+      return {"status": 400, "error": "Could Not Sign In"}
+
+
+
+  async def sign_out(self, request, *args):
+    # url = "{}{}".format(self.service.config.api_url, "oauth/revoke")
+    # req = requests.Request('POST', url, params={"token": self.service.settings["auth.token.access_token"]})
+    self.service.model.settings.update(auth={})
+    self.service.model.save()
+    return {"status": 200, "message": "Successfully Signed Out"}
+
+
+  async def current_user(self, *args):
+    url = "{}{}".format(self.service.settings.api_url, "users/me")
+    req = requests.Request('GET', url)
+
+    response = await self.service.make_request(req)
+    print(f"response = {response}", flush=True)    
+    if response.status_code == 200:
+      user = response.body      
       auth = self.service.model.settings.get('auth') or {}
       auth['user'] = user
       self.service.model.settings.update(auth=auth)
       self.service.model.save()
       # self.service.settings.update(token=tokenresp, namespace="auth")  
       return {"user": user}
+    elif response.status_code == 401:
+      return {"status": 401, "error": "Unauthorized"}
     else:
       return {"status": 400, "error": "Could Not Sign In"}
 
@@ -78,22 +127,22 @@ class LayerkeepApi(Api):
     default_headers = {
       "Content-Type" : "application/json",
     }
-    url = "{}{}".format(self.service.config.api_url, "oauth/token")
-    loop = asyncio.get_event_loop()
-    postit = functools.partial(requests.post, url, headers=default_headers, json= payload)
-    # req = requests.Request('POST', url, headers=default_headers, params= payload)
-    future = loop.run_in_executor(None, postit)
-    # future = loop.run_in_executor(None, requests.post, url=url, headers=default_headers, params= payload)
-    response = await future
+    url = "{}{}".format(self.service.settings.api_url, "oauth/token")
+    print(f"sign in url = {url}", flush=True)    
+    req = requests.Request('POST', url, headers=default_headers, json= payload)
 
-    print(f"response = {response}", flush=True)    
+    response = await self.service.make_request(req)
+
+    print(f"sign in response = {response}", flush=True)    
     if response.status_code == 200:
-      print(f"response.json = {response.json()}", flush=True)
-      tokenresp = response.json()      
+      print(f"response.json = {response.body}", flush=True)
+      tokenresp = response.body      
       auth = self.service.model.settings.get('auth') or {}
       auth['token'] = tokenresp
       self.service.model.settings.update(auth=auth)
       self.service.model.save()
+      curuser = await self.current_user()
+      print(f"cur user = {curuser}", flush=True)
       # self.service.settings.update(token=tokenresp, namespace="auth")  
       return {"token": tokenresp}
     else:
