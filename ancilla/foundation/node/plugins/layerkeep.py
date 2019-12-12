@@ -77,7 +77,7 @@ class LayerkeepPlugin(object):
                 raise e
             except Exception as e:
                 print(f"Except = {str(e)}", flush=True)
-                raise AncillaError(500, {"error": "Layerkeep Error"}, e)
+                raise AncillaError(500, {"error": str(e)}, e)
                 # raise Exception(500, "Layerkeep Error", e)
             finally:
               print("INSIDE LKP FINally")

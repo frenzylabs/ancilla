@@ -197,6 +197,8 @@ class NodeApi(Api):
             print(f"LK response = {response.status}  {response.body}", flush=True)
             if response.success:
               printer.layerkeep_id = response.body.get("data").get("id")
+            else:
+              raise response
 
         printer.save()
         printerservice = service.json

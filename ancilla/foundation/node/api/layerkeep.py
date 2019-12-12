@@ -3,7 +3,7 @@ from .api import Api
 from ..events import LayerkeepEvent
 from ...data.models import Service, Printer, Camera
 
-from ..response import AncillaResponse
+from ..response import AncillaResponse, AncillaError
 
 import asyncio
 import functools
@@ -144,8 +144,10 @@ class LayerkeepApi(Api):
       curuser = await self.current_user()
       print(f"cur user = {curuser}", flush=True)
       # self.service.settings.update(token=tokenresp, namespace="auth")  
-      return {"token": tokenresp}
-    else:
-      return {"status": 400, "error": "Could Not Sign In"}
+      # return {"token": tokenresp}
+    # else:      
+    #   response.body = {"error":}
+    #   return {"status": 400, "error": "Could Not Sign In"}
+    return response
 
     # return {'services': [service.json for service in Service.select()]}

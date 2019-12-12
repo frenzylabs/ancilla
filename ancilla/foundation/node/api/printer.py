@@ -48,8 +48,12 @@ class PrinterApi(Api):
                 response = await layerkeep.update_printer({"data": model.to_json(recurse=False)})
               else:
                 response = await layerkeep.create_printer({"data": model.to_json(recurse=False)})
-                if response.success:
-                  model.layerkeep_id = response.body.get("data").get("id")
+              
+              if response.success:
+                model.layerkeep_id = response.body.get("data").get("id")
+              else:
+                raise response
+                
           elif model.layerkeep_id:
             model.layerkeep_id = None
           

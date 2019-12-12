@@ -110,12 +110,14 @@ class Layerkeep(BaseService):
     def handle_response(self, response):
       print(f"HandleResponse = {response}", flush=True)
       resp = AncillaResponse(status=response.status_code)
-      if resp.success:
-        try:
-          resp.body = response.json()    
-        except Exception as e:
-          resp.exception = e
-          raise resp
+      
+      try:
+        resp.body = response.json()    
+      except Exception as e:
+        if not resp.success:
+          resp.body = {"error": response.text}
+        resp.exception = e
+        raise resp
       return resp
 
       # if response.status_code >= 200 and response.status_code < 300:
