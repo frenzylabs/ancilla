@@ -161,10 +161,14 @@ class WebcamHandler(RequestHandler):
         print("Start Camera request", flush=True)
 
         environ = {"REQUEST_METHOD": "GET", "PATH": f"/services/{service.kind}/{service.id}/state"}
-        resp = await self.node.send(environ)
+        
         # resp = self.node.device_request(payload)
+        resp = {}
         try: 
+          res = await self.node(environ)
+          resp = res.body
           print(resp, flush=True)
+
           # resp = json.loads(resp)
         except Exception as e:
           print(f"Cam ERRor {str(e)}", flush=True)

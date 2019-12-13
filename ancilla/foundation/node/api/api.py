@@ -13,6 +13,7 @@ from zmq.eventloop.future import Context
 
 # from .app import App
 from ...data.models import Service, ServiceAttachment
+from ..response import AncillaError
 
 
 class Api(object):
@@ -72,7 +73,8 @@ class Api(object):
         attachment.delete_instance()        
         return {"sucess": "Removed Attachment"}
 
-      return {"status": 404, "error": "No Attachment Found"}
+      raise AncillaError(404, {"error": "No Attachment Found"})
+      # return {"status": 404, "error": "No Attachment Found"}
       
     def add_attachment(self, request, *args):
       service_id = request.params.get("attachment_id")

@@ -195,7 +195,7 @@ class Layerkeep(BaseService):
 
         url = f'{self.settings.api_url}{self.settings.get("auth.user.username")}/printers/{payload.get("layerkeep_id")}'
         req = requests.Request('DELETE', url)
-        response = await self.make_request(req)        
+        response = await self.make_request(req)
         return response
       except AncillaResponse as e:
         raise e
@@ -207,5 +207,56 @@ class Layerkeep(BaseService):
     def create_print(self, evt):
       pass
 
-    def create_slice_file(self, evt):
-      pass
+    # async def presign_asset(self, evt):
+    #   try:
+    #     payload = evt.get("data")
+    #     data = {"blob": payload}
+
+    #     # byte_size: 659
+    #     # checksum: "HkxfA5Qq/l9EuX30DYAIhg=="
+    #     # content_type: ""
+    #     # filename: "test.gcode"
+
+    #     # response:
+
+    #     # direct_upload: {fields: {}, headers: {Content-Type: "", Content-MD5: "HkxfA5Qq/l9EuX30DYAIhg=="}, method: "put",…}
+    #     #     fields: {}
+    #     #     headers: {Content-Type: "", Content-MD5: "HkxfA5Qq/l9EuX30DYAIhg=="}
+    #     #     Content-MD5: "HkxfA5Qq/l9EuX30DYAIhg=="
+    #     #     Content-Type: ""
+    #     #     method: "put"
+    #     #     url: "https://layerkeep-dev.sfo2.digitaloceanspaces.com/cache/2019-12-13/1/slices/test.gcode?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=KRG33E7ANFWWSJOYGTKT%2F20191213%2Fsfo2%2Fs3%2Faws4_request&X-Amz-Date=20191213T175922Z&X-Amz-Expires=900&X-Amz-SignedHeaders=content-md5%3Bcontent-type%3Bhost&X-Amz-Signature=c01f7f0ff875ee5132e603c48d5b3ef9c49192c6da23bc63c4dbf93d550606c3"
+    #     # signed_id: "2019-12-13/1/slices/test.gcode"
+    #     if not self.settings.get("auth.user.username"):
+    #       raise AncillaError(status= 401, body={"error": "Not Signed In"})
+
+    #     url = f'{self.settings.api_url}{self.settings.get("auth.user.username")}/slices/assets/presign'
+    #     req = requests.Request('POST', url, json=payload)
+    #     response = await self.make_request(req)        
+    #     return response
+    #   except AncillaResponse as e:
+    #     raise e
+    #   except Exception as e:
+    #     print(f"CREATe printer exception = {e}", flush=True)
+    #     raise AncillaError(status= 400, body={"error": f"{str(e)}"}, exception=e)
+    #   pass
+
+    # async def create_slice_file(self, evt):
+    #   try:
+    #     payload = evt.get("data")
+    #     data = {"slice": payload}
+    #     # data = {slice: {gcode: {file: "2019-12-13/1/slices/test.gcode"}}
+
+    #     if not self.settings.get("auth.user.username"):
+    #       raise AncillaError(status= 401, body={"error": "Not Signed In"})
+
+    #     url = f'{self.settings.api_url}{self.settings.get("auth.user.username")}/printers'
+    #     req = requests.Request('POST', url, json=payload)
+    #     response = await self.make_request(req)        
+    #     return response
+    #   except AncillaResponse as e:
+    #     raise e
+    #   except Exception as e:
+    #     print(f"CREATe printer exception = {e}", flush=True)
+    #     raise AncillaError(status= 400, body={"error": f"{str(e)}"}, exception=e)
+    #   pass

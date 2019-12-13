@@ -5,6 +5,8 @@ from ...data.models import Service, Printer, Camera
 
 import asyncio
 
+from ..response import AncillaError, AncillaResponse
+
 class NodeApi(Api):
 
   def setup(self):
@@ -35,12 +37,11 @@ class NodeApi(Api):
       try:
         if model:          
           # if request.params.get("layerkeep_sync") and request.params.get("layerkeep_sync") != "false":
-          if model.layerkeep_id:
-            if layerkeep and smodel.kind == "printer" and model.layerkeep_id:
-              response = await layerkeep.delete_printer({"data": {"layerkeep_id": model.layerkeep_id}})
-              print(f"LK response = {response.status}  {response.body}", flush=True)
-              if not response.success:
-                raise response
+          if layerkeep and smodel.kind == "printer" and model.layerkeep_id:
+            response = await layerkeep.delete_printer({"data": {"layerkeep_id": model.layerkeep_id}})
+            print(f"LK response = {response.status}  {response.body}", flush=True)
+            if not response.success:
+              raise response
           model.delete_instance(recursive=True)
               
         smodel.delete_instance(recursive=True)
@@ -48,7 +49,8 @@ class NodeApi(Api):
       except Exception as e:
         print(f"DELETE SERvice excption= {str(e)}", flush=True)
         transaction.rollback()    
-        return {"error": "Could Not Delete Service"}
+        raise e
+        # return {"error": "Could Not Delete Service"}
     
     return {"success": True}
 
@@ -95,7 +97,8 @@ class NodeApi(Api):
           if model:
             model.name = newname
             if not model.is_valid:
-              return {"errors": model.errors}
+              raise AncillaError(400, {"errors": model.errors})
+              # return {"errors": model.errors}
             model.save()
 
 
@@ -154,12 +157,14 @@ class NodeApi(Api):
         service = Service(name=request.params.get("name"), kind="camera", class_name="Camera")
 
         if not service.is_valid:
-          return {"status": 400, "errors": service.errors}
+          raise AncillaError(400, {"errors": service.errors})
+          # return {"status": 400, "errors": service.errors}
         service.save()
 
         camera = Camera(**request.params, service=service)
         if not camera.is_valid:
-          return {"status": 400, "errors": camera.errors}
+          raise AncillaError(400, {"errors": camera.errors})
+          # return {"status": 400, "errors": camera.errors}
 
         camera.save()
         camera_service = service.json
@@ -181,12 +186,14 @@ class NodeApi(Api):
         service = Service(name=request.params.get("name"), kind="printer", class_name="Printer")
 
         if not service.is_valid:
-          return {"status": 400, "errors": service.errors}
+          raise AncillaError(400, {"errors": service.errors})
+          # return {"status": 400, "errors": service.errors}
         service.save()
         
         printer = Printer(**request.params, service=service)
         if not printer.is_valid:
-          return {"status": 400, "errors": printer.errors}
+          raise AncillaError(400, {"errors": printer.errors})
+          # return {"status": 400, "errors": printer.errors}
 
         print(f"Layerkeep = {layerkeep}", flush=True)
         if request.params.get("layerkeep_sync") == True:
@@ -207,8 +214,6 @@ class NodeApi(Api):
         # new transaction will begin automatically after the call
         # to rollback().
         transaction.rollback()
-        error_saving = True
-        # return {"Error"}
         raise e
 
 

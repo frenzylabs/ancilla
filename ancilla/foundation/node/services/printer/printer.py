@@ -31,6 +31,7 @@ from ...events.printer import Printer as PrinterEvent
 from ...api.printer import PrinterApi
 from ...middleware.printer_handler import PrinterHandler
 from ...app import ConfigDict
+from ...response import AncillaError, AncillaResponse
 
 class CommandQueue(object):
 
@@ -155,7 +156,8 @@ class Printer(BaseService):
         print(f'Exception Open Conn: {str(e)}')
         self.state.connected = False
         self.fire_event(PrinterEvent.connection.failed, {"error": str(e)})
-        return {"error": str(e), "status": "failed"}
+        raise AncillaError(400, {"error": str(e)})
+        # return {"error": str(e), "status": "failed"}
         # self.pusher.send_multipart([self.identity, b'error', str(e).encode('ascii')])
 
     def stop(self, *args):
@@ -309,19 +311,26 @@ class Printer(BaseService):
           
           return {"status": "success"}
         else:
-          return {"status": "error", "error": "Task Not Found"}
+          raise AncillaError(404, {"error": "Task Not Found"})
+          # return {"status": "error", "error": "Task Not Found"}
 
+      except AncillaResponse as e:
+        raise e
       except Exception as e:
         print(f"Cant cancel recording task {str(e)}", flush=True)
-        return {"status": "error", "error": f"Could not cancel task {str(e)}"}
+        raise AncillaError(400, {"error": f"Could not cancel task {str(e)}"})
+        # return {"status": "error", "error": f"Could not cancel task {str(e)}"}
 
     def start_print(self, data):
       try:
         # res = data.decode('utf-8')
         # payload = json.loads(res)
         # name = payload.get("name") or "PrintTask"
+        if not self.state.connected:
+          raise Exception("Printer Not Connected")
         if self.current_print and self.current_print.status != "running" and self.current_print.status != "idle":
-          return {"status": "error", "error": "There is already a print"}
+          raise AncillaError(404, {"error": "There is already a print"})
+          # return {"status": "error", "error": "There is already a print"}
         
 
         name = "print"
@@ -335,7 +344,8 @@ class Printer(BaseService):
         if not self.current_print:
           fid = data.get("file_id")
           if not fid:
-            return {"status": "error", "error": "No file to print"}
+            raise AncillaError(404, {"error": "No file to print"})
+            # return {"status": "error", "error": "No file to print"}
 
           sf = SliceFile.get(fid)  
           name = data.get("name") or f"print-{sf.name}"
@@ -350,9 +360,12 @@ class Printer(BaseService):
         loop = IOLoop().current()
         loop.add_callback(partial(self._process_tasks))
 
+      except AncillaResponse as e:
+        raise e
       except Exception as e:
         print(f"Cant Start Print task {str(e)}", flush=True)
-        return {"status": "error", "error": f"Cant Start Print task {str(e)}"}
+        # return {"status": "error", "error": f"Cant Start Print task {str(e)}"}
+        raise AncillaError(400, {"error": f"Cant Start Print task {str(e)}"})
 
       return {"queued": "success"}
 

@@ -29,8 +29,9 @@ class FileApi(Api):
   #     os.makedirs(self.root_path)
 
 
-  def post(self, request, *args):
+  def post(self, request, layerkeep, *args):
     print("INSIDE FiLE POST")
+    print(request.params, flush=True)
     # print(request.files, flush=True)
     incoming        = request.files['file'][0]    
     name            = "".join(random.choice(string.ascii_lowercase + string.digits) for x in range(6))    
@@ -41,6 +42,7 @@ class FileApi(Api):
     output          = open(filepath, 'wb')
     
     output.write(incoming['body'])
+    output.close()
     sf = SliceFile(name=original_name, generated_name=filename, path=filepath)
     sf.save()
     self.service.fire_event(FileEvent.created, sf.json)

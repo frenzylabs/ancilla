@@ -737,7 +737,7 @@ class App(object):
     def remount_apps(self, apps):
         self._mounts = []
         for app in apps:
-            self._mount_app(app.config['_mount.prefix'], app)
+            self._mount_wsgi(app.config['_mount.prefix'], app)
                 
 
     def _mount_wsgi(self, prefix, app, **options):
@@ -1092,10 +1092,13 @@ class App(object):
                         # return result
                     else:
                         raise e
-
+                
+                except AncillaResponse as e:
+                    raise e
                 except Exception as e:
                     print(f"Exception = {e}", flush=True)
                     print(self.catchall)
+                    raise AncillaError(400, {"error": str(e)})
                     # self.api.catchUnmountedServices
                     # print(f"rule syntax = {self.router.rule_syntax}", flush=True)
                     # matches = self.router.rule_syntax.match(request.path)
@@ -1111,7 +1114,7 @@ class App(object):
                     # request.path.split("/")
                     # self.api.catchUnmountedServices(request, service, service_id, *args, **kwargs):
                     # self.service.route('/services/<service>/<service_id><other:re:.*>', ['GET', 'PUT', 'POST', 'DELETE', 'PATCH'], self.api.catchUnmountedServices)  
-                    raise e
+                    # raise e
                 # except HTTPResponse as E:
                 #     out = E
                 #     break

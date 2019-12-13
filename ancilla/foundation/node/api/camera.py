@@ -46,7 +46,9 @@ class CameraApi(Api):
         if request.params.get('event_listeners'):
           s.event_listeners = request.params.get('event_listeners')
         s.save()
-        return {"service_model": s.json}
+        smodel = s.json
+        smodel.update(model=model.to_json(recurse=False))
+        return {"service_model": smodel}
       except Exception as e:
         # Because this block of code is wrapped with "atomic", a
         # new transaction will begin automatically after the call

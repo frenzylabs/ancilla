@@ -30,7 +30,7 @@ class NodeService(App):
         self.config.update({
             "catchall": True
         })
-        
+
         self.identity = identity
         self.name = identity.decode('utf-8')
         # self.ctx = Context()
@@ -164,6 +164,7 @@ class NodeService(App):
           
         if srv:
           srv.model = model
+          srv.name = model.name
 
           old_config = oldmodel.configuration          
           old_settings = srv.settings.to_json()
@@ -239,10 +240,10 @@ class NodeService(App):
         self._services.append(s)
         if s.kind == "file":          
           ServiceCls = getattr(importlib.import_module("ancilla.foundation.node.services"), s.class_name)  
-          # service = ServiceCls(s)      
-          # service.install(LayerkeepCls())
-          # self.file_service = service
-          # self.mount(f"/services/{s.kind}/{s.id}/", service)
+          service = ServiceCls(s)      
+          service.install(LayerkeepCls())
+          self.file_service = service
+          self.mount(f"/services/{s.kind}/{s.id}/", service)
         elif s.kind == "layerkeep":          
           ServiceCls = getattr(importlib.import_module("ancilla.foundation.node.services"), s.class_name)  
           service = ServiceCls(s) 
