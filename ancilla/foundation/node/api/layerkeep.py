@@ -13,7 +13,7 @@ class LayerkeepApi(Api):
 
   def setup(self):
     super().setup()
-    self.service.route('/gcode_files', 'GET', self.gcode_files)
+    self.service.route('/sliced_files', 'GET', self.sliced_files)
     self.service.route('/sign_in', 'POST', self.sign_in)
     self.service.route('/sign_out', 'GET', self.sign_out)
     self.service.route('/current_user', 'GET', self.current_user)
@@ -51,8 +51,8 @@ class LayerkeepApi(Api):
     else:
       return {"status": 400, "error": "Could Not Sign In"}
 
-  async def gcode_files(self, request, *args):
-    res = await self.service.list_gcode_files({"data": request.params})
+  async def sliced_files(self, request, *args):
+    res = await self.service.list_sliced_files({"data": request.params})
     print(f"Res = {res}", flush=True)
     return res
     # print(f"requestparam = {request.params}", flush=True)    
@@ -149,5 +149,6 @@ class LayerkeepApi(Api):
     #   response.body = {"error":}
     #   return {"status": 400, "error": "Could Not Sign In"}
     return response
+
 
     # return {'services': [service.json for service in Service.select()]}

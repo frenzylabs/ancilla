@@ -21,7 +21,8 @@ def check_authorization(f):
 class Layerkeep(BaseService):    
     
     __actions__ = [
-        "sync_file"
+        "sync_file",
+        "download_sliced_file"
       ]
 
     # events = PrinterEvents
@@ -94,7 +95,7 @@ class Layerkeep(BaseService):
         if key == "auth.token.access_token":
           self.session.headers.update({'Authorization': f'Bearer {newval}'})
 
-    async def make_request(self, req):
+    async def make_request(self, req, content_type = 'json'):
       prepped = self.session.prepare_request(req)
       print(f"prepped = {prepped.headers}", flush=True)
       loop = asyncio.get_event_loop()
@@ -103,16 +104,19 @@ class Layerkeep(BaseService):
       future = loop.run_in_executor(None, makerequest)
       # future = loop.run_in_executor(None, self.service.session.send, prepped)
       resp = await future
-      return self.handle_response(resp)
+      return self.handle_response(resp, content_type)
       # return future
       # response = await future
 
-    def handle_response(self, response):
+    def handle_response(self, response, content_type='json'):
       print(f"HandleResponse = {response}", flush=True)
       resp = AncillaResponse(status=response.status_code)
       
       try:
-        resp.body = response.json()    
+        if content_type == 'json':
+          resp.body = response.json()    
+        else:
+          resp.body = response.content
       except Exception as e:
         if not resp.success:
           resp.body = {"error": response.text}
@@ -133,7 +137,7 @@ class Layerkeep(BaseService):
     #     url = f'{self.config.api_url}{self.settings.get("auth.user.username")}/slices'
 
     @check_authorization
-    async def list_gcode_files(self, evt):
+    async def list_sliced_files(self, evt):
       try:
         payload = evt.get("data")
         url = f'{self.settings.api_url}{self.settings.get("auth.user.username")}/slices'
@@ -206,6 +210,23 @@ class Layerkeep(BaseService):
 
     def create_print(self, evt):
       pass
+
+    async def download_sliced_file(self, evt):
+      try:
+        payload = evt.get("data")
+        print(f"cp payload = {payload}", flush=True)    
+        if not self.settings.get("auth.user.username"):
+          raise AncillaError(status= 401, body={"error": "Not Signed In"})
+
+        url = f'{self.settings.api_url}{self.settings.get("auth.user.username")}/slices/{payload.get("id")}/gcodes'
+        req = requests.Request('GET', url)
+        response = await self.make_request(req, 'bytes')
+        return response
+      except AncillaResponse as e:
+        raise e
+      except Exception as e:
+        print(f"Download LK File exception = {e}", flush=True)
+        raise AncillaError(status= 400, body={"error": f"{str(e)}"}, exception=e)
 
     # async def presign_asset(self, evt):
     #   try:

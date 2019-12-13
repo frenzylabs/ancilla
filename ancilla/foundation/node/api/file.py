@@ -16,6 +16,7 @@ class FileApi(Api):
   def setup(self):
     super().setup()
     self.service.route('/<file_id>', 'GET', self.get)
+    self.service.route('/sync_layerkeep', 'POST', self.sync_layerkeep)
     self.service.route('/', 'GET', self.list_files)
     self.service.route('/', 'POST', self.post)
     self.service.route('/<file_id>', 'DELETE', self.delete)
@@ -95,3 +96,24 @@ class FileApi(Api):
     if self.service.connector:
         self.service.stop()
     return {"status": "disconnected"}
+
+  
+  async def sync_layerkeep(self, request, layerkeep, *args):
+    print(f"sync layerkeep {request.params}", flush=True)
+    name = request.params.get("attributes").get("name")
+    response = await layerkeep.download_sliced_file({"data": request.params})
+    if not response.success:
+      raise response
+
+    filename            = "".join(random.choice(string.ascii_lowercase + string.digits) for x in range(6))    
+    ext             = os.path.splitext(name)[1]
+    filename = filename + ext
+    filepath        = self._path_for_file(filename)
+    output          = open(filepath, 'wb')
+    
+    output.write(response.body)
+    output.close()
+    sf = SliceFile(name=name, generated_name=filename, path=filepath, layerkeep_id=request.params.get("id"))
+    sf.save()
+    self.service.fire_event(FileEvent.created, sf.json)
+    return {"file": sf.json}
