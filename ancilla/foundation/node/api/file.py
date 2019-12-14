@@ -6,6 +6,7 @@ import asyncio
 from .api import Api
 from ..events import FileEvent
 from ...data.models import SliceFile
+from ..response import AncillaResponse, AncillaError
 
 class FileApi(Api):
   # def __init__(self, service):
@@ -16,7 +17,9 @@ class FileApi(Api):
   def setup(self):
     super().setup()
     self.service.route('/<file_id>', 'GET', self.get)
-    self.service.route('/sync_layerkeep', 'POST', self.sync_layerkeep)
+    self.service.route('/<file_id>', 'PATCH', self.update)
+    self.service.route('/<file_id>/sync_layerkeep', 'POST', self.sync_to_layerkeep)
+    self.service.route('/sync_layerkeep', 'POST', self.sync_from_layerkeep)
     self.service.route('/', 'GET', self.list_files)
     self.service.route('/', 'POST', self.post)
     self.service.route('/<file_id>', 'DELETE', self.delete)
@@ -28,6 +31,9 @@ class FileApi(Api):
   #   self.root_path = "/".join([Env.ancilla, self.node.name, "user_files"])
   #   if not os.path.exists(self.root_path):
   #     os.makedirs(self.root_path)
+
+  def update(self, request, layerkeep, *args):
+    pass
 
 
   def post(self, request, layerkeep, *args):
@@ -55,26 +61,20 @@ class FileApi(Api):
 
 
   def get(self, request, file_id, *args):
-    # id          = self.get_argument('file_id', None)
-    # file
     slice_file  = SliceFile.get_by_id(file_id)
     return {"file": slice_file.json}
 
-  def delete(self, request, file_id, *args):
+  async def delete(self, request, layerkeep, file_id, *args):
     print("INSIDE DELETE FILE", flush=True)
     slice_file  = SliceFile.get_by_id(file_id)
-    if self.service.delete_file({"data": slice_file.json}):
+    if slice_file.layerkeep_id:
+      resp = await layerkeep.delete_sliced_file({"data": {"layerkeep_id": slice_file.layerkeep_id}})
+
+    if self.service.delete_file(slice_file):
       return {"status": 200}
     else:
-      return {"status": 400, "error": f"Could Not Delete File {slice_file.name}"}
-    # os.remove(slice_file.path)
-    # slice_file.delete()
-    
+      raise AncillaError(400, {"error": f"Could Not Delete File {slice_file.name}"})
 
-
-    # return {"status": 200}
-    # self.set_status(200, "")
-    # self.write()
 
   def _path_for_file(self, filename):
     return "{}/{}".format(self.service.root_path, filename)
@@ -98,7 +98,7 @@ class FileApi(Api):
     return {"status": "disconnected"}
 
   
-  async def sync_layerkeep(self, request, layerkeep, *args):
+  async def sync_from_layerkeep(self, request, layerkeep, *args):
     print(f"sync layerkeep {request.params}", flush=True)
     name = request.params.get("attributes").get("name")
     response = await layerkeep.download_sliced_file({"data": request.params})
@@ -113,7 +113,22 @@ class FileApi(Api):
     
     output.write(response.body)
     output.close()
-    sf = SliceFile(name=name, generated_name=filename, path=filepath, layerkeep_id=request.params.get("id"))
+    sf = SliceFile(name=name, generated_name=filename, path=filepath, layerkeep_id=request.params.get("id"), source="layerkeep")
     sf.save()
     self.service.fire_event(FileEvent.created, sf.json)
     return {"file": sf.json}
+
+  async def sync_to_layerkeep(self, request, layerkeep, file_id, *args):
+    print(f"sync layerkeep {request.params}", flush=True)
+    sliced_file  = SliceFile.get_by_id(file_id)
+    if sliced_file.layerkeep_id:
+      return {"data": sliced_file.json}
+    
+    response = await layerkeep.upload_sliced_file({"data": {"sliced_file": sliced_file.json, "params": request.params}})    
+
+    if not response.success:
+      raise response
+    
+    sliced_file.layerkeep_id = response.body.get("data").get("id")
+    sliced_file.save()
+    return {"data": sliced_file.json}
