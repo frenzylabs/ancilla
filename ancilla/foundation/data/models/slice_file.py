@@ -15,12 +15,15 @@ from peewee import (
   ForeignKeyField
 )
 
+from playhouse.sqlite_ext import JSONField
+
 class SliceFile(BaseModel):
   name            = CharField()
   generated_name  = CharField()
   path            = CharField(unique=True)
   layerkeep_id    = IntegerField(null=True)
   source          = CharField(default="local")
+  # properties        = JSONField(default={})
 
   @property
   def serialize(self):

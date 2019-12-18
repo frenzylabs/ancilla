@@ -466,6 +466,13 @@ class BaseRequest(object):
     #         if isinstance(item, FileUpload):
     #             files[name] = item
     #     return files
+    @property
+    def response(self):
+        return self._response
+
+    def set_response(self, resp):
+        self._response = resp
+
     # @property
     # def url(self):
     #     """ The full request URI including hostname and scheme. If your app
@@ -762,24 +769,25 @@ class App(object):
         tada = self
 
         async def mountpoint_wrapper(request, *args, **kwargs):
-            print("INSIDE MOUNTPOINT WRAPPER", flush=True)
+            # print("INSIDE MOUNTPOINT WRAPPER", flush=True)
             # rs = AncillaResponse()
-            print(f"TAD= {tada}", flush=True)
+            # print(f"TAD= {tada}", flush=True)
             # print(f"RS= {rs}", flush=True)
             # print(f"App= {app}", flush=True)
             # return app({})
             # return {"success": True}
             try:
                 # request.path_shift(path_depth)
-                print(f"Path dep {path_depth}", flush=True)
+                # print(f"Path dep {path_depth}", flush=True)
                 request.environ["PATH"] = "/" + request.path[len(prefix):]
-                print("INSIDE MOUNTPOINT WRAPPER", flush=True)
-                print(f"PATH= {request.path}", flush=True)
-                print(f"ARGS MOUNTPOINT= {args} kwargs= {kwargs}", flush=True)
+                # print("INSIDE MOUNTPOINT WRAPPER", flush=True)
+                # print(f"PATH= {request.path}", flush=True)
+                # print(f"ARGS MOUNTPOINT= {args} kwargs= {kwargs}", flush=True)
                 # print(f"Request= {request.environ}", flush=True)
 
-                rs = AncillaResponse()
-
+                rs = request.response
+                # rs = AncillaResponse()
+                # print(f'Response = {rs}', flush=True)
                 # print(f"App= {dir(app)}", flush=True)
 
                 # def start_response(status, headerlist, exc_info=None):
@@ -792,7 +800,8 @@ class App(object):
                 
                 
                 body = await app(request.environ, rs)
-                print(f"BODY = {body}", flush=True)
+                # print(f"BODY = {body}", flush=True)
+                # print(f'ResponsHeadAFter = {rs.headerlist}', flush=True)
                 if isinstance(body, AncillaResponse):
                     return body
                 else:
@@ -1053,18 +1062,18 @@ class App(object):
 
         if not rs:
             rs = AncillaResponse()
-        print(f"RS = {rs}", flush=True)
+    
+        request.set_response(rs)
+
         try:
             # while True: # Remove in 0.14 together with RouteReset
                 out = None
                 try:
                     # self.trigger_hook('before_request')
                     res = self.router.match(environ)
-                    print(f"router match", flush=True)
-                    print(f"router matchres= {res}", flush=True)
                     route, args = self.router.match(environ)
                     
-                    print(f"ROUTE = {route}", flush=True)
+                    # print(f"ROUTE = {route}", flush=True)
                     environ['route.handle'] = route
                     environ['bottle.route'] = route
                     environ['route.url_args'] = args
@@ -1136,8 +1145,8 @@ class App(object):
             # environ['wsgi.errors'].flush()
             # # out = HTTPError(500, "Internal Server Error", E, stacktrace)
             # out.apply(response)
-        print(f'The result = {out}', flush=True)
-        print(f"Mountapp = {self.config.get('_mount.app')}", flush=True)
+        # print(f'The result = {out}', flush=True)
+        # print(f"Mountapp = {self.config.get('_mount.app')}", flush=True)
         if isinstance(out, AncillaResponse):
             return out
         else:

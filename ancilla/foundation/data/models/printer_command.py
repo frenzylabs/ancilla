@@ -33,7 +33,7 @@ class PrinterCommand(BaseModel):
   response    = JSONField(default=list)
   # printer     = ForeignKeyField(Printer, backref='commands')
   printer     = ForeignKeyField(Printer, on_delete="CASCADE", related_name="commands", null=True, default=None, backref='commands')
-  print = ForeignKeyField(Print, related_name='commands', backref='commands', null=True, default=None)
+  print = ForeignKeyField(Print, on_delete="SET NULL", related_name='commands', backref='commands', null=True, default=None)
   # printer_id  = IntegerField(index=True)
   # request    = ForeignKeyField(DeviceRequest, backref='commands')
   parent_id   = IntegerField(default=0)

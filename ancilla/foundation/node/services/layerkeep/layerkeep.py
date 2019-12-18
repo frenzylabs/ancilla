@@ -130,16 +130,7 @@ class Layerkeep(BaseService):
         url = f'{self.settings.api_url}{self.settings.get("auth.user.username")}/slices'
         req = requests.Request('GET', url, params=payload)
         response = await self.make_request(req)
-        print(f"list gcode files response = {response}", flush=True)    
-        # return self.handle_response(response)
         return response
-        # if response.status_code == 200:
-        #   slices = response.json()    
-        #   return slices      
-        # elif response.status_code == 401:
-        #   return {"status": 401, "error": "Unauthorized"}
-        # else:
-        #   return {"status": 400, "error": "Could Not Sign In"}
       except Exception as e:
         print("Exception")
         raise e

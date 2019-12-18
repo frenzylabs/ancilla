@@ -2,8 +2,8 @@
  file.py
  ancilla
 
- Created by Wess Cope (me@wess.io) on 10/22/19
- Copyright 2019 Wess Cope
+ Created by Kevin Musselman (kevin@frenzylabs.com) on 11/23/19
+ Copyright 2019 FrenzyLabs, LLC.
 '''
 
 import os 
@@ -17,32 +17,52 @@ import string
 
 from .node_api import NodeApiHandler
 
+from ...node.response import AncillaResponse
+
 class FileResource(NodeApiHandler):
   
   def prepare(self):
     super().prepare()
     service = Service.select().where(Service.kind == "file").where(Service.name == "local").first()
-    print(f"Q = {service}", flush=True)
     if service:
       path = ""
       if self.request.path.startswith("/files/"):
         path = self.request.path[len("/files/"):]
       self.environ["PATH"] = service.api_prefix + path 
 
-  # async def delete(self, *args):    
-  #   print("Start delete request", self.request)
-  #   try:
+  async def get(self, *args):
+    try:
+      resp = await self.node(self.environ)
+      self.set_resp_headers(resp)
+      self.set_status(resp.status_code)
+      if self.params.get("download"):
+        self.download_sliced_file(resp)
+      else:
+        self.write(resp.body)
 
-  #     # resp = await self.test()
-  #     # file_id = self.get_argument('file_id', None)
-  #     # print(f"Fileid = {file_id}", flush=True)
-  #     # print(f"del env= {self.environ}", flush=True)
-  #     resp = await self.node._handle(self.environ)
-  #     # resp = await self.node.make_request(self.request)
-  #     # print(f"DELETE REPONSE= {resp}", flush=True)
-  #     self.write(resp)
-  #   except Exception as e:
-  #     print(f"deleteexception = {e}", flush=True)          
-  #   finally:
-  #     self.finish()
+    except AncillaResponse as e:
+      print(f"ancillagetexception = {e}", flush=True)  
+      self.set_resp_headers(e)   
+      self.set_status(e.status_code)
+      self.write(e.body)
+    except Exception as e:
+      print(f"getexception = {e}", flush=True)    
+      self.set_status(400)
+      self.write({"error": str(e)})
+
+    finally:
+      self.finish()
+
+  def download_sliced_file(self, resp):
+    with open(resp.body.get("file").get("path"), "rb") as f:
+      try:
+        while True:
+          _buffer = f.read(4096)
+          if _buffer:
+            self.write(_buffer)
+          else:
+            f.close()
+            return
+      except Exception as e:
+        raise e
 

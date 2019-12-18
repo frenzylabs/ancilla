@@ -18,7 +18,7 @@ from peewee import (
 
 class Printer(BaseModel):
   name      = CharField(unique=True)
-  port      = CharField(unique=True)
+  port      = CharField()
   baud_rate = CharField()
   model     = CharField(null=True)
   description = CharField(null=True)

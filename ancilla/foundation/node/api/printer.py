@@ -103,7 +103,7 @@ class PrinterApi(Api):
   def prints(self, request, *args):
     print(f"INSIDE PRINTS {self.service.printer}", flush=True)
     # prnts = Print.select().order_by(Print.created_at.desc())
-    return {"prints": [p.json for p in self.service.printer.prints.order_by(Print.created_at.desc())]}
+    return {"prints": [p.to_json(recurse=False) for p in self.service.printer.prints.order_by(Print.created_at.desc())]}
 
   
   # def start_print(self, *args):

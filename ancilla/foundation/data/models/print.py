@@ -27,8 +27,8 @@ class Print(BaseModel):
   state     = JSONField(default={})
   # request_id    = IntegerField()
   printer_snapshot = JSONField(default={})
-  printer    = ForeignKeyField(Printer, backref='prints')
-  slice_file    = ForeignKeyField(SliceFile, backref='prints')
+  printer    = ForeignKeyField(Printer, on_delete="CASCADE", backref='prints')
+  slice_file    = ForeignKeyField(SliceFile, on_delete="SET NULL", null=True, backref='prints')
   
   layerkeep_id  = IntegerField(null=True)
 

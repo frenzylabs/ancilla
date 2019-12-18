@@ -17,6 +17,7 @@ class FileApi(Api):
   def setup(self):
     super().setup()
     self.service.route('/<file_id>', 'GET', self.get)
+    self.service.route('/<file_id>/unsync', 'PATCH', self.unsync_layerkeep)
     self.service.route('/<file_id>', 'PATCH', self.update)
     self.service.route('/<file_id>/sync_layerkeep', 'POST', self.sync_to_layerkeep)
     self.service.route('/sync_layerkeep', 'POST', self.sync_from_layerkeep)
@@ -32,11 +33,18 @@ class FileApi(Api):
   #   if not os.path.exists(self.root_path):
   #     os.makedirs(self.root_path)
 
+  def unsync_layerkeep(self, request, layerkeep, file_id, *args):
+    sliced_file  = SliceFile.get_by_id(file_id)
+    sliced_file.layerkeep_id = None
+    sliced_file.save()
+    return {"file": sliced_file.json}
+    # pass
+
   def update(self, request, layerkeep, *args):
     pass
 
 
-  def post(self, request, layerkeep, *args):
+  async def post(self, request, layerkeep, *args):
     print("INSIDE FiLE POST")
     print(request.params, flush=True)
     # print(request.files, flush=True)
@@ -50,10 +58,20 @@ class FileApi(Api):
     
     output.write(incoming['body'])
     output.close()
-    sf = SliceFile(name=original_name, generated_name=filename, path=filepath)
-    sf.save()
-    self.service.fire_event(FileEvent.created, sf.json)
-    return {"file": sf.json}
+    sliced_file = SliceFile(name=original_name, generated_name=filename, path=filepath)
+    lksync = request.params.get("layerkeep_sync")
+
+    if lksync and lksync != 'false':
+      response = await layerkeep.upload_sliced_file({"data": {"sliced_file": sliced_file.json, "params": request.params}})    
+      if not response.success:
+        raise response
+    
+      sliced_file.layerkeep_id = response.body.get("data").get("id")
+
+    sliced_file.save()
+    
+    self.service.fire_event(FileEvent.created, sliced_file.json)
+    return {"file": sliced_file.json}
     # self.finish({"file": sf.json})
 
   def list_files(self, request, *args):
@@ -62,6 +80,13 @@ class FileApi(Api):
 
   def get(self, request, file_id, *args):
     slice_file  = SliceFile.get_by_id(file_id)
+    print(f'RequestParams= {request.params}', flush=True)
+    print(f'Resp Headers= {request.response.headerlist}', flush=True)
+    
+    if request.params.get('download'):
+      # request.response.set_header()
+      request.response.set_header('Content-Type', 'application/force-download')
+      request.response.set_header('Content-Disposition', 'attachment; filename=%s' % slice_file.name)
     return {"file": slice_file.json}
 
   async def delete(self, request, layerkeep, file_id, *args):
@@ -100,6 +125,11 @@ class FileApi(Api):
   
   async def sync_from_layerkeep(self, request, layerkeep, *args):
     print(f"sync layerkeep {request.params}", flush=True)
+    layerkeep_id = request.params.get("attributes").get("id")
+    localsf = SliceFile.select().where(SliceFile.layerkeep_id == layerkeep_id).first()
+    if localsf:
+      return {"file": localsf.json}
+
     name = request.params.get("attributes").get("name")
     response = await layerkeep.download_sliced_file({"data": request.params})
     if not response.success:
@@ -131,4 +161,4 @@ class FileApi(Api):
     
     sliced_file.layerkeep_id = response.body.get("data").get("id")
     sliced_file.save()
-    return {"data": sliced_file.json}
+    return {"file": sliced_file.json}

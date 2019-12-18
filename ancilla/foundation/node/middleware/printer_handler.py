@@ -61,7 +61,7 @@ class PrinterHandler(DataHandler):
             cmdstatus = "running"
             cmd.response.append(newmsg)
 
-          if newmsg.startswith("ok"):
+          if newmsg.startswith("ok") or newmsg == "k\n":
             cmdstatus = "finished"
             self.device.command_queue.finish_command()
 

@@ -10,6 +10,8 @@ import sys, base64, cgi, email.utils, functools, hmac, imp, itertools, mimetypes
         os, re, tempfile, threading, time, warnings, weakref, hashlib
 from urllib.parse import urlencode
 
+from .response import AncillaResponse, AncillaError
+
 DEBUG = False
 
 py3k = sys.version_info.major > 2
@@ -166,7 +168,7 @@ class RouteBuildError(RouteError):
     """ The route could not be built. """
 
 
-class RouterError(Exception):
+class RouterError(AncillaError):
     default_status = 500
 
     def __init__(self,
@@ -178,7 +180,7 @@ class RouterError(Exception):
         self.exception = exception
         self.body = body
         self.traceback = traceback
-        # super(Exception, self).__init__(body, status, **more_headers)    
+        super().__init__(status, body, **more_headers)
 
 def _re_flatten(p):
     """ Turn all capturing groups in a regular expression pattern into

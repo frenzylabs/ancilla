@@ -1,3 +1,13 @@
+'''
+ response.py
+ ancilla
+
+ Created by Kevin Musselman (kevin@frenzylabs.com) on 12/09/19
+ Copyright 2019 FrenzyLabs, LLC.
+'''
+
+from ..utils.dict import HeaderDict, HeaderProperty, _hkey, _hval
+
 STATUS_CODES = dict()
 STATUS_CODES[200] = "Success" 
 STATUS_CODES[201] = "Created"
@@ -30,7 +40,7 @@ class BaseResponse(object):
     """
 
     default_status = 200
-    default_content_type = 'text/html; charset=UTF-8'
+    default_content_type = 'application/json; charset=UTF-8'
 
     # Header blacklist for specific response codes
     # (rfc2616 section 10.2.3 and 10.3.5)
@@ -41,18 +51,18 @@ class BaseResponse(object):
                   'Content-Md5', 'Last-Modified'))
     }
 
-    def __init__(self, body='', status=None, **more_headers):
+    def __init__(self, body='', status=None, headers=None, **more_headers):
         self._headers = {}
         self.body = body
         self.status = status or self.default_status
-        # if headers:
-        #     if isinstance(headers, dict):
-        #         headers = headers.items()
-        #     for name, value in headers:
-        #         self.add_header(name, value)
-        # if more_headers:
-        #     for name, value in more_headers.items():
-        #         self.add_header(name, value)
+        if headers:
+            if isinstance(headers, dict):
+                headers = headers.items()
+            for name, value in headers:
+                self.add_header(name, value)
+        if more_headers:
+            for name, value in more_headers.items():
+                self.add_header(name, value)
 
     def copy(self, cls=None):
         """ Returns a copy of self. """
@@ -110,13 +120,13 @@ class BaseResponse(object):
             always a status string. ''')
     del _get_status, _set_status
 
-    # @property
-    # def headers(self):
-    #     """ An instance of :class:`HeaderDict`, a case-insensitive dict-like
-    #         view on the response headers. """
-    #     hdict = HeaderDict()
-    #     hdict.dict = self._headers
-    #     return hdict
+    @property
+    def headers(self):
+        """ An instance of :class:`HeaderDict`, a case-insensitive dict-like
+            view on the response headers. """
+        hdict = HeaderDict()
+        hdict.dict = self._headers
+        return hdict
 
     # def __contains__(self, name):
     #     return _hkey(name) in self._headers
@@ -135,38 +145,37 @@ class BaseResponse(object):
     #         header with that name, return a default value. """
     #     return self._headers.get(_hkey(name), [default])[-1]
 
-    # def set_header(self, name, value):
-    #     """ Create a new response header, replacing any previously defined
-    #         headers with the same name. """
-    #     self._headers[_hkey(name)] = [_hval(value)]
+    def set_header(self, name, value):
+        """ Create a new response header, replacing any previously defined
+            headers with the same name. """
+        self._headers[_hkey(name)] = [_hval(value)]
 
-    # def add_header(self, name, value):
-    #     """ Add an additional response header, not removing duplicates. """
-    #     self._headers.setdefault(_hkey(name), []).append(_hval(value))
+    def add_header(self, name, value):
+        """ Add an additional response header, not removing duplicates. """
+        self._headers.setdefault(_hkey(name), []).append(_hval(value))
 
-    # def iter_headers(self):
-    #     """ Yield (header, value) tuples, skipping headers that are not
-    #         allowed with the current response status code. """
-    #     return self.headerlist
+    def iter_headers(self):
+        """ Yield (header, value) tuples, skipping headers that are not
+            allowed with the current response status code. """
+        return self.headerlist
 
-    # @property
-    # def headerlist(self):
-    #     """ WSGI conform list of (header, value) tuples. """
-    #     out = []
-    #     headers = list(self._headers.items())
-    #     if 'Content-Type' not in self._headers:
-    #         headers.append(('Content-Type', [self.default_content_type]))
-    #     if self._status_code in self.bad_headers:
-    #         bad_headers = self.bad_headers[self._status_code]
-    #         headers = [h for h in headers if h[0] not in bad_headers]
-    #     out += [(name, val) for (name, vals) in headers for val in vals]
+    @property
+    def headerlist(self):
+        """ WSGI conform list of (header, value) tuples. """
+        out = []
+        headers = list(self._headers.items())
+        if 'Content-Type' not in self._headers:
+            headers.append(('Content-Type', [self.default_content_type]))
+        if self._status_code in self.bad_headers:
+            bad_headers = self.bad_headers[self._status_code]
+            headers = [h for h in headers if h[0] not in bad_headers]
+        out += [(name, val) for (name, vals) in headers for val in vals]
 
-    #     if py3k:
-    #         out = [(k, v.encode('utf8').decode('latin1')) for (k, v) in out]
-    #     return out
+        out = [(k, v.encode('utf8').decode('latin1')) for (k, v) in out]
+        return out
 
-    # content_type = HeaderProperty('Content-Type')
-    # content_length = HeaderProperty('Content-Length', reader=int, default=-1)
+    content_type = HeaderProperty('Content-Type')
+    content_length = HeaderProperty('Content-Length', reader=int, default=-1)
     # expires = HeaderProperty(
     #     'Expires',
     #     reader=lambda x: datetime.utcfromtimestamp(parse_date(x)),
@@ -187,13 +196,13 @@ class BaseResponse(object):
     #     return out
 
 class AncillaResponse(BaseResponse, Exception):
-    def __init__(self, body='', status=None, **more_headers):
-        super(AncillaResponse, self).__init__(body, status, **more_headers)
+    def __init__(self, body='', status=None, headers=None, **more_headers):
+        super(AncillaResponse, self).__init__(body, status, headers, **more_headers)
     
     def apply(self, other):
         other._status_code = self._status_code
         other._status_line = self._status_line
-        # other._headers = self._headers
+        other._headers = self._headers
         other.body = self.body
     
     def __str__(self):
