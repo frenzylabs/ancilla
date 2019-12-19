@@ -756,7 +756,7 @@ class App(object):
         app.config['_mount.prefix'] = prefix
         app.config['_mount.app'] = self
 
-        print(f"App= {app}", flush=True)
+        # print(f"App= {app}", flush=True)
         
         # def check_authorization(f):
         #     def wrapper(self, *args, **kwargs):
@@ -800,8 +800,8 @@ class App(object):
                 
                 
                 body = await app(request.environ, rs)
-                # print(f"BODY = {body}", flush=True)
-                # print(f'ResponsHeadAFter = {rs.headerlist}', flush=True)
+                print(f"BODY = {body}", flush=True)
+                print(f'ResponsHeadAFter = {rs.headerlist}', flush=True)
                 if isinstance(body, AncillaResponse):
                     return body
                 else:
@@ -1081,6 +1081,8 @@ class App(object):
                     # result = yield from call_maybe_yield(route.call, *[request], **args)
                     out = await call_maybe_yield(route.call, *[request], **args)
                     
+                    # print(f'call route = {out}', flush=True)
+                    # return out
                     # return result
 
                 except RouterError as e:
@@ -1103,9 +1105,10 @@ class App(object):
                         raise e
                 
                 except AncillaResponse as e:
+                    # print(f"INSIDE ANCilla REspone Error {str(e)}", flush=True)
                     raise e
                 except Exception as e:
-                    print(f"Exception = {e}", flush=True)
+                    # print(f"AppCallException = {e}", flush=True)
                     print(self.catchall)
                     raise AncillaError(400, {"error": str(e)})
                     # self.api.catchUnmountedServices
@@ -1138,6 +1141,7 @@ class App(object):
         except (KeyboardInterrupt, SystemExit, MemoryError):
             raise
         except Exception as e:
+            # print(f"INSIDE OTHER EXCEPTION = {str(e)}", flush=True)
             # if not self.catchall: raise e
             raise e
             # stacktrace = format_exc()

@@ -152,12 +152,12 @@ class NodeService(App):
         srv = next((item for item in self._mounts if item.model.id == instance.id), None)
         # cur_settings = json.dumps(model.settings)
         # cur_events = json.dumps(model.event_listeners)
-        print(f"POST SAVE SERVICE= args= {args} {srv}", flush=True)
+        # print(f"POST SAVE SERVICE= args= {args} {srv}", flush=True)
         # print(f"OldMod = {model.to_json()}", flush=True)
         # print(f"NewMod = {instance.to_json()}", flush=True)
         oldname = model.name
         model = instance
-        print(f"OLDName = {oldname}, instan= {instance.name}", flush=True)
+        print(f"PostSaveHandler OLDName = {oldname}, instan= {instance.name}", flush=True)
         if oldname != instance.name:
           print("Handle name change")
           self.handle_name_change(oldname, instance.name)

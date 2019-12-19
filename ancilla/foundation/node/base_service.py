@@ -16,7 +16,7 @@ from ..data.models import Service
 
 from .app import App, ConfigDict
 
-from ..utils import ServiceJsonEncoder
+from ..utils.service_json_encoder import ServiceJsonEncoder
 
 from playhouse.signals import Signal, post_save
 

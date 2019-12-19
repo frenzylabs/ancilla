@@ -32,7 +32,7 @@ from typing import (
 
 from ...node.router import RouterError
 
-from ...utils import ServiceJsonEncoder
+from ...utils.service_json_encoder import ServiceJsonEncoder
 from ...node.response import AncillaResponse
 
 # from ..utils import ServiceJsonEncoder

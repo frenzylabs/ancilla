@@ -95,7 +95,7 @@ class Layerkeep(BaseService):
       prepped = self.session.prepare_request(req)
       if not auth:
         del prepped.headers['Authorization']
-      # print(f"prepped = {prepped.headers}", flush=True)
+      print(f"prepped = {prepped.headers}", flush=True)
       loop = asyncio.get_event_loop()
       makerequest = functools.partial(self.session.send, prepped, **options)
 
@@ -135,6 +135,29 @@ class Layerkeep(BaseService):
         print("Exception")
         raise e
       
+    @check_authorization
+    async def list_projects(self, evt):
+      try:
+        payload = evt.get("data")
+        url = f'{self.settings.api_url}{self.settings.get("auth.user.username")}/projects/'
+        req = requests.Request('GET', url, params=payload)
+        response = await self.make_request(req)
+        return response
+      except Exception as e:
+        print("Exception")
+        raise e   
+
+    @check_authorization
+    async def list_profiles(self, evt):
+      try:
+        payload = evt.get("data")
+        url = f'{self.settings.api_url}{self.settings.get("auth.user.username")}/profiles/'
+        req = requests.Request('GET', url, params=payload)
+        response = await self.make_request(req)
+        return response
+      except Exception as e:
+        print("Exception")
+        raise e      
 
     @check_authorization
     async def create_printer(self, evt):

@@ -17,6 +17,8 @@ class LayerkeepApi(Api):
     self.service.route('/sign_in', 'POST', self.sign_in)
     self.service.route('/sign_out', 'GET', self.sign_out)
     self.service.route('/current_user', 'GET', self.current_user)
+    self.service.route('/projects', 'GET', self.list_projects)
+    self.service.route('/profiles', 'GET', self.list_profiles)
     # self.service.route('/services/testing/<name>', 'GET', self.testname)
     # self.service.route('/test', 'GET', self.test)
     # self.service.route('/smodel/<model_id>', 'GET', self.service_model)
@@ -53,6 +55,16 @@ class LayerkeepApi(Api):
 
   async def sliced_files(self, request, *args):
     res = await self.service.list_sliced_files({"data": request.params})
+    print(f"Res = {res}", flush=True)
+    return res
+
+  async def list_projects(self, request, *args):
+    res = await self.service.list_projects({"data": request.params})
+    print(f"Res = {res}", flush=True)
+    return res
+  
+  async def list_profiles(self, request, *args):
+    res = await self.service.list_profiles({"data": request.params})
     print(f"Res = {res}", flush=True)
     return res
     # print(f"requestparam = {request.params}", flush=True)    

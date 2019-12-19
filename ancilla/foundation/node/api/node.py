@@ -195,7 +195,7 @@ class NodeApi(Api):
           raise AncillaError(400, {"errors": printer.errors})
           # return {"status": 400, "errors": printer.errors}
 
-        print(f"Layerkeep = {layerkeep}", flush=True)
+        # print(f"Layerkeep = {layerkeep}", flush=True)
         if request.params.get("layerkeep_sync") == True:
           if layerkeep:  
             response = await layerkeep.create_printer({"data": request.params})
