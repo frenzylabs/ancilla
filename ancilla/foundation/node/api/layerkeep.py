@@ -17,6 +17,8 @@ class LayerkeepApi(Api):
     self.service.route('/sign_in', 'POST', self.sign_in)
     self.service.route('/sign_out', 'GET', self.sign_out)
     self.service.route('/current_user', 'GET', self.current_user)
+    self.service.route('/projects/<path:re:.*>', 'GET', self.get_project)
+    self.service.route('/profiles/<path:re:.*>', 'GET', self.get_profile)
     self.service.route('/projects', 'GET', self.list_projects)
     self.service.route('/profiles', 'GET', self.list_profiles)
     # self.service.route('/services/testing/<name>', 'GET', self.testname)
@@ -67,6 +69,17 @@ class LayerkeepApi(Api):
     res = await self.service.list_profiles({"data": request.params})
     print(f"Res = {res}", flush=True)
     return res
+
+  async def get_project(self, request, path, *args):
+    res = await self.service.get_project({"data": {"path": path, "params": request.params}})
+    print(f"PROJRes = {res}", flush=True)
+    return res
+  
+  async def get_profile(self, request, path, *args):
+    res = await self.service.get_profile({"data": {"path": path, "params": request.params}})
+    print(f"PROFRes = {res}", flush=True)
+    return res
+
     # print(f"requestparam = {request.params}", flush=True)    
     # if not self.service.settings.get("auth.user.username"):
     #   return {"status": 401, "error": "Not Signed In"}

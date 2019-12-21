@@ -33,13 +33,13 @@ except ImportError:
 
 SQL = pw.SQL
 
-from ancilla.foundation.data.models import SliceFile, Print
+from ancilla.foundation.data.models import PrintSlice, Print
 
 def migrate(migrator, database, fake=False, **kwargs):
     """Write your migrations here."""
     # database.drop_tables([Printer])
     database.create_tables([
-        SliceFile
+        PrintSlice
     ])
 
     # migrator.add_index(PrinterCommand, "", "device_type", unique=True)
@@ -50,7 +50,7 @@ def migrate(migrator, database, fake=False, **kwargs):
 def rollback(migrator, database, fake=False, **kwargs):
     """Write your rollback migrations here."""
     database.drop_tables([
-        SliceFile
+        PrintSlice
     ])
 
 

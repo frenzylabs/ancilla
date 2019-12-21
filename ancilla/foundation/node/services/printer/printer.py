@@ -11,7 +11,7 @@ from ....data.models import Printer as PrinterModel
 from ...base_service import BaseService
 from .driver import SerialConnector
 
-from ....data.models import PrinterCommand, SliceFile, Print
+from ....data.models import PrinterCommand, PrintSlice, Print
 # from queue import Queue
 import asyncio
 from functools import partial
@@ -347,10 +347,10 @@ class Printer(BaseService):
             raise AncillaError(404, {"error": "No file to print"})
             # return {"status": "error", "error": "No file to print"}
 
-          sf = SliceFile.get(fid)  
+          sf = PrintSlice.get(fid)  
           name = data.get("name") or f"print-{sf.name}"
           
-          self.current_print = Print(name=name, status="idle", printer_snapshot=self.record, printer=self.printer, slice_file=sf)
+          self.current_print = Print(name=name, status="idle", printer_snapshot=self.record, printer=self.printer, print_slice=sf)
           self.current_print.save(force_insert=True)
 
           # name = prt.name

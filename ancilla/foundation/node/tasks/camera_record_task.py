@@ -10,7 +10,7 @@ import json
 from tornado.ioloop import IOLoop
 from zmq.eventloop.ioloop import PeriodicCallback
 from ..zhelpers import zpipe
-from ...data.models import SliceFile, CameraRecording
+from ...data.models import PrintSlice, CameraRecording
 # from .devices import *
 from tornado.gen        import sleep
 from .ancilla_task import AncillaTask

@@ -800,8 +800,8 @@ class App(object):
                 
                 
                 body = await app(request.environ, rs)
-                print(f"BODY = {body}", flush=True)
-                print(f'ResponsHeadAFter = {rs.headerlist}', flush=True)
+                # print(f"BODY = {body}", flush=True)
+                # print(f'ResponsHeadAFter = {rs.headerlist}', flush=True)
                 if isinstance(body, AncillaResponse):
                     return body
                 else:

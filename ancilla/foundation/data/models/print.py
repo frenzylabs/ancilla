@@ -8,7 +8,7 @@
 
 from .base import BaseModel
 
-from .slice_file import SliceFile
+from .print_slice import PrintSlice
 # from .device_request import DeviceRequest
 from .printer import Printer
 
@@ -28,7 +28,7 @@ class Print(BaseModel):
   # request_id    = IntegerField()
   printer_snapshot = JSONField(default={})
   printer    = ForeignKeyField(Printer, on_delete="CASCADE", backref='prints')
-  slice_file    = ForeignKeyField(SliceFile, on_delete="SET NULL", null=True, backref='prints')
+  print_slice    = ForeignKeyField(PrintSlice, on_delete="SET NULL", null=True, backref='prints')
   
   layerkeep_id  = IntegerField(null=True)
 

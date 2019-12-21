@@ -15,7 +15,7 @@ from tornado.gen        import sleep
 
 from .ancilla_task import AncillaTask
 from ..events.printer import Printer
-from ...data.models import Print, SliceFile
+from ...data.models import Print, PrintSlice
 
 
 class PrintTask(AncillaTask):
@@ -40,7 +40,7 @@ class PrintTask(AncillaTask):
     if not self.service.current_print:
       return {"error": "No Print to send to Printer"}
       
-    sf = self.service.current_print.slice_file
+    sf = self.service.current_print.print_slice
     num_commands = -1
     try:
       # print(f"CONTENT = {content}", flush=True)
@@ -155,6 +155,7 @@ class PrintTask(AncillaTask):
 
   def cancel(self, *args):
     self.state.status = "cancelled"
+    self.service.current_print
     # self.device.add_command(request_id, 0, 'M0\n', True, True)
 
   def pause(self):

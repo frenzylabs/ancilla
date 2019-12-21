@@ -10,7 +10,7 @@ import json
 from tornado.ioloop import IOLoop
 from zmq.eventloop.ioloop import PeriodicCallback
 # from ..zhelpers import zpipe
-from ...data.models import Print, SliceFile
+from ...data.models import Print, PrintSlice
 
 import functools
 from tornado.gen        import sleep
@@ -99,7 +99,7 @@ class CommandTask(AncillaTask):
           while (self.current_command.status == "pending" or 
                 self.current_command.status == "running" or 
                 self.current_command.status == "busy"):
-            await sleep(0.1)
+            await sleep(0.01)
             if self.state.status != "running":
               self.current_command.status = self.state.status
               break

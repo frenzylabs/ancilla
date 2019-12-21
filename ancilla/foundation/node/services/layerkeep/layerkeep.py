@@ -145,7 +145,7 @@ class Layerkeep(BaseService):
         return response
       except Exception as e:
         print("Exception")
-        raise e   
+        raise e
 
     @check_authorization
     async def list_profiles(self, evt):
@@ -158,6 +158,35 @@ class Layerkeep(BaseService):
       except Exception as e:
         print("Exception")
         raise e      
+
+    @check_authorization
+    async def get_project(self, evt):
+      try:
+        payload = evt.get("data")
+        params = payload.get("params") or {}
+        path = payload.get("path")
+        url = f'{self.settings.api_url}{self.settings.get("auth.user.username")}/projects/{path}'
+        req = requests.Request('GET', url, params=params)
+        response = await self.make_request(req)
+        return response
+      except Exception as e:
+        print("Exception")
+        raise e
+
+    @check_authorization
+    async def get_profile(self, evt):
+      try:
+        payload = evt.get("data")
+        params = payload.get("params") or {}
+        path = payload.get("path")
+        url = f'{self.settings.api_url}{self.settings.get("auth.user.username")}/profiles/{path}'
+        req = requests.Request('GET', url, params=params)
+        response = await self.make_request(req)
+        return response
+      except Exception as e:
+        print("Exception")
+        raise e
+
 
     @check_authorization
     async def create_printer(self, evt):
@@ -254,7 +283,7 @@ class Layerkeep(BaseService):
           }
         lkpayload.update(slice_params)
 
-        # Create the SliceFile on Layerkeep
+        # Create the Slice on Layerkeep
         response = await self.create_sliced_file({"data": lkpayload})
         return response
       
@@ -345,6 +374,24 @@ class Layerkeep(BaseService):
 
         url = f'{self.settings.api_url}{self.settings.get("auth.user.username")}/slices'
         req = requests.Request('POST', url, json=data)
+        response = await self.make_request(req)        
+        return response
+      except AncillaResponse as e:
+        raise e
+      except Exception as e:
+        print(f"CREATe slicedFile exception = {e}", flush=True)
+        raise AncillaError(status= 400, body={"error": f"{str(e)}"}, exception=e)
+
+    @check_authorization
+    async def update_sliced_file(self, evt):
+      try:
+        payload = evt.get("data")
+        data = {"slice": payload}
+        slice_id = payload.get("layerkeep_id")
+        # data = {slice: {gcode: {file: "2019-12-13/1/slices/test.gcode"}}
+
+        url = f'{self.settings.api_url}{self.settings.get("auth.user.username")}/slices/{slice_id}'
+        req = requests.Request('PATCH', url, json=data)
         response = await self.make_request(req)        
         return response
       except AncillaResponse as e:

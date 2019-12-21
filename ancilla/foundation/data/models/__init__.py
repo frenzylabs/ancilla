@@ -11,7 +11,7 @@ from .printer  import Printer
 # from .device_request import DeviceRequest
 from .printer_command import PrinterCommand
 from .print import Print
-from .slice_file import SliceFile
+from .print_slice import PrintSlice
 from .camera import Camera
 from .camera_recording import CameraRecording
 

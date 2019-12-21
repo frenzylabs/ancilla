@@ -7,7 +7,7 @@ import json
 from tornado.ioloop import IOLoop
 
 
-from ....data.models import SliceFile
+from ....data.models import PrintSlice
 from ...base_service import BaseService
 from ...events.file import FileEvent
 from ...api.file import FileApi
@@ -57,13 +57,13 @@ class FileService(BaseService):
       return self.config.root_path
             
     def delete_file(self, obj):
-      if isinstance(obj, SliceFile):
+      if isinstance(obj, PrintSlice):
         sf = obj
       else:
         data = obj.get("data") or None
         if data:
           if data.get("id"):
-            sf = SliceFile.get_by_id(data.get("id"))            
+            sf = PrintSlice.get_by_id(data.get("id"))            
       
       if sf:
         if os.path.exists(sf.path):
