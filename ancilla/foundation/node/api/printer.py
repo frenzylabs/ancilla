@@ -18,6 +18,7 @@ class PrinterApi(Api):
     self.service.route('/connection', 'DELETE', self.disconnect)
     self.service.route('/print', 'POST', self.print)
     self.service.route('/prints', 'GET', self.prints)
+    self.service.route('/prints/<print_id>', 'GET', self.get_print)
     self.service.route('/', 'PATCH', self.update_service)
 
   async def update_service(self, request, layerkeep, *args):
@@ -103,8 +104,17 @@ class PrinterApi(Api):
   def prints(self, request, *args):
     print(f"INSIDE PRINTS {self.service.printer}", flush=True)
     # prnts = Print.select().order_by(Print.created_at.desc())
-    return {"prints": [p.to_json(recurse=False) for p in self.service.printer.prints.order_by(Print.created_at.desc())]}
+    page = request.params.get("page") or 1
+    per_page = request.params.get("per_page") or 20
+    q = self.service.printer.prints.order_by(Print.created_at.desc())
+    cnt = q.count()
+    num_pages = cnt / per_page
+    return {"data": [p.to_json(recurse=True) for p in q.paginate(page, per_page)], "meta": {"current_page": page, "last_page": num_pages, "total": cnt}}
 
+  def get_print(self, request, print_id, *args):
+    prnt = Print.get_by_id(print_id)
+    return {"data": prnt.json}
+    # return self.service.start_print(request.params)
   
   # def start_print(self, *args):
   #   try:

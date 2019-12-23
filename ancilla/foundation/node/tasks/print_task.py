@@ -51,6 +51,8 @@ class PrintTask(AncillaTask):
       # device.current_print.save(force_insert=True)   
 
       self.service.state.printing = True
+      self.service.current_print.status = "running"
+      self.service.current_print.save()
       # self.service.fire_event(Printer.state.changed, self.service.state)
 
       self.state.status = "running"
@@ -67,8 +69,6 @@ class PrintTask(AncillaTask):
       # self.publish_request(request)
       return
 
-    self.state.status = "running"
-    
 
     try:
       with open(sf.path, "r") as fp:
@@ -87,8 +87,6 @@ class PrintTask(AncillaTask):
           # print("File POS: ", pos)
           if pos == endfp:
             self.state.status = "finished"
-            # request.status = "finished"
-            # request.save()
             self.service.current_print.status = "finished"
             self.service.current_print.save()
             break
@@ -115,8 +113,6 @@ class PrintTask(AncillaTask):
 
           # print(f'InsidePrintTask curcmd= {self.current_command}', flush=True)
           if self.current_command.status == "error":
-            # request.status = "failed"
-            # request.save()
             self.service.current_print.status = "failed"
             self.state.status = "failed"
             self.state.reason = "Could Not Execute Command: " + self.current_command.command
@@ -146,7 +142,8 @@ class PrintTask(AncillaTask):
 
     print(f"FINISHED PRINT {self.state}", flush=True)
     self.service.print_queued = False
-    self.service.current_print = None
+    if self.service.current_print.status != "paused":
+      self.service.current_print = None
     self.state_callback.stop()
     self.service.fire_event(Printer.print.state.changed, self.state)
     self.service.state.printing = False
@@ -155,10 +152,10 @@ class PrintTask(AncillaTask):
 
   def cancel(self, *args):
     self.state.status = "cancelled"
-    self.service.current_print
+    # self.service.current_print
     # self.device.add_command(request_id, 0, 'M0\n', True, True)
 
-  def pause(self):
+  def pause(self, *args):
     self.state.status = "paused"
 
   def get_state(self):

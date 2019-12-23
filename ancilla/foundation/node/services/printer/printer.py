@@ -80,8 +80,10 @@ class Printer(BaseService):
     
     __actions__ = [
         "command",
+        "send_command",
         "start_print",
-        "cancel_print"
+        "cancel_print",
+        "pause_print"
       ]
 
     # events = PrinterEvents
@@ -233,14 +235,7 @@ class Printer(BaseService):
 
       # return {"open": serialopen, "alive": self.connector.alive, "state": self.state }
 
-    def pause(self, *args):
-      if self.current_task["print"]:
-        self.current_task["print"].pause()
-      # if self.state == "printing":
-      #   self.state = "paused"
-      self.state.status = 'Idle'
-      self.state.printing = False
-      return {"state": self.state}
+
 
     def cancel(self, task_id, *args):
       if self.current_task["print"]:
@@ -267,6 +262,31 @@ class Printer(BaseService):
         print(f"Cant periodic task {str(e)}", flush=True)
 
 
+    def send_command(self, msg):
+      payload = msg.get("data")
+      # parent_id, num, data, nowait=False, skip_queue=False
+      cmd = payload.get("cmd")
+      skip_queue = (payload.get("skip_queue") or False)
+      nowait = (payload.get("nowait") or False)
+      if cmd.startswith(";"):
+        nowait = True
+
+      # print("CONNECT WRITE", data)
+      # request = DeviceRequest.get_by_id(request_id)
+      status = "success"
+      reason = ""
+      if not cmd.endswith('\n'):
+        cmd = cmd + '\n'
+      if self.connector.alive:
+        self.add_command(0, 1, cmd, nowait, skip_queue)
+      else:
+        status = "failed"
+        reason = "Not Connected"
+
+      # request.state = status
+      # request.save()
+      return {"status": status, "reason": reason}
+
     def command(self, msg):
       cmd = msg.get("data")
       # print("CONNECT WRITE", data)
@@ -278,7 +298,7 @@ class Printer(BaseService):
       if self.connector.alive:
         self.add_command(0, 1, cmd)
       else:
-        status = "success"
+        status = "failed"
         reason = "Not Connected"
 
       # request.state = status
@@ -291,19 +311,6 @@ class Printer(BaseService):
       try:
         payload = msg.get('data') or {}
         task_name = payload.get("task_name")
-        # cr = None
-        # if payload.get("recording_id"):
-        #   cr = CameraRecording.get_by_id(payload.get("recording_id"))
-        #   task_name = cr.task_name
-        # elif task_name:          
-        #   cr = CameraRecording.select().where(CameraRecording.task_name == task_name).first()
-        # else:
-        #   cr = CameraRecording.select().where(CameraRecording.status != "finished").first()
-        #   if cr:
-        #     task_name = cr.task_name
-
-        # for k, v in self.current_task.items():
-        #     print(f"TASKkey = {k} and v = {v}", flush=True)
 
         task_name = self.current_print.name #"print"        
         if self.current_task.get(task_name):
@@ -321,6 +328,59 @@ class Printer(BaseService):
         raise AncillaError(400, {"error": f"Could not cancel task {str(e)}"})
         # return {"status": "error", "error": f"Could not cancel task {str(e)}"}
 
+    def pause_print(self, msg, *args):
+      try:
+        payload = msg.get('data') or {}
+        task_name = payload.get("task_name")
+
+
+        # for k, v in self.current_task.items():
+        #     print(f"TASKkey = {k} and v = {v}", flush=True)
+
+        task_name = self.current_print.name #"print"        
+        if self.current_task.get(task_name):
+          self.current_task[task_name].pause()
+          
+          return {"status": "success"}
+        else:
+          raise AncillaError(404, {"error": "Task Not Found"})
+
+      except AncillaResponse as e:
+        raise e
+      except Exception as e:
+        print(f"Can't pause print task {str(e)}", flush=True)
+        raise AncillaError(400, {"error": f"Could not pause print {str(e)}"})
+
+      # if self.current_task["print"]:
+      #   self.current_task["print"].pause()
+      # # if self.state == "printing":
+      # #   self.state = "paused"
+      # self.state.status = 'Idle'
+      # self.state.printing = False
+      # return {"status": }
+    # def resume_print(self, data):
+    #   try:
+    #     payload = msg.get('data') or {}
+    #     task_name = payload.get("task_name")
+
+
+    #     # for k, v in self.current_task.items():
+    #     #     print(f"TASKkey = {k} and v = {v}", flush=True)
+
+    #     task_name = self.current_print.name #"print"        
+    #     if self.current_task.get(task_name):
+    #       self.current_task[task_name].pause()
+          
+    #       return {"status": "success"}
+    #     else:
+    #       raise AncillaError(404, {"error": "Task Not Found"})
+
+    #   except AncillaResponse as e:
+    #     raise e
+    #   except Exception as e:
+    #     print(f"Can't pause print task {str(e)}", flush=True)
+    #     raise AncillaError(400, {"error": f"Could not pause print {str(e)}"})
+
     def start_print(self, data):
       try:
         # res = data.decode('utf-8')
@@ -328,7 +388,8 @@ class Printer(BaseService):
         # name = payload.get("name") or "PrintTask"
         if not self.state.connected:
           raise Exception("Printer Not Connected")
-        if self.current_print and self.current_print.status != "running" and self.current_print.status != "idle":
+
+        if self.current_print and (self.current_print.status == "running" or self.current_print.status == "idle"):
           raise AncillaError(404, {"error": "There is already a print"})
           # return {"status": "error", "error": "There is already a print"}
         
@@ -338,8 +399,10 @@ class Printer(BaseService):
         self.current_print = None
         if print_id:
           prt = Print.get_by_id(print_id)
-          if prt.status != "finished" and prt.status != "failed":
+          if prt.status != "finished": # and prt.status != "failed":
             self.current_print = prt
+          
+            
         
         if not self.current_print:
           fid = data.get("file_id")

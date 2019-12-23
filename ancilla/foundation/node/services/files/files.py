@@ -68,7 +68,7 @@ class FileService(BaseService):
       if sf:
         if os.path.exists(sf.path):
           os.remove(sf.path)
-        res = sf.delete_instance()
+        res = sf.delete_instance(recursive=True)
         self.fire_event(FileEvent.deleted, {"file": sf.json})
         return True
       
