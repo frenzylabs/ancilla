@@ -1235,7 +1235,6 @@ class App(object):
     # def __call__(self, method, path, msg):
     def __call__(self, environ, rs = None):
         """ Each instance of :class:'Bottle' is a WSGI application. """
-        print("INSIDE APP CALL", flush=True)
         return self._handle(environ, rs)
         # return self.wsgi(environ, start_response)
 

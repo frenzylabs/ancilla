@@ -1,7 +1,9 @@
 import time
+
+import math
 from .api import Api
 from ..events.printer import Printer as PrinterEvent
-from ...data.models import Print, Printer, Service
+from ...data.models import Print, Printer, Service, PrinterCommand
 from ..response import AncillaError
 
 import asyncio
@@ -18,7 +20,10 @@ class PrinterApi(Api):
     self.service.route('/connection', 'DELETE', self.disconnect)
     self.service.route('/print', 'POST', self.print)
     self.service.route('/prints', 'GET', self.prints)
+    self.service.route('/commands', 'GET', self.printer_commands)
+    self.service.route('/prints/<print_id>/sync_layerkeep', 'POST', self.sync_print_to_layerkeep)
     self.service.route('/prints/<print_id>', 'GET', self.get_print)
+    self.service.route('/prints/<print_id>', 'DELETE', self.delete_print)
     self.service.route('/', 'PATCH', self.update_service)
 
   async def update_service(self, request, layerkeep, *args):
@@ -102,7 +107,6 @@ class PrinterApi(Api):
     return self.service.start_print(request.params)
   
   def prints(self, request, *args):
-    print(f"INSIDE PRINTS {self.service.printer}", flush=True)
     # prnts = Print.select().order_by(Print.created_at.desc())
     page = request.params.get("page") or 1
     per_page = request.params.get("per_page") or 20
@@ -114,6 +118,42 @@ class PrinterApi(Api):
   def get_print(self, request, print_id, *args):
     prnt = Print.get_by_id(print_id)
     return {"data": prnt.json}
+
+  async def sync_print_to_layerkeep(self, request, layerkeep, print_id, *args):
+    print(f"sync layerkeep {request.params}", flush=True)
+    prnt = Print.get_by_id(print_id)
+    if prnt.layerkeep_id:
+      return {"data": prnt.json}
+    
+    response = await layerkeep.create_print({"data": {"print": prnt.json, "params": request.params}})
+
+    if not response.success:
+      raise response
+    
+    prnt.layerkeep_id = response.body.get("data").get("id")
+    prnt.save()
+    return {"data": prnt.json}
+
+  def delete_print(self, request, print_id, *args):
+    prnt = Print.get_by_id(print_id)
+    prnt.delete_instance(recursive=True)
+    return {"success": True}
+
+  def printer_commands(self, request, *args):
+    # prnts = Print.select().order_by(Print.created_at.desc())    
+    page = int(request.params.get("page")) or 1
+    per_page = int(request.params.get("per_page")) or 5
+    if request.params.get("print_id"):
+      prnt = Print.get_by_id(request.params.get("print_id"))
+      q = prnt.commands.order_by(PrinterCommand.created_at.desc())
+    else:
+      q = self.service.printer.commands.order_by(PrinterCommand.created_at.desc())
+    
+    # prnt = Print.get_by_id(print_id)
+    # q = prnt.commands.order_by(PrinterCommand.created_at.desc())
+    cnt = q.count()
+    num_pages = math.ceil(cnt / per_page)
+    return {"data": [p.to_json(recurse=False) for p in q.paginate(page, per_page)], "meta": {"current_page": page, "last_page": num_pages, "total": cnt}}
     # return self.service.start_print(request.params)
   
   # def start_print(self, *args):

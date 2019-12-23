@@ -98,7 +98,7 @@ class PrintTask(AncillaTask):
           # print("Line {}, POS: {} : {}".format(cnt, pos, line))    
 
           is_comment = line.startswith(";")
-          self.current_command = self.service.add_command(self.task_id, cnt, line, is_comment)
+          self.current_command = self.service.add_command(self.task_id, cnt, line, is_comment, print_id=self.service.current_print.id)
 
           # print(f"CurCmd: {self.current_command.command}", flush=True)
           

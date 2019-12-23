@@ -155,25 +155,28 @@ class LayerkeepApi(Api):
     url = "{}{}".format(self.service.settings.api_url, "oauth/token")
     print(f"sign in url = {url}", flush=True)    
     req = requests.Request('POST', url, headers=default_headers, json= payload)
+    try:
+      response = await self.service.make_request(req)
 
-    response = await self.service.make_request(req)
-
-    print(f"sign in response = {response}", flush=True)    
-    if response.status_code == 200:
-      print(f"response.json = {response.body}", flush=True)
-      tokenresp = response.body      
-      auth = self.service.model.settings.get('auth') or {}
-      auth['token'] = tokenresp
-      self.service.model.settings.update(auth=auth)
-      self.service.model.save()
-      curuser = await self.current_user()
-      print(f"cur user = {curuser}", flush=True)
-      # self.service.settings.update(token=tokenresp, namespace="auth")  
-      # return {"token": tokenresp}
-    # else:      
-    #   response.body = {"error":}
-    #   return {"status": 400, "error": "Could Not Sign In"}
-    return response
+      print(f"sign in response = {response}", flush=True)    
+      if response.status_code == 200:
+        print(f"response.json = {response.body}", flush=True)
+        tokenresp = response.body      
+        auth = self.service.model.settings.get('auth') or {}
+        auth['token'] = tokenresp
+        self.service.model.settings.update(auth=auth)
+        self.service.model.save()
+        curuser = await self.current_user()
+        print(f"cur user = {curuser}", flush=True)
+        # self.service.settings.update(token=tokenresp, namespace="auth")  
+        # return {"token": tokenresp}
+      # else:      
+      #   response.body = {"error":}
+      #   return {"status": 400, "error": "Could Not Sign In"}
+      return response
+    except Exception as e:
+      print(f"Exception = {str(e)}", flush=True)
+      raise e
 
 
     # return {'services': [service.json for service in Service.select()]}

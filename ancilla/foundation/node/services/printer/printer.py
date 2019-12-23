@@ -201,10 +201,12 @@ class Printer(BaseService):
         # print(f"CMD is Running {cmd.command}", flush=True)
         IOLoop.current().add_callback(self.process_commands)
 
-    def add_command(self, parent_id, num, data, nowait=False, skip_queue=False):
+    # def add_print_command(self, parent_id, num, data, nowait=False, skip_queue=False, print_id=None):
+      
+    def add_command(self, parent_id, num, data, nowait=False, skip_queue=False, print_id=None):
       if type(data) == bytes:
         data = data.decode('utf-8')
-      pc = PrinterCommand(parent_id=parent_id, sequence=num, command=data, printer_id=self.printer.id, nowait=nowait)
+      pc = PrinterCommand(parent_id=parent_id, sequence=num, command=data, printer_id=self.printer.id, nowait=nowait, print_id=print_id)
       pc.save(force_insert=True)
 
       # if data == "RUN SETUP":

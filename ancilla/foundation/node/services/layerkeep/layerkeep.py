@@ -2,10 +2,12 @@
 # from ...events.printer import Printer as PrinterEvent
 from ...base_service import BaseService
 from ...api.layerkeep import LayerkeepApi
+from ....data.models import Printer, PrintSlice
 import requests
 import asyncio
 import functools
 from ...response import AncillaResponse, AncillaError
+
 
 import os
 import hashlib
@@ -106,7 +108,7 @@ class Layerkeep(BaseService):
 
 
     def handle_response(self, response, content_type='json'):
-      # print(f"HandleResponse = {response}, {response.headers}", flush=True)
+      print(f"HandleResponse = {response}, {response.headers}", flush=True)
       resp = AncillaResponse(status=response.status_code)
       
       try:
@@ -235,8 +237,46 @@ class Layerkeep(BaseService):
         raise AncillaError(status= 400, body={"error": f"{str(e)}"}, exception=e)
 
 
-    def create_print(self, evt):
-      pass
+    async def create_print(self, evt):
+      try:
+        payload = evt.get("data")
+        # params.require(:print).permit(:name, :description, :printer_id, :slice_id)
+        
+        prnt = payload.get("print")
+        name = prnt.get("name")
+        print_params = {"name": name, "description": prnt.get("description")}
+        
+        printer = prnt.get("printer")
+        if printer.get("layerkeep_id"):
+          print_params["printer_id"] = printer.get("layerkeep_id")
+        else:
+          printer_response = await self.create_printer({"data": printer})
+          if printer_response.success:
+            layerkeep_id = printer_response.body.get("data").get("id")
+            q = Printer.update(layerkeep_id=layerkeep_id).where(Printer.id == printer.get("id"))
+            q.execute()
+            print_params["printer_id"] = layerkeep_id
+        
+        print_slice = prnt.get("print_slice") or {}
+        if print_slice.get("layerkeep_id"):
+          print_params["slice_id"] = print_slice.get("layerkeep_id")
+        else:
+          slice_response = await self.upload_sliced_file({"data": {"sliced_file": print_slice}})    
+          if slice_response.success:            
+            layerkeep_id = slice_response.body.get("data").get("id")
+            q = PrintSlice.update(layerkeep_id=layerkeep_id).where(PrintSlice.id == print_slice.get("id"))
+            q.execute()
+            print_params["slice_id"] = layerkeep_id
+
+        url = f'{self.settings.api_url}{self.settings.get("auth.user.username")}/prints'
+        req = requests.Request('POST', url, json={"print": print_params})
+        response = await self.make_request(req)        
+        return response
+      except AncillaResponse as e:
+        raise e
+      except Exception as e:
+        print(f"CREATe printer exception = {e}", flush=True)
+        raise AncillaError(status= 400, body={"error": f"{str(e)}"}, exception=e)
 
     @check_authorization
     async def download_sliced_file(self, evt):
@@ -259,7 +299,8 @@ class Layerkeep(BaseService):
       try:
         payload = evt.get("data")
         slice_params = payload.get("params") or {}
-        sliced_file = payload.get("sliced_file")      
+        sliced_file = payload.get("sliced_file")
+        
         filepath = sliced_file.get("path")  
         signparams = {
           "filepath": filepath,
@@ -277,6 +318,8 @@ class Layerkeep(BaseService):
         ## Upload sliced file to Bucket
         upload_response = await self.upload_file({"data": direct_upload})
 
+        if sliced_file.get("description"):
+          slice_params["description"] = sliced_file.get("description")
         
         lkpayload = {
             "gcode": {"file": signed_response.body.get("signed_id")}
