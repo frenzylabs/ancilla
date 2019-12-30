@@ -37,7 +37,11 @@ class Layerkeep(BaseService):
     def __init__(self, model, **kwargs):
         self.session = requests.Session()
 
-        self.default_config = {"api_url": "https://layerkeep.com/", "app": "Ancilla"}
+        self.default_config = {
+          "base_url": "https://layerkeep.dev",
+          "api_url": "https://layerkeep.com/", 
+          "app": "Ancilla"
+          }
         
 
         super().__init__(model, **kwargs)
@@ -68,8 +72,6 @@ class Layerkeep(BaseService):
         self.state["connected"] = True if access_token else False
         
         
-
-
     def load_config(self, dic):
       self.config.load_dict(self.default_config)
       self.config = self.config._make_overlay()
