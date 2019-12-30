@@ -152,7 +152,7 @@ class LayerkeepApi(Api):
     default_headers = {
       "Content-Type" : "application/json",
     }
-    url = "{}{}".format(self.service.settings.api_url, "oauth/token")
+    url = "{}{}".format(self.service.settings.base_url, "oauth/token")
     print(f"sign in url = {url}", flush=True)    
     req = requests.Request('POST', url, headers=default_headers, json= payload)
     try:
