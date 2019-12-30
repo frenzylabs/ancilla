@@ -38,7 +38,7 @@ class Layerkeep(BaseService):
         self.session = requests.Session()
 
         self.default_config = {
-          "base_url": "https://layerkeep.dev",
+          "base_url": "https://layerkeep.dev/",
           "api_url": "https://layerkeep.com/", 
           "app": "Ancilla"
           }
