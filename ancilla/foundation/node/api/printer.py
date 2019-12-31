@@ -22,6 +22,7 @@ class PrinterApi(Api):
     self.service.route('/prints', 'GET', self.prints)
     self.service.route('/commands', 'GET', self.printer_commands)
     self.service.route('/prints/<print_id>/sync_layerkeep', 'POST', self.sync_print_to_layerkeep)
+    self.service.route('/prints/<print_id>/unsync_layerkeep', 'POST', self.unsync_print_from_layerkeep)
     self.service.route('/prints/<print_id>', 'GET', self.get_print)
     self.service.route('/prints/<print_id>', 'DELETE', self.delete_print)
     self.service.route('/', 'PATCH', self.update_service)
@@ -133,6 +134,14 @@ class PrinterApi(Api):
     prnt.layerkeep_id = response.body.get("data").get("id")
     prnt.save()
     return {"data": prnt.json}
+
+  async def unsync_print_from_layerkeep(self, request, print_id, *args):
+    print(f"unsync layerkeep {request.params}", flush=True)
+    prnt = Print.get_by_id(print_id)
+    prnt.layerkeep_id = None
+    prnt.save()
+    return {"data": prnt.json}
+
 
   def delete_print(self, request, print_id, *args):
     prnt = Print.get_by_id(print_id)

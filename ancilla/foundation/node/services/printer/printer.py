@@ -222,8 +222,8 @@ class Printer(BaseService):
 
     def get_state(self, *args):
       # print(self.connector.serial)
-      # print(f"inside get state", flush=True)
-      # print(f"inside get state {self.state}", flush=True)
+      print(f"inside get state", flush=True)
+      print(f"inside get state {self.state}", flush=True)
       # serialopen = False
       # if self.connector and self.connector.serial:
       #   serialopen = self.connector.serial.is_open

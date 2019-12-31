@@ -122,7 +122,7 @@ class LayerkeepApi(Api):
 
 
   async def current_user(self, *args):
-    url = "{}{}".format(self.service.settings.api_url, "users/me")
+    url = "{}{}".format(self.service.settings.base_url, "users/me")
     req = requests.Request('GET', url)
 
     response = await self.service.make_request(req)

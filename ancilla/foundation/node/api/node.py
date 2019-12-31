@@ -1,7 +1,7 @@
 import time
 from .api import Api
 from ..events import Event
-from ...data.models import Service, Printer, Camera
+from ...data.models import Service, Printer, Camera, ServiceAttachment
 
 import asyncio
 
@@ -14,6 +14,7 @@ class NodeApi(Api):
     # self.service.route('/services', 'GET', self.services)
     self.service.route('/services', 'GET', self.services)
     # self.service.route('/services/<service_id>/restart', 'GET', self.restart_service)
+    self.service.route('/attachments/<attachment_id>', 'PATCH', self.update_attachment)
     self.service.route('/services/<service_id>', 'PATCH', self.update_service_model)
     self.service.route('/services/<service_id>', 'DELETE', self.delete_service)
     self.service.route('/services/<service_id>/stop', 'GET', self.stop_service)
@@ -59,9 +60,13 @@ class NodeApi(Api):
     self.service.stop_service(s)
     return {"success": True}
 
-  def services(self, *args):
+  def services(self, request, *args):
     allservices = []
-    for service in Service.select():
+    q = Service.select()
+    if request.params.get("kind"):
+      q = q.where(Service.kind == request.params.get("kind"))
+
+    for service in q:
       js = service.json
       model = service.model
       if model:
@@ -217,6 +222,12 @@ class NodeApi(Api):
         raise e
 
 
+  async def update_attachment(self, request, attachment_id, *args):
+    sa = ServiceAttachment.get_by_id(attachment_id)
+    if request.params.get("settings"):
+      sa.settings = request.params.get("settings")
+      sa.save()
+    return {"data": sa.json}
 
   async def test(self, request, *args, **kwargs):
     print("INSIDE TEST", flush=True)      

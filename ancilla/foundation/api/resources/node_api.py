@@ -20,6 +20,7 @@ from tornado.ioloop import IOLoop
 import asyncio
 import cv2
 import time
+import os
 
 # from tornado.escape import json_decode
 from tornado.escape import utf8, _unicode
@@ -27,7 +28,8 @@ from tornado.util import unicode_type
 from typing import (
     Dict,
     Any,
-    Union
+    Union,
+    Iterable
 )
 
 from ...node.router import RouterError
@@ -48,6 +50,7 @@ class NodeApiHandler(BaseHandler):
       self.environ = {"REQUEST_METHOD": self.request.method.upper(), "PATH": self.request.path, "params": self.params}
       if self.request.files:
         self.environ["files"] = self.request.files
+      self.environ['request.headers'] = self.request.headers
 
     def write(self, chunk: Union[str, bytes, dict]) -> None:
       if self._finished:
@@ -135,13 +138,40 @@ class NodeApiHandler(BaseHandler):
 
     async def get(self, *args):
         print("Start get request", self.request)
+        # for (k, v) in self.request.headers.items():
+        #     print(f"RequestHeader: K={k}, v={v} ", flush=True)
         try:
           resp = await self.node(self.environ)
+          # for (k, v) in resp.headers.items():
+          #   print(f"K={k}, v={v} ", flush=True)
+          
           self.set_resp_headers(resp)
           self.set_status(resp.status_code)
-          self.write(resp.body)
+          try:
+            # iterator = iter(resp.body)
+            # if isinstance(resp.body, Iterable):
+            # print(f"body = {resp.body}", flush=True)
+            if hasattr(resp.body, '__aiter__'):
+              print("Has aeiter", flush=True)
+              
+              async for frame in resp.body:
+                self.write(frame)
+                self.flush()                  
+                await asyncio.sleep(0.1)
+            else:
+              self.write(resp.body)
+          except TypeError as e:
+              # not iterable
+              print(f"Not iterable {str(e)}")
+              self.write(resp.body)
+
+          # else:
+              # iterable
+              # print("maybe iterable")
+              # self.finish()
+          
         except AncillaResponse as e:
-          print(f"ancillpostexception = {e}", flush=True)  
+          print(f"ancillgetexception = {e}", flush=True)  
           self.set_resp_headers(e)   
           self.set_status(e.status_code)
           self.write(e.body)

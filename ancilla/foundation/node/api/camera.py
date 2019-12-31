@@ -1,16 +1,25 @@
 import time
 from .api import Api
 from ..events.camera import Camera as CameraEvent
-from ...data.models import Camera, Service
+from ...data.models import Camera, Service, CameraRecording
 from ..response import AncillaError
 
 import asyncio
+import os
+import re
+
+MB = 1 << 20
+BUFF_SIZE = 10 * MB
 
 class CameraApi(Api):
 
   def setup(self):
     super().setup()
     self.service.route('/hello', 'GET', self.hello)
+    self.service.route('/recordings', 'GET', self.recordings)
+    self.service.route('/recordings/<recording_id>', 'GET', self.get_recording)
+    self.service.route('/recordings/<recording_id>/video', 'GET', self.get_video)
+    self.service.route('/record', 'POST', self.record)
     self.service.route('/connection', 'POST', self.connect)
     self.service.route('/connection', 'DELETE', self.disconnect)
     self.service.route('/', ['PATCH', 'PUT'], self.update_service)
@@ -80,3 +89,82 @@ class CameraApi(Api):
         self.service.stop()
     return {"status": "disconnected"}
 
+  def record(self, request, *args):
+    return self.service.start_recording({"data": request.params})
+
+  def get_recording(self, request, recording_id, *args):
+    rcd = CameraRecording.get_by_id(recording_id)
+    return {"data": rcd.json}
+
+  def get_video(self, request, recording_id, *args):
+    rcd = CameraRecording.get_by_id(recording_id)
+    path = rcd.video_path + "/output.mp4"    
+    fp = open(path, "rb")
+    
+    request.response.set_header('Content-Disposition', 'filename=%s' % "output.mp4")
+    if request.params.get("download"):
+      request.response.set_header('Content-Type', 'application/octet-stream')
+      return fp
+
+    request.response.status = 206
+    request.response.set_header('Content-Type', 'video/mp4')    
+    request.response.set_header('Accept-Ranges', 'bytes')
+
+    return self.stream_video(request, fp)
+    
+
+  def recordings(self, request, *args):
+    page = request.params.get("page") or 1
+    per_page = request.params.get("per_page") or 20
+    q = self.service.camera_model.recordings.order_by(CameraRecording.created_at.desc())
+    cnt = q.count()
+    num_pages = cnt / per_page
+    return {"data": [p.to_json(recurse=True) for p in q.paginate(page, per_page)], "meta": {"current_page": page, "last_page": num_pages, "total": cnt}}
+
+
+  def stream_video(self, request, fp):    
+    start, end = self.get_range(request)
+
+    requestedrange =  request.headers.get('Range')
+    # if requestedrange == None:
+    #   print("NO REQUESTED RANGE",flush=True)
+    # else:
+    file_size = os.path.getsize(fp.name)
+    if end is None:
+        end = start + BUFF_SIZE - 1
+    end = min(end, file_size - 1)
+    end = min(end, start + BUFF_SIZE - 1)
+    length = end - start + 1
+    # resp.body.buffer_size = length
+
+    # resp.body.fp.seek(0, os.SEEK_END)
+    # end = fp.tell()
+    # fp.seek(0)
+    # request.response.status = 206
+    # request.response.set_header('Content-Type', 'application/octet-stream')
+    # request.response.set_header('Content-Type', 'video/mp4')    
+    # request.response.set_header('Content-Disposition', 'filename=%s' % "output.mp4")
+    request.response.set_header(
+        'Content-Range', 'bytes {0}-{1}/{2}'.format(
+            start, end, file_size,
+        ),
+    )
+    fp.seek(start)
+    bytes = fp.read(length)
+    return bytes
+
+  def get_range(self, request):
+    range = request.headers.get('Range')
+    # LOG.info('Requested: %s', range)
+    m = None
+    if range:
+      m = re.match('bytes=(?P<start>\d+)-(?P<end>\d+)?', range)
+    if m:
+        start = m.group('start')
+        end = m.group('end')
+        start = int(start)
+        if end is not None:
+            end = int(end)
+        return start, end
+    else:
+        return 0, None

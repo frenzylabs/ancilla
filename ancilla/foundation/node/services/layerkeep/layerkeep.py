@@ -95,7 +95,7 @@ class Layerkeep(BaseService):
         if key == "auth.token.access_token":
           self.session.headers.update({'Authorization': f'Bearer {newval}'})
 
-    async def make_request(self, req, content_type = 'json', auth = True, options = {}):
+    async def make_request(self, req, content_type = 'json', auth = True, options = {"verify": False}):
       prepped = self.session.prepare_request(req)
       if not auth:
         del prepped.headers['Authorization']

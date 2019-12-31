@@ -6,8 +6,10 @@ from tornado.ioloop import IOLoop
 from .response import AncillaResponse, AncillaError
 from .router import Route, Router, DictProperty, lazy_attribute, RouterError, getargspec
 
+from ..utils.dict import HeaderDict, HeaderProperty, _hkey, _hval
+
 import sys
-import base64, cgi, email.utils, functools, hmac, imp, itertools, mimetypes,\
+import io, base64, cgi, email.utils, functools, hmac, imp, itertools, mimetypes,\
         os, re, tempfile, threading, time, warnings, weakref, hashlib
 
 import configparser
@@ -454,6 +456,25 @@ class BaseRequest(object):
         #     params[key] = value
         return self.environ.get("files", {})
 
+    @DictProperty('environ', 'request.headers', read_only=True)
+    def headers(self):
+        """ A :class:`WSGIHeaderDict` that provides case-insensitive access to
+            HTTP request headers. """
+        # return WSGIHeaderDict(self.environ)
+        hdict = HeaderDict(self.environ.get('request.headers'))
+        hdict.dict = self._headers
+        return hdict
+    
+    # @property
+    # def headers(self):
+    #     """ An instance of :class:`HeaderDict`, a case-insensitive dict-like
+    #         view on the response headers. """
+        
+
+    def get_header(self, name, default=None):
+        """ Return the value of a request header, or a given default value. """
+        return self.headers.get(name, default)
+
     # @DictProperty('environ', 'bottle.request.files', read_only=True)
     # def files(self):
     #     """ File uploads parsed from `multipart/form-data` encoded POST or PUT
@@ -584,6 +605,42 @@ Request = BaseRequest
 #     bind = BaseRequest.__init__
 #     environ = _local_property()
 
+
+class WSGIFileWrapper(object):
+    def __init__(self, fp, buffer_size=1024 * 64):
+        self.fp, self.buffer_size = fp, buffer_size
+        for attr in ('fileno', 'close', 'read', 'readlines', 'tell', 'seek'):
+            if hasattr(fp, attr): setattr(self, attr, getattr(fp, attr))
+
+    # def __iter__(self):
+    #     buff, read = self.buffer_size, self.read
+    #     while True:
+    #         part = read(buff)
+    #         if not part: return
+    #         yield part
+
+    def __aiter__(self):
+        return self
+
+    async def __anext__(self):
+        data = await self.fetch_data()
+        if data is not None:
+            return data
+        else:
+            raise StopAsyncIteration
+
+    async def fetch_data(self):
+        buff, read = self.buffer_size, self.read
+        part = read(buff)
+        if not part: return None
+        return part
+        
+        # return part
+        # while not self.queue.empty():
+        #     self.done.append(self.queue.get_nowait())
+        # if not self.done:
+        #     return None
+        # return self.done.pop(0)
 
 
 # request = LocalRequest()
@@ -1081,6 +1138,9 @@ class App(object):
                     # result = yield from call_maybe_yield(route.call, *[request], **args)
                     out = await call_maybe_yield(route.call, *[request], **args)
                     
+                    if isinstance(out, io.IOBase) and hasattr(out, 'read') and (hasattr(out, 'close') or not hasattr(out, '__aiter__')):
+                        print("out dict = ", dir(out))
+                        out = WSGIFileWrapper(out)
                     # print(f'call route = {out}', flush=True)
                     # return out
                     # return result

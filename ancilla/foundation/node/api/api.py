@@ -50,7 +50,7 @@ class Api(object):
       self.service.route('/actions', 'GET', self.actions)
       self.service.route('/routes', 'GET', self.routes)
       self.service.route('/events', 'GET', self.events)
-      self.service.route('/attachments/<service_id>', 'DELETE', self.delete_attachment)
+      self.service.route('/attachments/<attachment_id>', 'DELETE', self.delete_attachment)
       self.service.route('/attachments', 'POST', self.add_attachment)
       self.service.route('/attachments', 'GET', self.attachments)
 
@@ -67,8 +67,9 @@ class Api(object):
       print(f"THE EVENT DICT = {self.service.event_class.event_dict()}", flush=True)
       return {"events": self.service.event_class.list_events()}      
 
-    def delete_attachment(self, request, service_id, *args, **kwargs):
-      attachment = self.service.model.service_attachments.where(ServiceAttachment.attachment_id == service_id).first()
+    def delete_attachment(self, request, attachment_id, *args, **kwargs):
+      # attachment = self.service.model.service_attachments.where(ServiceAttachment.attachment_id == service_id).first()
+      attachment = self.service.model.service_attachments.where(ServiceAttachment.id == attachment_id).first()
       if attachment:
         attachment.delete_instance()        
         return {"sucess": "Removed Attachment"}
@@ -77,7 +78,7 @@ class Api(object):
       # return {"status": 404, "error": "No Attachment Found"}
       
     def add_attachment(self, request, *args):
-      service_id = request.params.get("attachment_id")
+      service_id = request.params.get("service_id")
       attachment = Service.get_by_id(service_id)
       sa = ServiceAttachment(parent=self.service.model, attachment=attachment)
       sa.save()
@@ -85,6 +86,9 @@ class Api(object):
 
     def attachments(self, *args):
       return {"attachments": [a.json for a in self.service.model.service_attachments]}
+
+    def update_attachment(self, request, attachment_id, *args):
+      pass
 
     # def init_services(self):
     #   self.service_models = {"printers": {}, "cameras": {}, "files": {}}

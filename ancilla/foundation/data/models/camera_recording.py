@@ -8,6 +8,7 @@
 
 from .base import BaseModel
 from .camera import Camera
+from .print import Print
 
 from peewee import (
   CharField,
@@ -24,6 +25,7 @@ class CameraRecording(BaseModel):
   settings        = JSONField(default={})
   camera          = ForeignKeyField(Camera, backref='recordings')
   camera_snapshot = JSONField(default={})
+  # print           = ForeignKeyField(Print, on_delete="SET NULL", related_name="recordings", null=True, default=None, backref='recordings')
   status          = CharField(null=True)
   reason          = CharField(null=True)
 

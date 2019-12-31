@@ -57,7 +57,7 @@ class CameraRecordTask(AncillaTask):
     self.event_socket.setsockopt(zmq.SUBSCRIBE, self.service.identity + b'.events.camera.data_received')
     self.event_socket.setsockopt(zmq.SUBSCRIBE, self.service.identity + b'.events.camera.connection.closed')
     self.event_stream = ZMQStream(self.event_socket)
-    self.event_stream.linger = 0
+    # self.event_stream.linger = 0
     self.event_stream.on_recv(self.on_data)
 
     self.current_frame_num = 0
@@ -197,7 +197,7 @@ class CameraRecordTask(AncillaTask):
       self.video_format = self.video_settings.get("format") or "mp4v"      
       self.video_fps = int(self.video_settings.get("fps") or 10)
       # print(f"self.video_Fps {self.video_fps}  vsize: {self.video_size}, vformat: {self.video_format}", flush=True)
-      self.video_writer = cv2.VideoWriter(self.video_path + "/output.mov", cv2.VideoWriter_fourcc(*self.video_format), self.video_fps, self.video_size)
+      self.video_writer = cv2.VideoWriter(self.video_path + "/output.mp4", cv2.VideoWriter_fourcc(*self.video_format), self.video_fps, self.video_size)
       # # out = cv2.VideoWriter('output.avi',cv2.VideoWriter_fourcc('M','J','P','G'), 29, videosize)
       # out = cv2.VideoWriter('output.mov',cv2.VideoWriter_fourcc('m','p','4','v'), 29, videosize)
       # name = self.payload.get("name") or ""
@@ -236,9 +236,9 @@ class CameraRecordTask(AncillaTask):
     self.recording.reason = self.state.reason or ""
     self.recording.save()
     self.service.fire_event(Camera.recording.state.changed, self.state)
-    self.service.state.recording = False
-    self.event_stream.close()
+    self.service.state.recording = False    
     self.flush_callback.stop()
+    self.event_stream.close()
     if self.video_writer:
       self.video_writer.release()
     return {"state": self.state}
