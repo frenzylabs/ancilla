@@ -141,6 +141,7 @@ class NodeService(App):
     # .from_(Service, sc).where(sc.c.Key.startswith(oldname))[:]      
             
     def post_save_handler(self, sender, instance, *args, **kwargs):
+      print(f"Post save handler {sender}", flush=True)
       model = None
       for idx, item in enumerate(self._services):
         if item.id == instance.id:

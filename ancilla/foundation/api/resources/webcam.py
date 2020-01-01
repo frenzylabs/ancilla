@@ -58,7 +58,7 @@ class ZMQCameraPubSub(object):
       if len(topic) > 0:
         subscribeto = f"{subscribeto}.{topic}"
       subscribeto = subscribeto.encode('ascii')
-      print("topic = ", subscribeto)
+      # print("topic = ", subscribeto)
       # if callback:
       #   self.subscriber.on_recv(callback)
       self.subscriber.setsockopt(zmq.SUBSCRIBE, subscribeto)
@@ -153,12 +153,8 @@ class WebcamHandler(RequestHandler):
 
         self.set_header('Cache-Control',
         'no-store, no-cache, must-revalidate, pre-check=0, post-check=0, max-age=0')
-        self.set_header('Connection', 'close')
-        # self.set_header('Content-Type', 'multipart/x-mixed-replace;boundary=-boundarydonotcross')
-        self.set_header('Content-Type', 'multipart/x-mixed-replace; boundary=frame')
-        # mimetype='multipart/x-mixed-replace; boundary=frame')
-        
-        print("Start Camera request", flush=True)
+
+        # print("Start Camera request", flush=True)
 
         environ = {"REQUEST_METHOD": "GET", "PATH": f"/services/{service.kind}/{service.id}/state"}
         
@@ -173,23 +169,20 @@ class WebcamHandler(RequestHandler):
         except Exception as e:
           print(f"Cam ERRor {str(e)}", flush=True)
           resp = {"error": str(e)}
-          # pass
-        # response.append(resp)        
-        # resp = self.node.request([device.encode('ascii'), b'get_state', b''])
-        # jresp = json.loads(resp)
-        # print(f'NODE REQ: {resp}', flush=True)
-        if resp.get("running") != True:
+        if resp.get("connected") != True:
           self.write_error(400, errors=resp)
           self.flush()
         else:
           try:
+            self.set_header('Connection', 'close')
+            self.set_header('Content-Type', 'multipart/x-mixed-replace; boundary=frame')
             await self.camera_frame(self.subscription)
           except Exception as e:
             print(f"exception {str(e)}", flush=True)
           finally:
             self.pubsub.close()
 
-
+        self.ready = False
 
 
       # fnum = int.from_bytes(frame_num, byteorder='big')

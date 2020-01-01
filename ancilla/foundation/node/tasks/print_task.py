@@ -24,7 +24,7 @@ class PrintTask(AncillaTask):
     # self.request_id = request_id    
     self.service = service
     self.payload = payload
-    self.state.update({"status": "pending", "model": {}})
+    self.state.update({"name": name, "status": "pending", "model": {}})
     # self.state._add_change_listener(
     #         functools.partial(self.trigger_hook, 'state'))
 

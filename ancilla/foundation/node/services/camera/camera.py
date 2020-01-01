@@ -14,6 +14,7 @@ import threading
 import time
 import zmq
 import os
+import shutil
 
 import json
 from tornado.ioloop import IOLoop
@@ -40,6 +41,7 @@ import string, random
 # from ..tasks.device_task import PeriodicTask
 from ...tasks.camera_record_task import CameraRecordTask
 from ...events.camera import Camera as CameraEvent
+from ...events.event_pack import EventPack
 from ...middleware.camera_handler import CameraHandler
 from ...api.camera import CameraApi
     
@@ -57,7 +59,11 @@ class Camera(BaseService):
     # command_queue = CommandQueue()
     __actions__ = [
       "start_recording",
-      "stop_recording"
+      "stop_recording",
+      "delete_recording",
+      "resume_recording",
+      "pause_recording",
+      "print_state_change"
     ]
 
     def __init__(self, model, **kwargs):
@@ -104,10 +110,12 @@ class Camera(BaseService):
         self.connector.open()
         print("Camera Connect", flush=True)
         self.connector.run()
+        self.state.connected = True
         self.fire_event(CameraEvent.connection.opened, {"status": "success"})
         return {"status": "connected"}
       except Exception as e:
         print(f'Exception Open Conn: {str(e)}')
+        self.state.connected = False
         self.fire_event(CameraEvent.connection.failed, {"error": str(e)})
         return {"error": str(e), "status": "failed"}
         # self.pusher.send_multipart([self.identity, b'error', str(e).encode('ascii')])
@@ -115,19 +123,20 @@ class Camera(BaseService):
     def stop(self, *args):
       print("Camera Stop", flush=True)
       self.connector.close()
+      self.state.connected = False
       self.fire_event(CameraEvent.connection.closed, {"status": "success"})
 
     def close(self, *args):
       self.stop(args)
 
 
-    def get_state(self, *args):
-      print(f"get state {self.connector}", flush=True)
-      print(f" the config = {self.config}", flush=True)
-      running = False
-      if self.connector and self.connector.alive and self.connector.video.isOpened():
-        running = True
-      return {"open": running, "running": running}
+    # def get_state(self, *args):
+    #   print(f"get state {self.connector}", flush=True)
+    #   print(f" the config = {self.config}", flush=True)
+    #   running = False
+    #   if self.connector and self.connector.alive and self.connector.video.isOpened():
+    #     running = True
+    #   return {"open": running, "running": running}
 
     def pause(self, *args):
       if self.state.recording:
@@ -172,6 +181,54 @@ class Camera(BaseService):
     #     print(f"Can't stop recording task {str(e)}", flush=True)
 
     #     return {"status": "failed", "reason": str(e)}
+    def print_state_change(self, msg):
+      try:
+        name = msg.get('name')
+        data = msg.get('data')
+        # print(f'printStateChangeData= {data}', flush=True)
+        # model = data.get("model")
+        # print(f'printStateModel= {model}', flush=True)
+        # name = model.get("name")
+        # print(f'printStateModelName= {name}', flush=True)
+        if data.get("status") in ["cancelled", "finished", "failed"]:          
+          self.stop_recording({"data": {}})
+          # {"task_name": data.get("name")}
+
+        return {"status": "success"}
+        # else:
+        #   return {"status": "error", "error": "Task Not Found"}
+
+      except Exception as e:
+        print(f"Cant change recording task {str(e)}", flush=True)
+        return {"status": "error", "error": f"Could not resume task {str(e)}"}
+
+    def resume_recording(self, msg):
+      try:
+        payload = msg.get('data')
+        task = self.get_recording_task(payload)
+        if task:
+          task.resume()
+          return {"status": "success"}
+        else:
+          return {"status": "error", "error": "Task Not Found"}
+
+      except Exception as e:
+        print(f"Cant resume recording task {str(e)}", flush=True)
+        return {"status": "error", "error": f"Could not resume task {str(e)}"}
+
+    def pause_recording(self, msg):
+      try:
+        payload = msg.get('data')
+        task = self.get_recording_task(payload)
+        if task:
+          task.pause()
+          return {"status": "success"}
+        else:
+          return {"status": "error", "error": "Task Not Found"}
+
+      except Exception as e:
+        print(f"Cant pause recording task {str(e)}", flush=True)
+        return {"status": "error", "error": f"Could not pause task {str(e)}"}
 
     def stop_recording(self, msg):
       print(f"STOP RECORDING {msg}", flush=True)      
@@ -208,17 +265,74 @@ class Camera(BaseService):
         print(f"Cant cancel recording task {str(e)}", flush=True)
         return {"status": "error", "error": f"Could not cancel task {str(e)}"}
 
+    def get_recording_task(self, data):
+      print(f"Get RECORDING {data}", flush=True)      
+      try:
+        
+        task_name = data.get("task_name")
+        cr = None
+        if data.get("recording_id"):
+          cr = CameraRecording.get_by_id(data.get("recording_id"))
+          task_name = cr.task_name
+
+        # elif task_name:          
+        #   cr = CameraRecording.select().where(CameraRecording.task_name == task_name).first()
+        # else:
+        #   cr = CameraRecording.select().where(CameraRecording.status != "finished").first()
+        #   if cr:
+        #     task_name = cr.task_name
+
+        for k, v in self.current_task.items():
+            print(f"TASKkey = {k} and v = {v}", flush=True)
+            if isinstance(v, CameraRecordTask):
+              if task_name:
+                if k == task_name:
+                  return v
+              else:
+                return v
+
+
+        return None #self.current_task.get(task_name)
+
+        # if task_name:
+        #   if self.current_task.get(task_name):
+        #     self.current_task[task_name].cancel()
+        #   else:
+        #     if not cr.status.startswith("finished"):
+        #       cr.status = "finished"
+        #       cr.reason = "Cleanup No Task"
+        #       cr.save()
+        #   return {"status": "success"}
+        # else:
+        #   return {"status": "error", "error": "Task Not Found"}
+
+      except Exception as e:
+        print(f"Cant cancel recording task {str(e)}", flush=True)
+        return {"status": "error", "error": f"Could not cancel task {str(e)}"}
+
+
+
     def start_recording(self, msg):
       print(f"START RECORDING {msg}", flush=True)
       
       # return {"started": True}
       try:
+        if not self.state.connected:
+          self.connect()
+        
         payload = msg.get('data')
+        # if isinstance(msg, EventPack):
+        #   if msg.name.endswith("print.started"):
+        #     payload = {"print": msg.data}
+        
+        print(f"StartRecording payload = {payload}", flush=True)
     #     res = data.decode('utf-8')
     #     payload = json.loads(res)
+        
         name = payload.get("print_id") or "".join(random.choice(string.ascii_lowercase + string.digits) for x in range(6))
     #     # method = payload.get("method")
 
+        
         pt = CameraRecordTask(name, self, payload)
         self.task_queue.put(pt)
         loop = IOLoop().current()
@@ -229,6 +343,31 @@ class Camera(BaseService):
         print(f"Cant record task {str(e)}", flush=True)
         return {"status": "error", "error": f"Could not record {str(e)}"}
 
+    def delete_recording(self, msg):
+      if isinstance(msg, CameraRecording):
+        recording = msg
+      else:
+        data = msg.get("data") or None
+        if data:
+          if data.get("id"):
+            recording = CameraRecording.get_by_id(data.get("id"))     
+      
+      if recording:
+        try:
+          
+          if os.path.exists(recording.image_path):
+            shutil.rmtree(recording.image_path)
+          if os.path.exists(recording.video_path):
+            shutil.rmtree(recording.video_path)
+
+          res = recording.delete_instance(recursive=True)
+          self.fire_event(CameraEvent.recording.deleted, {"data": recording.json})
+          return True
+        except Exception as e:
+          print(f"delete exception {str(e)}")
+          raise e
+      
+      return False
 
 
     # def publish_request(self, request):

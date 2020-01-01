@@ -7,6 +7,7 @@ from ..response import AncillaError
 import asyncio
 import os
 import re
+import math
 
 MB = 1 << 20
 BUFF_SIZE = 10 * MB
@@ -18,6 +19,7 @@ class CameraApi(Api):
     self.service.route('/hello', 'GET', self.hello)
     self.service.route('/recordings', 'GET', self.recordings)
     self.service.route('/recordings/<recording_id>', 'GET', self.get_recording)
+    self.service.route('/recordings/<recording_id>', 'DELETE', self.delete_recording)
     self.service.route('/recordings/<recording_id>/video', 'GET', self.get_video)
     self.service.route('/record', 'POST', self.record)
     self.service.route('/connection', 'POST', self.connect)
@@ -114,12 +116,20 @@ class CameraApi(Api):
     
 
   def recordings(self, request, *args):
-    page = request.params.get("page") or 1
-    per_page = request.params.get("per_page") or 20
+    page = int(request.params.get("page") or 1)
+    per_page = int(request.params.get("per_page") or 5)
     q = self.service.camera_model.recordings.order_by(CameraRecording.created_at.desc())
     cnt = q.count()
-    num_pages = cnt / per_page
+    num_pages = math.ceil(cnt / per_page)
     return {"data": [p.to_json(recurse=True) for p in q.paginate(page, per_page)], "meta": {"current_page": page, "last_page": num_pages, "total": cnt}}
+
+  def delete_recording(self, request, recording_id, *args):
+    rcd = CameraRecording.get_by_id(recording_id)
+    if self.service.delete_recording(rcd):
+      return {"success": "Deleted"}
+    raise AncillaError(400, {"errors": "Coud Not Delete Recording"})
+
+
 
 
   def stream_video(self, request, fp):    
@@ -137,13 +147,6 @@ class CameraApi(Api):
     length = end - start + 1
     # resp.body.buffer_size = length
 
-    # resp.body.fp.seek(0, os.SEEK_END)
-    # end = fp.tell()
-    # fp.seek(0)
-    # request.response.status = 206
-    # request.response.set_header('Content-Type', 'application/octet-stream')
-    # request.response.set_header('Content-Type', 'video/mp4')    
-    # request.response.set_header('Content-Disposition', 'filename=%s' % "output.mp4")
     request.response.set_header(
         'Content-Range', 'bytes {0}-{1}/{2}'.format(
             start, end, file_size,
@@ -155,7 +158,6 @@ class CameraApi(Api):
 
   def get_range(self, request):
     range = request.headers.get('Range')
-    # LOG.info('Requested: %s', range)
     m = None
     if range:
       m = re.match('bytes=(?P<start>\d+)-(?P<end>\d+)?', range)

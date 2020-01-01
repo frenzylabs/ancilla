@@ -31,9 +31,10 @@ class CameraRecordTask(AncillaTask):
     super().__init__(name, *args)
     # self.request_id = request_id
     self.payload = payload
+    self.task_settings = self.payload.get("settings") or {}
     self.service = service
     # self.state = Dotdict({"status": "pending", "model": {}})
-    self.state.update({"status": "pending", "model": {}})
+    self.state.update({"name": name, "status": "pending", "model": {}})
     
     self.root_path = "/".join([Env.ancilla, "services", service.name, "recordings", self.name])
     if not os.path.exists(self.root_path):
@@ -45,8 +46,15 @@ class CameraRecordTask(AncillaTask):
     if not os.path.exists(self.video_path):
       os.makedirs(self.video_path)
     
-    self.recording = CameraRecording(task_name=name, image_path=self.image_path, video_path=self.video_path, settings=self.payload, status="pending")
+    
+    self.recording = CameraRecording(task_name=name, image_path=self.image_path, video_path=self.video_path, settings=self.task_settings, status="pending", camera_snapshot=self.service.camera_model.to_json())
     self.recording.camera = self.service.camera_model
+
+    printmodel = self.payload.get("model")
+    if printmodel:
+      if printmodel.get("id"):
+        self.recording.print_id = printmodel.get("id")
+
     self.recording.save(force_insert=True) 
     # self.name = self.recording.id
 
@@ -102,7 +110,7 @@ class CameraRecordTask(AncillaTask):
       if not self.current_frame:
         print("NO FRAME TO FLUSH", flush=True)
         return
-      imgname = f'{datetime.datetime.now().strftime("%Y%m%d%H%M%S")}-{self.current_frame_num}.jpg'
+      imgname = f'{datetime.datetime.now().strftime("%Y%m%d%H%M%S")}-{self.current_frame_num:06}.jpg'
       frame = pickle.loads(self.current_frame)
       frame = cv2.flip(frame, 1)
 
@@ -189,11 +197,11 @@ class CameraRecordTask(AncillaTask):
     # self.device = device
     try:
       # print(f"CONTENT = {content}", flush=True)
-      self.timelapse = int(self.payload.get("timelapse") or 2) * 1000
-      self.settings = self.payload.get("settings") or {"size": [640, 480]}
+      self.timelapse = int(self.task_settings.get("timelapse") or 2) * 1000
+      self.settings = self.task_settings.get("settings") or {"size": [640, 480]}
       width, height = self.settings.get("size") or [640, 480]
       self.video_size = (width, height)
-      self.video_settings = self.payload.get("videoSettings") or {"format": "mp4v"}
+      self.video_settings = self.task_settings.get("videoSettings") or {"format": "mp4v"}
       self.video_format = self.video_settings.get("format") or "mp4v"      
       self.video_fps = int(self.video_settings.get("fps") or 10)
       # print(f"self.video_Fps {self.video_fps}  vsize: {self.video_size}, vformat: {self.video_format}", flush=True)
@@ -251,7 +259,11 @@ class CameraRecordTask(AncillaTask):
     # self.device.add_command(request_id, 0, 'M0\n', True, True)
 
   def pause(self):
-    self.state.status = "paused"
+    self.flush_callback.stop()
+  
+  def resume(self):
+    self.flush_callback.start()
+    # self.state.status = "paused"
 
   def get_state(self):
     print("get state", flush=True)

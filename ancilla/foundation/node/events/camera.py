@@ -5,6 +5,7 @@ class CameraRecording(Event):
     started = "started",
     failed = "failed",
     finished = "finished",
+    deleted = "deleted",
     state = State
   )
 

@@ -109,11 +109,11 @@ class PrinterApi(Api):
   
   def prints(self, request, *args):
     # prnts = Print.select().order_by(Print.created_at.desc())
-    page = request.params.get("page") or 1
-    per_page = request.params.get("per_page") or 20
+    page = int(request.params.get("page") or 1)
+    per_page = int(request.params.get("per_page") or 5)
     q = self.service.printer.prints.order_by(Print.created_at.desc())
     cnt = q.count()
-    num_pages = cnt / per_page
+    num_pages = math.ceil(cnt / per_page)
     return {"data": [p.to_json(recurse=True) for p in q.paginate(page, per_page)], "meta": {"current_page": page, "last_page": num_pages, "total": cnt}}
 
   def get_print(self, request, print_id, *args):
@@ -150,8 +150,8 @@ class PrinterApi(Api):
 
   def printer_commands(self, request, *args):
     # prnts = Print.select().order_by(Print.created_at.desc())    
-    page = int(request.params.get("page")) or 1
-    per_page = int(request.params.get("per_page")) or 5
+    page = int(request.params.get("page") or 1)
+    per_page = int(request.params.get("per_page") or 5)
     if request.params.get("print_id"):
       prnt = Print.get_by_id(request.params.get("print_id"))
       q = prnt.commands.order_by(PrinterCommand.created_at.desc())

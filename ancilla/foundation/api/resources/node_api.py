@@ -83,7 +83,7 @@ class NodeApiHandler(BaseHandler):
           self.write(resp.body)
         except AncillaResponse as e:
           print(f"ancillpostexception = {e}", flush=True)    
-          self.set_resp_headers(resp)   
+          self.set_resp_headers(e)   
           self.set_status(e.status_code)
           self.write(e.body)
         except Exception as e:
@@ -151,7 +151,8 @@ class NodeApiHandler(BaseHandler):
             # iterator = iter(resp.body)
             # if isinstance(resp.body, Iterable):
             # print(f"body = {resp.body}", flush=True)
-            if hasattr(resp.body, '__aiter__'):
+            # if hasattr(resp.body, '__aiter__'):
+            if '__aiter__' in dir(resp.body):
               print("Has aeiter", flush=True)
               
               async for frame in resp.body:
