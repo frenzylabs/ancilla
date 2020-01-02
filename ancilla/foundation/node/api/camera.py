@@ -119,6 +119,9 @@ class CameraApi(Api):
     page = int(request.params.get("page") or 1)
     per_page = int(request.params.get("per_page") or 5)
     q = self.service.camera_model.recordings.order_by(CameraRecording.created_at.desc())
+    if request.params.get("print_id"):
+      q = q.where(CameraRecording.print_id == request.params.get("print_id"))
+    
     cnt = q.count()
     num_pages = math.ceil(cnt / per_page)
     return {"data": [p.to_json(recurse=True) for p in q.paginate(page, per_page)], "meta": {"current_page": page, "last_page": num_pages, "total": cnt}}

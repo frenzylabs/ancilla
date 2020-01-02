@@ -2,6 +2,7 @@ import time
 
 import os, random, string
 import asyncio
+import math 
 
 from .api import Api
 from ..events import FileEvent
@@ -98,7 +99,14 @@ class FileApi(Api):
     # self.finish({"file": sf.json})
 
   def list_files(self, request, *args):
-    return {'files': [print_slice.json for print_slice in PrintSlice.select().order_by(PrintSlice.created_at.desc())]}
+    page = int(request.params.get("page") or 1)
+    per_page = int(request.params.get("per_page") or 5)
+    q = PrintSlice.select().order_by(PrintSlice.created_at.desc())
+    
+    cnt = q.count()
+    num_pages = math.ceil(cnt / per_page)
+    return {"data": [p.to_json(recurse=True) for p in q.paginate(page, per_page)], "meta": {"current_page": page, "last_page": num_pages, "total": cnt}}
+
 
 
   def get(self, request, file_id, *args):
