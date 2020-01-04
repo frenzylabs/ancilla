@@ -8,6 +8,7 @@
 
 from .base import BaseModel
 # from .printer import Printer
+import re
 
 from peewee import (
   CharField,
@@ -25,6 +26,16 @@ class Service(BaseModel):
   configuration    = JSONField(default={})
   settings         = JSONField(default={})
   event_listeners  = JSONField(default={})
+
+  @property
+  def service_name(self):
+      return self.name
+
+  @service_name.setter
+  def service_name(self, val):
+    name = "-".join(re.sub(r'[^a-zA-Z0-9\-_\s]', '', val).split(' '))
+    self.name = name
+  
 
   @property
   def serialize(self):

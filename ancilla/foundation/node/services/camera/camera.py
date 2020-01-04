@@ -22,6 +22,7 @@ from tornado.ioloop import IOLoop
 # from ..zhelpers import zpipe, socket_set_hwm
 from ....data.models import Camera as CameraModel, CameraRecording
 from ...base_service import BaseService
+from ....utils.service_json_encoder import ServiceJsonEncoder
 
 # from ...data.models import DeviceRequest
 from .driver import CameraConnector
@@ -232,6 +233,7 @@ class Camera(BaseService):
 
     def stop_recording(self, msg):
       print(f"STOP RECORDING {msg}", flush=True)      
+      print(f"STOPRECORDING MSG: {json.dumps(msg, cls=ServiceJsonEncoder)}", flush=True)
       try:
         payload = msg.get('data')
         task_name = payload.get("task_name")
@@ -266,7 +268,8 @@ class Camera(BaseService):
         return {"status": "error", "error": f"Could not cancel task {str(e)}"}
 
     def get_recording_task(self, data):
-      print(f"Get RECORDING {data}", flush=True)      
+      print(f"Get RECORDING {data}", flush=True)    
+      print(f"GET RECORDINGData: {json.dumps(data, cls=ServiceJsonEncoder)}", flush=True)  
       try:
         
         task_name = data.get("task_name")
@@ -314,21 +317,27 @@ class Camera(BaseService):
 
     def start_recording(self, msg):
       print(f"START RECORDING {msg}", flush=True)
-      
+      print(f"RECORDING MSG: {json.dumps(msg, cls=ServiceJsonEncoder)}", flush=True)
       # return {"started": True}
       try:
         if not self.state.connected:
           self.connect()
         
         payload = msg.get('data')
-        # if isinstance(msg, EventPack):
-        #   if msg.name.endswith("print.started"):
-        #     payload = {"print": msg.data}
+        printmodel = payload.get("model")
+        if printmodel:
+          record_print = False
+          settings = printmodel.get("settings") or {}
+          if settings.get("record_print") == True:
+            if f'{self.model.id}' in (settings.get("cameras") or {}).keys():
+              record_print = True
+          
+          if not record_print:
+            return {"status": "ok", "reason": "Dont record this print"}
+
         
         print(f"StartRecording payload = {payload}", flush=True)
-    #     res = data.decode('utf-8')
-    #     payload = json.loads(res)
-        
+
         name = payload.get("print_id") or "".join(random.choice(string.ascii_lowercase + string.digits) for x in range(6))
     #     # method = payload.get("method")
 

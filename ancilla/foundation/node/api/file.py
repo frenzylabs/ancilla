@@ -121,7 +121,8 @@ class FileApi(Api):
   async def delete(self, request, layerkeep, file_id, *args):
     print_slice  = PrintSlice.get_by_id(file_id)
     if print_slice.layerkeep_id:
-      resp = await layerkeep.delete_sliced_file({"data": {"layerkeep_id": print_slice.layerkeep_id}})
+      if request.params.get("delete_remote"):
+        resp = await layerkeep.delete_sliced_file({"data": {"layerkeep_id": print_slice.layerkeep_id}})
 
     if self.service.delete_file(print_slice):
       return {"status": 200}

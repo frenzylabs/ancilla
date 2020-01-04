@@ -2,10 +2,11 @@ import time
 from .api import Api
 from ..events import Event
 from ...data.models import Service, Printer, Camera, ServiceAttachment
+from ..response import AncillaError, AncillaResponse
+
 
 import asyncio
-
-from ..response import AncillaError, AncillaResponse
+import re
 
 class NodeApi(Api):
 
@@ -31,7 +32,6 @@ class NodeApi(Api):
     # self.service.route('/services/<name><other:re:.*>', 'GET', self.catchIt)
 
   async def delete_service(self, request, layerkeep, service_id, *args):
-    print(f"SERVICE args = {service_id}", flush=True)
     smodel = Service.get_by_id(service_id)
     model = smodel.model
     with Service._meta.database.atomic() as transaction:
@@ -91,23 +91,18 @@ class NodeApi(Api):
       try:
         
         newname = request.params.get("name")
-        if newname:
-          s.name = newname
+        if newname:   
+          s.service_name = newname
           model = s.model
-          # if s.kind == "printer":
-          #   obj = Printer.select().where(Printer.service == s ).first()
-          # elif s.kind == "camera":
-          #   obj = Camera.select().where(Camera.service == s ).first()
 
           if model:
             model.name = newname
             if not model.is_valid:
               raise AncillaError(400, {"errors": model.errors})
-              # return {"errors": model.errors}
             model.save()
 
 
-        print(f"Serv Config= {request.params.get('configuration')}", flush=True)
+        # print(f"Serv Config= {request.params.get('configuration')}", flush=True)
         if request.params.get('configuration') != None:
           print('Has config', flush=True)
           s.configuration = request.params.get('configuration')

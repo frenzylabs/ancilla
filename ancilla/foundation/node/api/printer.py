@@ -5,6 +5,7 @@ from .api import Api
 from ..events.printer import Printer as PrinterEvent
 from ...data.models import Print, Printer, Service, PrinterCommand, CameraRecording
 from ..response import AncillaError
+from ..app import Request
 
 import asyncio
 class PrinterApi(Api):
@@ -15,7 +16,6 @@ class PrinterApi(Api):
 
   def setup(self):
     super().setup()
-    self.service.route('/hello', 'GET', self.hello)
     self.service.route('/connection', 'POST', self.connect)
     self.service.route('/connection', 'DELETE', self.disconnect)
     self.service.route('/print', 'POST', self.print)
@@ -36,7 +36,7 @@ class PrinterApi(Api):
         
         newname = request.params.get("name")
         if newname:
-          s.name = newname
+          s.service_name = newname
         model = s.model
 
         if model:
@@ -88,14 +88,6 @@ class PrinterApi(Api):
         # return {"Error"}
         raise e
 
-  async def hello(self, request, layerkeep, *args, **kwargs):
-    print("INSIDE HELLO")
-    print(layerkeep)
-    await asyncio.sleep(2)
-    print("Hello AFter first sleep", flush=True)
-    # await asyncio.sleep(2)
-    # print("Hello AFter 2 sleep", flush=True)
-    return "hello"
 
   def connect(self, *args):
     return self.service.connect()
@@ -105,8 +97,21 @@ class PrinterApi(Api):
         self.service.stop()
     return {"status": "disconnected"}
 
-  def print(self, request, *args):
-    return self.service.start_print(request.params)
+  async def print(self, request, layerkeep, *args):
+    data = self.service.start_print(request.params)
+    prnt = data.get("print")
+    if request.params.get('layerkeep_sync'):      
+      response = await layerkeep.create_print({"data": {"print": prnt.json, "params": request.params}})
+
+      if not response.success:
+        raise response
+      
+      prnt.layerkeep_id = response.body.get("data").get("id")
+      prnt.save()
+
+    return {"data": prnt}
+    
+
   
   def prints(self, request, *args):
     # prnts = Print.select().order_by(Print.created_at.desc())

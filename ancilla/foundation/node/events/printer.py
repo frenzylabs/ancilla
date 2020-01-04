@@ -5,6 +5,7 @@ class Print(Event):
   events = dict(
       started = "started", 
       paused = "paused",
+      cancelled = "cancelled",
       finished = "finished",
       failed = "failed",
       state = State,

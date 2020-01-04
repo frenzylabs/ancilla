@@ -79,6 +79,11 @@ class Api(object):
       
     def add_attachment(self, request, *args):
       service_id = request.params.get("service_id")
+      
+      res = self.service.model.service_attachments.where(ServiceAttachment.attachment_id == service_id).first()
+      if res:
+        return {"attachment": res.json}
+        
       attachment = Service.get_by_id(service_id)
       sa = ServiceAttachment(parent=self.service.model, attachment=attachment)
       sa.save()

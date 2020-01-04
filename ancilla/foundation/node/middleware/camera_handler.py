@@ -10,10 +10,19 @@ class CameraHandler(DataHandler):
       if not data or len(data) < 3:
         return
 
-      identifier, frm_num, frame = data
+      fromidentifier, frm_num, msg = data
 
-      evt = "events." + Camera.data_received.value()
-      return [evt.encode('ascii'), self.service.name.encode('ascii'), frm_num, frame]
-      # return [b'events.camera.data_received', identifier, frm_num, frame]
-      # super().on_data(data)
-      # return data
+      identifier, *rest = fromidentifier.split(b'.')
+
+      if len(rest) > 0:
+        eventkind = b'.'.join(rest)
+      else:
+        eventkind = b'data_received'
+
+      if eventkind == b'connection.closed':
+        self.service.state.connected = False
+        self.service.fire_event(Camera.connection.closed, self.service.state)
+
+      # identifier, frm_num, frame = data
+
+      return [b'events.camera.' + eventkind, identifier, frm_num, msg]

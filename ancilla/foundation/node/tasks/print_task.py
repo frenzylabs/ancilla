@@ -139,6 +139,10 @@ class PrintTask(AncillaTask):
       self.service.fire_event(Printer.print.failed, self.state)  
     elif self.state.status == "finished":
       self.service.fire_event(Printer.print.finished, self.state)  
+    elif self.state.status == "cancelled":
+      self.service.fire_event(Printer.print.cancelled, self.state)  
+    elif self.state.status == "paused":
+      self.service.fire_event(Printer.print.paused, self.state)  
 
     print(f"FINISHED PRINT {self.state}", flush=True)
     self.service.print_queued = False

@@ -35,7 +35,7 @@ class CameraApi(Api):
         
         newname = request.params.get("name")
         if newname:
-          s.name = newname
+          s.service_name = newname
         model = s.model
 
         if model:

@@ -414,8 +414,9 @@ class Printer(BaseService):
 
           sf = PrintSlice.get(fid)  
           name = data.get("name") or f"print-{sf.name}"
+          settings = data.get("settings") or {}
           
-          self.current_print = Print(name=name, status="idle", printer_snapshot=self.record, printer=self.printer, print_slice=sf)
+          self.current_print = Print(name=name, status="idle", settings=settings, printer_snapshot=self.record, printer=self.printer, print_slice=sf)
           self.current_print.save(force_insert=True)
 
           # name = prt.name
@@ -425,6 +426,8 @@ class Printer(BaseService):
         loop = IOLoop().current()
         loop.add_callback(partial(self._process_tasks))
 
+        return {"print": self.current_print}
+
       except AncillaResponse as e:
         raise e
       except Exception as e:
@@ -432,7 +435,7 @@ class Printer(BaseService):
         # return {"status": "error", "error": f"Cant Start Print task {str(e)}"}
         raise AncillaError(400, {"error": f"Cant Start Print task {str(e)}"})
 
-      return {"queued": "success"}
+      # return {"queued": "success"}
 
             
               

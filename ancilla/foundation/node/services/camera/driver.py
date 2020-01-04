@@ -94,14 +94,18 @@ class CameraConnector(object):
           if ret:
             i += 1
           # publisher.send_multipart([self.identity, frame])
-            device_collector.send(self.identity, zmq.SNDMORE)
+            device_collector.send(self.identity + b'.data_received', zmq.SNDMORE)
             device_collector.send(f'{i}'.encode('ascii'), zmq.SNDMORE)
             device_collector.send_pyobj(frame)
+          # else:
+          #   if not self.video.isOpened():
+          #     print("VIDEO IS NOT OPENED", flush=True)
             # time.sleep(2)
             # print('Sent frame {}'.format(i))
         except Exception as e:
           print(f'Exception with Camera: {str(e)}', flush=True)
-          device_collector.send_multipart([self.identity, b'error', str(e).encode('ascii')])
+          device_collector.send_multipart([self.identity + b'.data_received', b'error', str(e).encode('ascii')])
+          # device_collector.send_multipart([self.identity, b'error', str(e).encode('ascii')])
           break
       self.alive = False
 
