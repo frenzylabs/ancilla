@@ -1,10 +1,11 @@
 '''
- printer.py
- models
+ camera_recording.py
+ ancilla
 
- Created by Wess Cope (me@wess.io) on 09/30/19
- Copyright 2019 Wess Cope
+ Created by Kevin Musselman (kevin@frenzylabs.com) on 11/08/19
+ Copyright 2019 FrenzyLabs, LLC.
 '''
+
 
 from .base import BaseModel
 from .camera import Camera

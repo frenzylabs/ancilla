@@ -111,6 +111,12 @@ class ZMQNodePubSub(object):
         # self.request.on_recv(callback)
       self.subscriber.setsockopt(zmq.UNSUBSCRIBE, subscribetopic)
 
+    def close(self):
+      self.subscriber.stop_on_recv()
+      self.stream.stop_on_recv()
+      self.stream.close()
+      self.subscriber.close()
+
     def make_request(self, target, action, msg = None):
       # if msg and type(msg) == dict:
       #   msg = json.dumps(msg)
@@ -229,6 +235,7 @@ class NodeSocket(WebSocketHandler):
         print(kwargs, flush=True)
         # node = kwargs.get("node")
         self.node = kwargs.pop('node', None)
+        self.timer = time.time()
         super().__init__(application, request, **kwargs)
 
 
@@ -263,6 +270,11 @@ class NodeSocket(WebSocketHandler):
         topic = topic.decode('utf-8')
         msg = msg.decode('utf-8')
         try:
+          if (topic.endswith('printer.data_received')):
+            if (time.time() - self.timer) > 2:
+              self.timer = time.time()
+            else:
+              return
           msg = json.loads(msg)
         except:
           pass
@@ -309,6 +321,7 @@ class NodeSocket(WebSocketHandler):
         
     
     def on_close(self):
+        self.node_connector.close()
         print('ws closed')
 
     def on_data(self, data):

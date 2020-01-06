@@ -16,7 +16,7 @@ from peewee import (
 )
 from playhouse.sqlite_ext import JSONField
 
-class DeviceRequest(BaseModel):  
+class ServiceRequest(BaseModel):  
   device_id   = IntegerField()
   status      = CharField()
   state       = JSONField(default={})
@@ -27,7 +27,7 @@ class DeviceRequest(BaseModel):
   def serialize(self):
     return {
       'id':           self.id,
-      'device_id':    self.device_id,
+      'service_id':    self.service_id,
       'status':        self.status,
       'action':       self.action,
       'payload':      self.payload
@@ -44,7 +44,7 @@ class DeviceRequest(BaseModel):
     )
 
   class Meta:
-    table_name = "device_requests"
+    table_name = "service_requests"
 
 # class PrinterLog(BaseModel):
 #   content = TextField()

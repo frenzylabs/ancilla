@@ -61,7 +61,6 @@ class Camera(BaseService):
     __actions__ = [
       "start_recording",
       "stop_recording",
-      "delete_recording",
       "resume_recording",
       "pause_recording",
       "print_state_change"
@@ -236,32 +235,41 @@ class Camera(BaseService):
       print(f"STOPRECORDING MSG: {json.dumps(msg, cls=ServiceJsonEncoder)}", flush=True)
       try:
         payload = msg.get('data')
-        task_name = payload.get("task_name")
-        cr = None
-        if payload.get("recording_id"):
-          cr = CameraRecording.get_by_id(payload.get("recording_id"))
-          task_name = cr.task_name
-        elif task_name:          
-          cr = CameraRecording.select().where(CameraRecording.task_name == task_name).first()
-        else:
-          cr = CameraRecording.select().where(CameraRecording.status != "finished").first()
-          if cr:
-            task_name = cr.task_name
-
-        for k, v in self.current_task.items():
-            print(f"TASKkey = {k} and v = {v}", flush=True)
-
-        if task_name:
-          if self.current_task.get(task_name):
-            self.current_task[task_name].cancel()
-          else:
-            if not cr.status.startswith("finished"):
-              cr.status = "finished"
-              cr.reason = "Cleanup No Task"
-              cr.save()
+        task = self.get_recording_task(payload)
+        if task:
+          task.cancel()
           return {"status": "success"}
         else:
           return {"status": "error", "error": "Task Not Found"}
+
+        
+
+        # task_name = payload.get("task_name")
+        # cr = None
+        # if payload.get("recording_id"):
+        #   cr = CameraRecording.get_by_id(payload.get("recording_id"))
+        #   task_name = cr.task_name
+        # # elif task_name:          
+        # #   cr = CameraRecording.select().where(CameraRecording.task_name == task_name).first()
+        # # else:
+        # #   cr = CameraRecording.select().where(CameraRecording.status != "finished").first()
+        # #   if cr:
+        # #     task_name = cr.task_name
+
+        # for k, v in self.current_task.items():
+        #     print(f"TASKkey = {k} and v = {v}", flush=True)
+
+        # if task_name:
+        #   if self.current_task.get(task_name):
+        #     self.current_task[task_name].cancel()
+        #   else:
+        #     if not cr.status.startswith("finished"):
+        #       cr.status = "finished"
+        #       cr.reason = "Cleanup No Task"
+        #       cr.save()
+        #   return {"status": "success"}
+        # else:
+        #   return {"status": "error", "error": "Task Not Found"}
 
       except Exception as e:
         print(f"Cant cancel recording task {str(e)}", flush=True)
@@ -278,6 +286,8 @@ class Camera(BaseService):
           cr = CameraRecording.get_by_id(data.get("recording_id"))
           task_name = cr.task_name
 
+        printmodel = data.get("model")
+        
         # elif task_name:          
         #   cr = CameraRecording.select().where(CameraRecording.task_name == task_name).first()
         # else:
@@ -288,6 +298,9 @@ class Camera(BaseService):
         for k, v in self.current_task.items():
             print(f"TASKkey = {k} and v = {v}", flush=True)
             if isinstance(v, CameraRecordTask):
+              if printmodel:
+                if v.recording.print_id == printmodel.get("id"):
+                  return v
               if task_name:
                 if k == task_name:
                   return v
@@ -320,8 +333,7 @@ class Camera(BaseService):
       print(f"RECORDING MSG: {json.dumps(msg, cls=ServiceJsonEncoder)}", flush=True)
       # return {"started": True}
       try:
-        if not self.state.connected:
-          self.connect()
+        
         
         payload = msg.get('data')
         printmodel = payload.get("model")
@@ -335,10 +347,12 @@ class Camera(BaseService):
           if not record_print:
             return {"status": "ok", "reason": "Dont record this print"}
 
+        if not self.state.connected:
+          self.connect()
         
         print(f"StartRecording payload = {payload}", flush=True)
 
-        name = payload.get("print_id") or "".join(random.choice(string.ascii_lowercase + string.digits) for x in range(6))
+        name = "".join(random.choice(string.ascii_lowercase + string.digits) for x in range(6))
     #     # method = payload.get("method")
 
         
@@ -352,31 +366,31 @@ class Camera(BaseService):
         print(f"Cant record task {str(e)}", flush=True)
         return {"status": "error", "error": f"Could not record {str(e)}"}
 
-    def delete_recording(self, msg):
-      if isinstance(msg, CameraRecording):
-        recording = msg
-      else:
-        data = msg.get("data") or None
-        if data:
-          if data.get("id"):
-            recording = CameraRecording.get_by_id(data.get("id"))     
+    # def delete_recording(self, msg):
+    #   if isinstance(msg, CameraRecording):
+    #     recording = msg
+    #   else:
+    #     data = msg.get("data") or None
+    #     if data:
+    #       if data.get("id"):
+    #         recording = CameraRecording.get_by_id(data.get("id"))     
       
-      if recording:
-        try:
+    #   if recording:
+    #     try:
           
-          if os.path.exists(recording.image_path):
-            shutil.rmtree(recording.image_path)
-          if os.path.exists(recording.video_path):
-            shutil.rmtree(recording.video_path)
+    #       if os.path.exists(recording.image_path):
+    #         shutil.rmtree(recording.image_path)
+    #       if os.path.exists(recording.video_path):
+    #         shutil.rmtree(recording.video_path)
 
-          res = recording.delete_instance(recursive=True)
-          self.fire_event(CameraEvent.recording.deleted, {"data": recording.json})
-          return True
-        except Exception as e:
-          print(f"delete exception {str(e)}")
-          raise e
+    #       res = recording.delete_instance(recursive=True)
+    #       self.fire_event(CameraEvent.recording.deleted, {"data": recording.json})
+    #       return True
+    #     except Exception as e:
+    #       print(f"delete exception {str(e)}")
+    #       raise e
       
-      return False
+    #   return False
 
 
     # def publish_request(self, request):

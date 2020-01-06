@@ -220,25 +220,6 @@ class Printer(BaseService):
       return pc
 
 
-    def get_state(self, *args):
-      # print(self.connector.serial)
-      print(f"inside get state", flush=True)
-      print(f"inside get state {self.state}", flush=True)
-      # serialopen = False
-      # if self.connector and self.connector.serial:
-      #   serialopen = self.connector.serial.is_open
-      #   self.state.connected = True
-      #   self.state.status = 'Ready'
-      # else:
-      #   self.state.connected = False
-      #   self.state.status = 'Disconnected'
-
-      return self.state
-
-      # return {"open": serialopen, "alive": self.connector.alive, "state": self.state }
-
-
-
     def cancel(self, task_id, *args):
       if self.current_task["print"]:
         self.current_task["print"].cancel(task_id)

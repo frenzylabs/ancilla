@@ -22,6 +22,7 @@ from zmq.eventloop.zmqstream import ZMQStream
 from tornado.ioloop import IOLoop
 import asyncio
 import cv2
+import datetime
 
 numbers = re.compile(r'(\d+)')
 def numericalSort(value):
@@ -46,11 +47,12 @@ class ZMQCameraPubSub(object):
         self.subscriber = ZMQStream(self.subscriber)
         self.subscriber.on_recv(self.callback)
         
-
+        self.subscriber.setsockopt( zmq.LINGER, 0 )
         # self.request.linger = 0
         # self.request.setsockopt(zmq.SUBSCRIBE, b"")
 
     def close(self):
+      self.subscriber.stop_on_recv()
       self.subscriber.close()
 
     def subscribe(self, to, topic=''):
@@ -86,7 +88,10 @@ class WebcamHandler(RequestHandler):
       # topic, msg = yield self.socket.request.recv_multipart()
       topic, device, framenum, msg = data
       fnum = int(framenum.decode('utf-8'))
-      # print("fRAME = ", fnum)
+      # if (fnum % 100) == 0:
+      
+      # print(f"fRAME = {fnum} {datetime.datetime.now()}")
+
       frame = pickle.loads(msg)
       frame = cv2.flip(frame, 1)
 
@@ -129,7 +134,7 @@ class WebcamHandler(RequestHandler):
         # IOLoop.current().add_callback(self.flushit)
         while True:
           if self.ready:
-            await asyncio.sleep(1)
+            await asyncio.sleep(2.0)
           else:
             break
 

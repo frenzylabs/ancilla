@@ -138,6 +138,8 @@ class NodeApiHandler(BaseHandler):
 
     async def get(self, *args):
         print("Start get request", self.request)
+        # print(f'Query ARgs= {self.request.query_arguments}', flush=True)
+        # print(f'Q ARgs= {self.get_query_arguments("q")}', flush=True)
         # for (k, v) in self.request.headers.items():
         #     print(f"RequestHeader: K={k}, v={v} ", flush=True)
         try:

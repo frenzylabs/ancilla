@@ -16,7 +16,6 @@ class CameraApi(Api):
 
   def setup(self):
     super().setup()
-    self.service.route('/hello', 'GET', self.hello)
     self.service.route('/recordings', 'GET', self.recordings)
     self.service.route('/recordings/<recording_id>', 'GET', self.get_recording)
     self.service.route('/recordings/<recording_id>', 'DELETE', self.delete_recording)
@@ -69,19 +68,7 @@ class CameraApi(Api):
         raise e
 
 
-  async def hello(self, request, *args, **kwargs):
-    print("INSIDE HELLO")
-    print(self)
-    print(f"HELLO_REQUEST ENV1 = {request.environ}", flush=True)
-    print(f"HELLO_REQUEST ENV1 URLARGS = {request.url_args}", flush=True)
-    
-    await asyncio.sleep(2)
-    print("Hello AFter first sleep", flush=True)
-    print(f"HELLO_REQUEST ENV2 = {request.environ}", flush=True)
-    await asyncio.sleep(5)    
-    print("Hello AFter 2 sleep", flush=True)
-    print(f"HELLO_REQUEST ENV3 = {request.environ}", flush=True)
-    return "hello"
+
 
   def connect(self, *args):
     return self.service.connect()

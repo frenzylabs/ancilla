@@ -1,12 +1,17 @@
 import time
 from .api import Api
 from ..events import Event
-from ...data.models import Service, Printer, Camera, ServiceAttachment
+from ...data.models import Service, Printer, Camera, ServiceAttachment, CameraRecording
 from ..response import AncillaError, AncillaResponse
 
 
 import asyncio
 import re
+import math
+import os
+
+MB = 1 << 20
+BUFF_SIZE = 10 * MB
 
 class NodeApi(Api):
 
@@ -14,16 +19,18 @@ class NodeApi(Api):
     super().setup()
     # self.service.route('/services', 'GET', self.services)
     self.service.route('/services', 'GET', self.services)
+    self.service.route('/recordings', 'GET', self.recordings)
+    self.service.route('/recordings/<recording_id>', 'GET', self.get_recording)
+    self.service.route('/recordings/<recording_id>', 'DELETE', self.delete_recording)
+    self.service.route('/recordings/<recording_id>/video', 'GET', self.get_video)
+    
     # self.service.route('/services/<service_id>/restart', 'GET', self.restart_service)
     self.service.route('/attachments/<attachment_id>', 'PATCH', self.update_attachment)
     self.service.route('/services/<service_id>', 'PATCH', self.update_service_model)
     self.service.route('/services/<service_id>', 'DELETE', self.delete_service)
     self.service.route('/services/<service_id>/stop', 'GET', self.stop_service)
-    self.service.route('/services/testing/<name>', 'GET', self.testname)
-    self.service.route('/test', 'GET', self.test)
     self.service.route('/smodel/<model_id>', 'GET', self.service_model)
     self.service.route('/smodel/<service_id>', ['POST', 'PATCH'], self.update_service_model)
-    self.service.route('/services/test', 'GET', self.test)
     self.service.route('/services/camera', 'GET', self.list_cameras)
     self.service.route('/services/camera', 'POST', self.create_camera)
     self.service.route('/services/printer', 'POST', self.create_printer)
@@ -131,11 +138,44 @@ class NodeApi(Api):
     list_1 = [item for item in list_1 if item[2] >= 5 or item[3] >= 0.3]
     
 
-  def testname(self, request, name, *args, **kwargs):
-    print(f"INSIDE Test name {name}", flush=True)
-    print(f"args = {args}", flush=True)
-    print(f"kwargs = {kwargs}", flush=True)
-    return {"success": "tada"}
+  def recordings(self, request, *args, **kwargs):
+    page = int(request.params.get("page") or 1)
+    per_page = int(request.params.get("per_page") or 5)
+    q = CameraRecording.select().order_by(CameraRecording.created_at.desc())
+    if request.params.get("q[print_id]"):
+      q = q.where(CameraRecording.print_id == request.params.get("q[print_id]"))
+    if request.params.get("q[camera_id]"):
+      q = q.where(CameraRecording.camera_id == request.params.get("q[camera_id]"))
+    
+    cnt = q.count()
+    num_pages = math.ceil(cnt / per_page)
+    return {"data": [p.to_json(recurse=True) for p in q.paginate(page, per_page)], "meta": {"current_page": page, "last_page": num_pages, "total": cnt}}
+
+  def get_recording(self, request, recording_id, *args):
+    rcd = CameraRecording.get_by_id(recording_id)
+    return {"data": rcd.json}
+  
+  def delete_recording(self, request, recording_id, *args):
+    rcd = CameraRecording.get_by_id(recording_id)
+    if self.service.delete_recording(rcd):
+      return {"success": "Deleted"}
+    raise AncillaError(400, {"errors": "Coud Not Delete Recording"})
+
+  def get_video(self, request, recording_id, *args):
+    rcd = CameraRecording.get_by_id(recording_id)
+    path = rcd.video_path + "/output.mp4"    
+    fp = open(path, "rb")
+    
+    request.response.set_header('Content-Disposition', 'filename=%s' % "output.mp4")
+    if request.params.get("download"):
+      request.response.set_header('Content-Type', 'application/octet-stream')
+      return fp
+
+    request.response.status = 206
+    request.response.set_header('Content-Type', 'video/mp4')    
+    request.response.set_header('Accept-Ranges', 'bytes')
+
+    return self.stream_video(request, fp)
 
   def list_printers(self, *args, **kwargs):
     print("INSIDE LIST Printers", flush=True)
@@ -224,19 +264,44 @@ class NodeApi(Api):
       sa.save()
     return {"data": sa.json}
 
-  async def test(self, request, *args, **kwargs):
-    print("INSIDE TEST", flush=True)      
-    print(self)
-    print(f"REQUEST ENV = {request.environ}", flush=True)
-    print(args, flush=True)
-    print(self.routes, flush=True)
-    await asyncio.sleep(2)
-    print("Test AFter first sleep", flush=True)
-    print(f"REQUEST ENV = {request.environ}", flush=True)
-    await asyncio.sleep(5)
-    print("TestAFter 2 sleep", flush=True)
-    print(f"REQUEST ENV = {request.environ}", flush=True)
-    return "woohoo"
+  def stream_video(self, request, fp):    
+    start, end = self.get_range(request)
+
+    requestedrange =  request.headers.get('Range')
+    # if requestedrange == None:
+    #   print("NO REQUESTED RANGE",flush=True)
+    # else:
+    file_size = os.path.getsize(fp.name)
+    if end is None:
+        end = start + BUFF_SIZE - 1
+    end = min(end, file_size - 1)
+    end = min(end, start + BUFF_SIZE - 1)
+    length = end - start + 1
+    # resp.body.buffer_size = length
+
+    request.response.set_header(
+        'Content-Range', 'bytes {0}-{1}/{2}'.format(
+            start, end, file_size,
+        ),
+    )
+    fp.seek(start)
+    bytes = fp.read(length)
+    return bytes
+
+  def get_range(self, request):
+    range = request.headers.get('Range')
+    m = None
+    if range:
+      m = re.match('bytes=(?P<start>\d+)-(?P<end>\d+)?', range)
+    if m:
+        start = m.group('start')
+        end = m.group('end')
+        start = int(start)
+        if end is not None:
+            end = int(end)
+        return start, end
+    else:
+        return 0, None
 
   def catchUnmountedServices(self, request, service, service_id, *args, **kwargs):
     print("INSIDE CATCH service")

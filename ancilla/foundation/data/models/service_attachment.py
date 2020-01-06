@@ -1,9 +1,9 @@
 '''
- printer.py
- models
+ service_attachment.py
+ ancilla
 
- Created by Wess Cope (me@wess.io) on 09/30/19
- Copyright 2019 Wess Cope
+ Created by Kevin Musselman (kevin@frenzylabs.com) on 11/23/19
+ Copyright 2019 FrenzyLabs, LLC.
 '''
 
 from .base import BaseModel
@@ -24,7 +24,7 @@ class ServiceAttachment(BaseModel):
   settings     = JSONField(default={})
   listeners    = JSONField(default={})
   parent       = ForeignKeyField(Service, column_name='parent_id', index=True, null=False, backref="service_attachments")
-  attachment   = ForeignKeyField(Service, column_name='attachment_id', index=True, null=False, backref="attached_services")
+  attachment   = ForeignKeyField(Service, column_name='attachment_id', index=True, null=False, backref="attached_to")
 
 
   @property

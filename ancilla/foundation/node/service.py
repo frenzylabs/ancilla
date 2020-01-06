@@ -11,6 +11,7 @@ import json
 import asyncio
 # import zmq.asyncio
 import typing
+import os, shutil
 
 from types import CoroutineType
 
@@ -19,7 +20,8 @@ from zmq.eventloop.future import Context
 from playhouse.signals import Signal, post_save
 
 from .app import App, yields, ConfigDict
-from ..data.models import Camera, Printer, Service
+from ..data.models import Camera, Printer, Service, CameraRecording
+from .events.camera import Camera as CameraEvent
 from .api import NodeApi
 
 class NodeService(App):
@@ -264,6 +266,31 @@ class NodeService(App):
       if srv:
         self.unmount(srv)
 
+    def delete_recording(self, msg):
+      if isinstance(msg, CameraRecording):
+        recording = msg
+      else:
+        data = msg.get("data") or None
+        if data:
+          if data.get("id"):
+            recording = CameraRecording.get_by_id(data.get("id"))     
+      
+      if recording:
+        try:
+          
+          if os.path.exists(recording.image_path):
+            shutil.rmtree(recording.image_path)
+          if os.path.exists(recording.video_path):
+            shutil.rmtree(recording.video_path)
+
+          res = recording.delete_instance(recursive=True)
+          return True
+        except Exception as e:
+          print(f"delete exception {str(e)}")
+          raise e
+      
+      return False
+
     def stop_service(self, service):
       srv = next((item for item in self._mounts if item.model.id == service.id), None)
       print(f"Srv = {srv}", flush=True)
@@ -436,6 +463,7 @@ class NodeService(App):
               # print(f"INSIDE HERE, {np}", flush=True)
               self.publisher.send_multipart([service + b'.' + topic, service] + other)
       pass
+
 
     def event_message(self, msg):
       print("event message")
