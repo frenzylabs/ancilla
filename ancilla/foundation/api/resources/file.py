@@ -26,11 +26,12 @@ class FileResource(NodeApiHandler):
     service = Service.select().where(Service.kind == "file").where(Service.name == "local").first()
     if service:
       path = ""
-      if self.request.path.startswith("/files/"):
-        path = self.request.path[len("/files/"):]
+      if self.request.path.startswith("/api/files/"):
+        path = self.request.path[len("/api/files/"):]
       self.environ["PATH"] = service.api_prefix + path 
 
   async def get(self, *args):
+    print(f"FIEL GET {self.environ}", flush=True)
     try:
       resp = await self.node(self.environ)
       self.set_resp_headers(resp)

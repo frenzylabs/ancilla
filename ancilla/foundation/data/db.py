@@ -18,7 +18,8 @@ class Database(object):
 
   @staticmethod
   def connect():
-    Database.conn.connect()
+    # Database.conn.connect()
+    pass
     
   @staticmethod
   def run_migrations():

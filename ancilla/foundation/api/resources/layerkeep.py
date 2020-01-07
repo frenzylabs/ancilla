@@ -24,8 +24,8 @@ class LayerkeepResource(NodeApiHandler):
     service = Service.select().where(Service.kind == "layerkeep").first()
     if service:    
       path = ""
-      if self.request.path.startswith("/layerkeep/"):
-        path = self.request.path[len("/layerkeep/"):]
+      if self.request.path.startswith("/api/layerkeep/"):
+        path = self.request.path[len("/api/layerkeep/"):]
       self.environ["PATH"] = service.api_prefix + path 
 
   # async def delete(self, *args):    

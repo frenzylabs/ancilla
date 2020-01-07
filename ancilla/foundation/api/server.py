@@ -31,7 +31,8 @@ from .resources import (
   ServiceResource,
   PrintResource,
   ServiceAttachmentResource,
-  LayerkeepResource
+  LayerkeepResource,
+  StaticResource
 )
 
 from .resources.node_api import NodeApiHandler
@@ -383,6 +384,7 @@ class APIServer(object):
     print("INIT")
     self.document_store = document_store
     self.node_server = node_server
+    
 
 
   @property
@@ -393,27 +395,33 @@ class APIServer(object):
     }
 
     _app = Application([
-      (r"/document",  DocumentResource, dict(document=self.document_store)),
-      (r"/files",     FileResource, dict(node=self.node_server)),
-      (r"/files(.*)",     FileResource, dict(node=self.node_server)),
-      (r"/layerkeep(.*)",     LayerkeepResource, dict(node=self.node_server)),
-      (r"/ports",     PortsResource),
-      (r"/smodel/(.*)",   NodeApiHandler, dict(node=self.node_server)),
+      (r"/api/document",  DocumentResource, dict(document=self.document_store)),
+      (r"/api/files",     FileResource, dict(node=self.node_server)),
+      (r"/api/files(.*)",     FileResource, dict(node=self.node_server)),
+      (r"/api/layerkeep(.*)",     LayerkeepResource, dict(node=self.node_server)),
+      (r"/api/ports",     PortsResource),
+      (r"/api/webcam/(.*)",   WebcamHandler, dict(node=self.node_server)),
+      (r"/api/(.*)",   NodeApiHandler, dict(node=self.node_server)),
       (r"/services/(.*)",   NodeApiHandler, dict(node=self.node_server)),
       (r"/services",   NodeApiHandler, dict(node=self.node_server)),
       (r"/node/(.*)",   NodeApiHandler, dict(node=self.node_server)),
       (r"/node",   NodeApiHandler, dict(node=self.node_server)),
       (r"/ws",   NodeSocket, dict(node=self.node_server)),
-      (r"/webcam/(.*)",   WebcamHandler, dict(node=self.node_server)),
+      
       (r"/app/(.*)",  StaticFileHandler, dict(path = STATIC_FOLDER)),
-      (r"/(.*)",   NodeApiHandler, dict(node=self.node_server)),
+      
+      (r"/static/(.*)",  StaticFileHandler, dict(path = STATIC_FOLDER)),
+      (r"/(.*)",  StaticResource, dict(path = STATIC_FOLDER, default_filename = "index.html")),
+      
     ], **settings)
 
     return _app
 
   def start(self):
     print("Starting api server...", flush=True)
-
+    if not IOLoop.current(instance=False):
+      loop = IOLoop().initialize(make_current=True)  
+        # # loop = IOLoop.current(instance=True)
     # server = tornado.httpserver.HTTPServer(self.app)
     # server.bind(5000)
     # server.start(0)

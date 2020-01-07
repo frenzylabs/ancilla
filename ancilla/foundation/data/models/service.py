@@ -61,7 +61,7 @@ class Service(BaseModel):
   @property
   def api_prefix(self):
     if self.id:
-      return f"/services/{self.kind}/{self.id}/"
+      return f"/api/services/{self.kind}/{self.id}/"
     return "/"
 
 

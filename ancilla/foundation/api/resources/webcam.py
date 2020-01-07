@@ -161,7 +161,7 @@ class WebcamHandler(RequestHandler):
 
         # print("Start Camera request", flush=True)
 
-        environ = {"REQUEST_METHOD": "GET", "PATH": f"/services/{service.kind}/{service.id}/state"}
+        environ = {"REQUEST_METHOD": "GET", "PATH": f"/api/services/{service.kind}/{service.id}/state"}
         
         # resp = self.node.device_request(payload)
         resp = {}

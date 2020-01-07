@@ -246,17 +246,17 @@ class NodeService(App):
           service = ServiceCls(s)      
           service.install(LayerkeepCls())
           self.file_service = service
-          self.mount(f"/services/{s.kind}/{s.id}/", service)
+          self.mount(f"/api/services/{s.kind}/{s.id}/", service)
         if s.kind == "layerkeep":          
           ServiceCls = getattr(importlib.import_module("ancilla.foundation.node.services"), s.class_name)  
           service = ServiceCls(s) 
           self.layerkeep_service = service
-          self.mount(f"/services/{s.kind}/{s.id}/", service)
+          self.mount(f"/api/services/{s.kind}/{s.id}/", service)
         else:
           ServiceCls = getattr(importlib.import_module("ancilla.foundation.node.services"), s.class_name)  
           service = ServiceCls(s)      
           service.install(LayerkeepCls())
-          self.mount(f"/services/{s.kind}/{s.id}/", service)
+          self.mount(f"/api/services/{s.kind}/{s.id}/", service)
           
     def delete_service(self, service):
       self._services = [item for item in self._services if item.id != service.id]

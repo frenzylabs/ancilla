@@ -18,3 +18,4 @@ from .service_attachment import ServiceAttachmentResource
 from .layerkeep    import LayerkeepResource
 
 
+from .static  import StaticResource

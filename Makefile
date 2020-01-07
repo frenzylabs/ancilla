@@ -22,11 +22,12 @@ run:
 bundle_js:
 	@cd ancilla-ui \
 	&& yarn install --check-files \
-	&& npm run build
+	&& ./node_modules/.bin/parcel build src/index.html --public-url '/static' --out-dir ../ancilla/ui/dist
+	# && npm run build
 
 
 package_python:
-	@python setup.py macos -s && \
+	@RUN_ENV=PROD python setup.py macos -s && \
 	mkdir dist && \
 	mv macOS dist/
 
