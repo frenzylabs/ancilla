@@ -30,11 +30,13 @@ from .foundation.data.models  import (
 class Application(toga.App):
   
   def __init__(self, *args, **kwargs):
-    super().__init__(*args, **kwargs)
-    self.document_store = Document()
+    super().__init__(*args, **kwargs)    
     self.beacon         = Beacon()
-    self.node_server    = NodeService() # NodeServer()
-    self.api_server     = APIServer(self.document_store, self.node_server)
+    self.setup_env()
+    self.start_db()
+    self.beacon.register()
+    self.document_store = Document()
+    
     
     
 
@@ -92,9 +94,8 @@ class Application(toga.App):
     self.window.show()
 
   def startup(self):
-    self.setup_env()
-    self.start_db()
-    self.beacon.register()
+    self.node_server    = NodeService() # NodeServer()
+    self.api_server     = APIServer(self.document_store, self.node_server)    
 
     if Env.get('RUN_ENV') == 'DEV':
       self._start_dev()

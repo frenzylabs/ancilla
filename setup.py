@@ -50,6 +50,8 @@ setup(
             'android',
             'django',
             'share',
+            'collector',
+            'publisher'
         ]
     ),
     data_files=data_files,
