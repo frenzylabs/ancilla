@@ -231,8 +231,8 @@ class Camera(BaseService):
         return {"status": "error", "error": f"Could not pause task {str(e)}"}
 
     def stop_recording(self, msg):
-      print(f"STOP RECORDING {msg}", flush=True)      
-      print(f"STOPRECORDING MSG: {json.dumps(msg, cls=ServiceJsonEncoder)}", flush=True)
+      # print(f"STOP RECORDING {msg}", flush=True)      
+      # print(f"STOPRECORDING MSG: {json.dumps(msg, cls=ServiceJsonEncoder)}", flush=True)
       try:
         payload = msg.get('data')
         task = self.get_recording_task(payload)
@@ -276,8 +276,8 @@ class Camera(BaseService):
         return {"status": "error", "error": f"Could not cancel task {str(e)}"}
 
     def get_recording_task(self, data):
-      print(f"Get RECORDING {data}", flush=True)    
-      print(f"GET RECORDINGData: {json.dumps(data, cls=ServiceJsonEncoder)}", flush=True)  
+      # print(f"Get RECORDING {data}", flush=True)    
+      # print(f"GET RECORDINGData: {json.dumps(data, cls=ServiceJsonEncoder)}", flush=True)  
       try:
         
         task_name = data.get("task_name")
@@ -329,8 +329,8 @@ class Camera(BaseService):
 
 
     def start_recording(self, msg):
-      print(f"START RECORDING {msg}", flush=True)
-      print(f"RECORDING MSG: {json.dumps(msg, cls=ServiceJsonEncoder)}", flush=True)
+      # print(f"START RECORDING {msg}", flush=True)
+      # print(f"RECORDING MSG: {json.dumps(msg, cls=ServiceJsonEncoder)}", flush=True)
       # return {"started": True}
       try:
         
@@ -350,10 +350,8 @@ class Camera(BaseService):
         if not self.state.connected:
           self.connect()
         
-        print(f"StartRecording payload = {payload}", flush=True)
 
         name = "".join(random.choice(string.ascii_lowercase + string.digits) for x in range(6))
-    #     # method = payload.get("method")
 
         
         pt = CameraRecordTask(name, self, payload)

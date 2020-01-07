@@ -280,6 +280,70 @@ class Layerkeep(BaseService):
         print(f"CREATe printer exception = {e}", flush=True)
         raise AncillaError(status= 400, body={"error": f"{str(e)}"}, exception=e)
 
+
+    @check_authorization
+    async def update_print(self, evt):
+      try:
+        payload = evt.get("data")
+        data = {"print": payload}
+        print_id = payload.get("layerkeep_id")
+        # data = {slice: {gcode: {file: "2019-12-13/1/slices/test.gcode"}}
+
+        url = f'{self.settings.api_url}{self.settings.get("auth.user.username")}/prints/{print_id}'
+        req = requests.Request('PATCH', url, json=data)
+        response = await self.make_request(req)        
+        return response
+      except AncillaResponse as e:
+        raise e
+      except Exception as e:
+        print(f"Update Print Exception = {e}", flush=True)
+        raise AncillaError(status= 400, body={"error": f"{str(e)}"}, exception=e)
+        
+
+
+    @check_authorization
+    async def upload_print_asset(self, evt):
+      try:
+        payload = evt.get("data")
+        print_params = payload.get("params") or {}
+        asset = payload.get("asset")
+        
+        filepath = asset.get("path")
+        signparams = {
+          "filepath": filepath,
+          "name": asset.get("name"),
+          "kind": "prints"
+        }
+        
+
+        ## Get an S3 Presigned Request To Upload directly to Bucket
+        signed_response = await self.presign_asset({"data": signparams})
+
+        direct_upload = {"filepath": filepath}
+        direct_upload.update(signed_response.body.get("direct_upload"))
+        print(f"direct_upload = {direct_upload}")    
+
+        ## Upload sliced file to Bucket
+        upload_response = await self.upload_file({"data": direct_upload})
+
+        # if sliced_file.get("description"):
+        #   slice_params["description"] = sliced_file.get("description")
+        
+        lkpayload = {
+            "files": [signed_response.body.get("signed_id")]
+          }
+        lkpayload.update(print_params)
+
+        # Create the Slice on Layerkeep
+        response = await self.update_print({"data": lkpayload})
+        return response
+      
+      except AncillaResponse as e:
+        raise e
+      except Exception as e:
+        print(f"Sync Sliced File exception = {e}", flush=True)
+        raise AncillaError(status= 400, body={"error": f"{str(e)}"}, exception=e)
+
     @check_authorization
     async def download_sliced_file(self, evt):
       try:

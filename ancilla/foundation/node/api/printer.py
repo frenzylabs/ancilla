@@ -153,9 +153,27 @@ class PrinterApi(Api):
 
     if not response.success:
       raise response
-    
+
     prnt.layerkeep_id = response.body.get("data").get("id")
     prnt.save()
+    for r in prnt.recordings:
+      if not r.layerkeep_id:
+        data = {
+            "params": {
+              "layerkeep_id": prnt.layerkeep_id
+            },
+            "asset": {
+                "name": r.task_name + ".mp4",
+                "path": r.video_path + "/output.mp4"
+            }
+          }
+        response = await layerkeep.upload_print_asset({"data": data})
+        if response.success:
+          r.layerkeep_id = response.body.get("data").get("id")
+          r.save()
+        
+
+    
     return {"data": prnt.json}
 
   async def unsync_print_from_layerkeep(self, request, print_id, *args):

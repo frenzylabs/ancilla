@@ -163,11 +163,9 @@ class PrintTask(AncillaTask):
     self.state.status = "paused"
 
   def get_state(self):
-    # print("get state", flush=True)
-
-    st = self.state.json
+    st = self.state.to_json()
     self.state.model = self.service.current_print.json
-    if st != self.state.json:
+    if st != self.state.to_json():
       self.service.fire_event(Printer.print.state.changed, self.state)
     
     # self.publish_request(request)
