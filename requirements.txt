@@ -3,8 +3,8 @@ aniso8601==8.0.0
 arrow==0.15.2
 binaryornot==0.4.4
 biplist==1.0.3
-boto3==1.9.239
-botocore==1.12.239
+# boto3==1.9.239
+# botocore==1.12.239
 briefcase==0.2.10
 cached-property==1.5.1
 certifi==2019.9.11
@@ -15,10 +15,10 @@ dmgbuild==1.3.2
 dnspython==1.16.0
 docutils==0.15.2
 ds-store==1.1.2
-Flask==1.1.1
-Flask-Cors==3.0.8
-Flask-RESTful==0.3.7
-Flask-SocketIO==4.2.1
+# Flask==1.1.1
+# Flask-Cors==3.0.8
+# Flask-RESTful==0.3.7
+# Flask-SocketIO==4.2.1
 future==0.17.1
 greenlet==0.4.15
 h5py==2.10.0
@@ -33,7 +33,7 @@ macholib==1.11
 MarkupSafe==1.1.1
 mock==3.0.5
 monotonic==1.5
-numpy==1.17.3
+# numpy==1.17.3
 opencv-python==4.1.1.26
 peewee==3.11.2
 peewee-migrate==1.1.6

@@ -9,7 +9,9 @@ VERSION			 	= `cat $(VERSION_FILE)`
 all: run
 
 clean:
-	@rm -rf dist \
+	@rm -rf publisher \
+	&& rm -rf collector \
+	&& rm -rf dist \
 	&& rm -rf __pycache__ \
 	&& rm -rf ancilla-ui/dist \
 	&& rm -rf macOS \
