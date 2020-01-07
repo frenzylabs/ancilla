@@ -11,16 +11,17 @@ all: run
 clean:
 	@rm -rf dist \
 	&& rm -rf __pycache__ \
-	&& rm -rf ui/dist \
+	&& rm -rf ancilla-ui/dist \
 	&& rm -rf macOS \
-	&& rm -rf ui/.cache \
+	&& rm -rf ancilla-ui/.cache \
 	&& rm -rf ~/.ancilla
 
 run:
 	@RUN_ENV=DEV python -m ancilla
 
 bundle_js:
-	@cd ui \
+	@cd ancilla-ui \
+	&& yarn install --check-files \
 	&& npm run build
 
 
@@ -29,4 +30,5 @@ package_python:
 	mkdir dist && \
 	mv macOS dist/
 
-package: clean bundle_js package_python
+package: bundle_js package_python
+# package: clean bundle_js package_python
