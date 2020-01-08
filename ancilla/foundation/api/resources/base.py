@@ -17,12 +17,15 @@ class BaseHandler(RequestHandler):
     self.set_header('Access-Control-Allow-Headers', '*')
     self.set_header('Access-Control-Max-Age', 1000)
     self.set_header('Content-type', 'application/json')
-    self.set_header('Access-Control-Allow-Methods', 'POST, GET, OPTIONS')
+    self.set_header('Access-Control-Allow-Methods', 'HEAD, POST, PATCH, GET, OPTIONS, DELETE')
     self.set_header('Access-Control-Allow-Headers', 'Content-Type, Access-Control-Allow-Origin, Access-Control-Allow-Headers, X-Requested-By, X-Requested-With, Access-Control-Allow-Methods')
   
   def prepare(self):
-    if self.request.method == 'POST':
-      self.params = json_decode(self.request.body)
+    self.params = {}
+    if self.request.method == 'POST' or self.request.method == 'PATCH' or self.request.method == 'PUT':
+      if not self.request.headers.get('Content-Type').startswith('multipart/form-data'):
+        self.params = json_decode(self.request.body)
+        
 
-  def options(self):
+  def options(self, *args):
     pass

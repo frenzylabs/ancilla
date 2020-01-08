@@ -9,24 +9,29 @@ VERSION			 	= `cat $(VERSION_FILE)`
 all: run
 
 clean:
-	@rm -rf dist \
+	@rm -rf publisher \
+	&& rm -rf collector \
+	&& rm -rf dist \
 	&& rm -rf __pycache__ \
-	&& rm -rf ui/dist \
+	&& rm -rf ancilla-ui/dist \
 	&& rm -rf macOS \
-	&& rm -rf ui/.cache \
+	&& rm -rf ancilla-ui/.cache \
 	&& rm -rf ~/.ancilla
 
-run: bundle_js
+run:
 	@RUN_ENV=DEV python -m ancilla
 
 bundle_js:
-	@cd ui \
-	&& npm run build
+	@cd ancilla-ui \
+	&& yarn install --check-files \
+	&& ./node_modules/.bin/parcel build src/index.html --public-url '/static' --out-dir ../ancilla/ui/dist
+	# && npm run build
 
 
 package_python:
-	@python setup.py macos -s && \
+	@RUN_ENV=PROD python setup.py macos -s && \
 	mkdir dist && \
 	mv macOS dist/
 
-package: clean bundle_js package_python
+package: bundle_js package_python
+# package: clean bundle_js package_python

@@ -2,8 +2,8 @@
  file.py
  ancilla
 
- Created by Wess Cope (me@wess.io) on 10/22/19
- Copyright 2019 Wess Cope
+ Created by Kevin Musselman (kevin@frenzylabs.com) on 11/23/19
+ Copyright 2019 FrenzyLabs, LLC.
 '''
 
 import os 
@@ -11,24 +11,59 @@ import os
 from pathlib  import Path  
 from .base    import BaseHandler
 from ...env   import Env
+from ...data.models import Service
+import random
+import string
 
-class FileHandler(BaseHandler):
-  root_path = "/".join([Env.ancilla, "user_files"])
+from .node_api import NodeApiHandler
 
-  def post(self):
-    incoming        = self.request.files['file'][0]
-    original_name   = incoming['name']
-    ext             = os.path.splitext(original_name)[1]
-    name            = ''.join(random.choice(string.ascii_lowercase + string.digits) for x in range(6))    
-    filename        = name + ext
-    output          = open("{}/{}".format(self.root_path, filename), 'w')
+from ...node.response import AncillaResponse
 
-    output.write(incoming['body'])
+class FileResource(NodeApiHandler):
+  
+  def prepare(self):
+    super().prepare()
+    service = Service.select().where(Service.kind == "file").where(Service.name == "local").first()
+    if service:
+      path = ""
+      if self.request.path.startswith("/api/files/"):
+        path = self.request.path[len("/api/files/"):]
+      self.environ["PATH"] = service.api_prefix + path 
 
-    self.finish("file: ", + filename + " has been uploaded")
+  async def get(self, *args):
+    print(f"FIEL GET {self.environ}", flush=True)
+    try:
+      resp = await self.node(self.environ)
+      self.set_resp_headers(resp)
+      self.set_status(resp.status_code)
+      if self.params.get("download"):
+        self.download_sliced_file(resp)
+      else:
+        self.write(resp.body)
 
-  def get(self):
-    path  = Path(self.root_path)
-    items = [item for item in path.glob('**/*')]
+    except AncillaResponse as e:
+      print(f"ancillagetexception = {e}", flush=True)  
+      self.set_resp_headers(e)   
+      self.set_status(e.status_code)
+      self.write(e.body)
+    except Exception as e:
+      print(f"getexception = {e}", flush=True)    
+      self.set_status(400)
+      self.write({"error": str(e)})
 
-    self.write({"user_files": items})
+    finally:
+      self.finish()
+
+  def download_sliced_file(self, resp):
+    with open(resp.body.get("file").get("path"), "rb") as f:
+      try:
+        while True:
+          _buffer = f.read(4096)
+          if _buffer:
+            self.write(_buffer)
+          else:
+            f.close()
+            return
+      except Exception as e:
+        raise e
+

@@ -17,8 +17,10 @@ from serial.tools import list_ports
 class SerialConnection(object):
 
   def __init__(self, port, baudrate, *args, **kwargs):
-    self.port     = port
+    self.port     = port.decode('utf-8')
     self.baudrate = baudrate
+    print("Port = ", self.port)
+    print("baudrate = ", self.baudrate)
     self.tasks    = []
 
   def run(self, reader=None):
@@ -30,7 +32,7 @@ class SerialConnection(object):
   def stop(self):
     self.loop.close()
 
-  async def write(self, msg):
+  def write(self, msg):
     self.writer.write((msg + '\n').encode())
 
   async def open(self):
@@ -60,6 +62,7 @@ class SerialConnection(object):
     try:
       while True:
         msg = await self.reader.readuntil(b'\n')
+        print("MESSAGE = ", msg)
 
         if self.readerCallback:
           await self.readerCallback(msg)

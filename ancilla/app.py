@@ -10,6 +10,7 @@ import toga
 import pathlib
 import os
 import threading
+import subprocess
 
 from .foundation.env  import Env
 
@@ -19,19 +20,25 @@ from .foundation import (
   Document
 )
 
+from .foundation.node.service import NodeService
+
 from .foundation.data.db      import Database
 from .foundation.data.models  import (
-  Printer, 
-  PrinterLog
+  Printer
 )
 
 class Application(toga.App):
   
   def __init__(self, *args, **kwargs):
-    super().__init__(*args, **kwargs)
-    self.document_store = Document()
+    super().__init__(*args, **kwargs)    
     self.beacon         = Beacon()
-    self.api_server     = APIServer(self.document_store)
+    self.setup_env()
+    self.start_db()
+    self.beacon.register()
+    self.document_store = Document()
+    
+    
+    
 
   @property
   def webview(self):
@@ -42,7 +49,7 @@ class Application(toga.App):
 
   @property
   def window(self):
-    _window         = toga.MainWindow(title="Ancilla", size=(1000, 680))
+    _window         = toga.MainWindow(title="Ancilla", size=(1200, 680))
     _window.app     = self
     _window.content = self.webview
 
@@ -56,25 +63,39 @@ class Application(toga.App):
 
   def start_db(self):
     Database.connect()
-    Database.create_tables([
-      Printer,
-      PrinterLog
-    ])
+    Database.run_migrations()
+    # Database.create_tables([
+    #   Printer,
+    #   PrinterLog
+    # ])
 
   def _start_dev(self):
+    print("START DEV 1", flush=True)
+    # self.th = threading.Thread(target=self.api_server.start)
+    # self.th.start()        
+    # self.window.show()
+
+    # self.th = threading.Thread(target=self.api_server.start)
+    # self.th.daemon = True
+    # self.th.start()
+    # subprocess.
+    
+    # self.node_server    = NodeService() # NodeServer()
+    # self.api_server     = APIServer(self.document_store, self.node_server)
     self.api_server.start()
     
   
   def _start_prod(self):
+    print("START PROD", flush=True)
+    # self.node_server    = NodeService() # NodeServer()
     self.th = threading.Thread(target=self.api_server.start)
     self.th.start()
 
     self.window.show()
 
   def startup(self):
-    self.setup_env()
-    self.start_db()
-    self.beacon.register()
+    self.node_server    = NodeService() # NodeServer()
+    self.api_server     = APIServer(self.document_store, self.node_server)    
 
     if Env.get('RUN_ENV') == 'DEV':
       self._start_dev()
