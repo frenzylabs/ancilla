@@ -9,6 +9,7 @@ import asyncio
 import re
 import math
 import os
+# import bluetooth
 
 MB = 1 << 20
 BUFF_SIZE = 10 * MB
@@ -18,6 +19,7 @@ class NodeApi(Api):
   def setup(self):
     super().setup("/api")
     # self.service.route('/services', 'GET', self.services)
+    # self.service.route('/api/nodes', 'GET', self.discover_nodes)
     self.service.route('/api/services', 'GET', self.services)
     self.service.route('/api/recordings', 'GET', self.recordings)
     self.service.route('/api/recordings/<recording_id>', 'GET', self.get_recording)
@@ -35,6 +37,14 @@ class NodeApi(Api):
     self.service.route('/api/services/printer', 'GET', self.list_printers)
     # self.service.route('/services/<service>/<service_id><other:re:.*>', ['GET', 'PUT', 'POST', 'DELETE', 'PATCH'], self.catchUnmountedServices)  
     # self.service.route('/services/<name><other:re:.*>', 'GET', self.catchIt)
+
+  # def discover_nodes(self, request, *args):
+  #   nearby_devices = bluetooth.discover_devices(lookup_names=True)
+  #   print("Found {} devices.".format(len(nearby_devices)))
+
+  #   return {"devices": [{addr: name} for addr, name in nearby_devices]}
+      # print("  {} - {}".format(addr, name))
+    
 
   async def delete_service(self, request, layerkeep, service_id, *args):
     smodel = Service.get_by_id(service_id)

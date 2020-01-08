@@ -41,7 +41,7 @@ class BaseService(App):
         # self.ctx = Context()
         self.ctx = zmq.Context()
         # def __init__(self, ctx, name, **kwargs):    
-        print(f'Service NAME = {self.name}', flush=True)  
+        # print(f'Service NAME = {self.name}', flush=True)  
         # if type(name) == bytes:
         #   self.identity = name
         #   self.name = name.decode('utf-8')
@@ -114,7 +114,7 @@ class BaseService(App):
       # self.input_stream.on_recv(self.on_message)
 
     def events_changed(self, event, oldval, key, newval):
-      print(f"INSIDE event_changed CHANGED HOOK EVENT: {event}, {oldval},  {key}, {newval}", flush=True)
+      # print(f"INSIDE event_changed CHANGED HOOK EVENT: {event}, {oldval},  {key}, {newval}", flush=True)
       if not newval:
         print(f"UNSUBSCRIBING from event {key}", flush=True)
         self.event_stream.setsockopt(zmq.UNSUBSCRIBE, key.encode('ascii'))
@@ -123,10 +123,12 @@ class BaseService(App):
         self.event_stream.setsockopt(zmq.SUBSCRIBE, key.encode('ascii'))
 
     def config_changed(self, event, oldval, key, newval):
-      print(f"INSIDE config CHANGED HOOK EVENT: {event}, {oldval},  {key}, {newval}", flush=True)
+      # print(f"INSIDE config CHANGED HOOK EVENT: {event}, {oldval},  {key}, {newval}", flush=True)
+      pass
 
     def settings_changed(self, event, oldval, key, newval):
-      print(f"INSIDE settings CHANGED HOOK EVENT: {event}, {oldval},  {key}, {newval}", flush=True)
+      pass
+      # print(f"INSIDE settings CHANGED HOOK EVENT: {event}, {oldval},  {key}, {newval}", flush=True)
       # self.event_stream.setsockopt(zmq.SUBSCRIBE, b"test")
       # self.event_stream.setsockopt(zmq.SUBSCRIBE, b"test")
       # if key == "event_handlers":
@@ -196,7 +198,7 @@ class BaseService(App):
 
 
     def on_message(self, msg):
-      print("ON MESSGE", msg)      
+      # print("ON MESSGE", msg)      
       if not msg or len(msg) < 3:
         return
       topic, ident, pstring, *other = msg
@@ -298,7 +300,7 @@ class BaseService(App):
 
 
     def fire_event(self, evtname, payload):
-      print(f"fire event {evtname}", flush=True)
+      # print(f"fire event {evtname}", flush=True)
       if isinstance(evtname, Event):
         evtname = evtname.value()
       evtname = evtname.encode('ascii')

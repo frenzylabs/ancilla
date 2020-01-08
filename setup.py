@@ -26,7 +26,7 @@ for root, dirs, files in os.walk('ancilla'):
     root_files = [os.path.join(root, i) for i in files]
     data_files.append((root, root_files))
 
-
+data_files.append("requirements.txt")
 
 
 setup(
@@ -60,7 +60,7 @@ setup(
         'License :: OSI Approved :: Other',
     ],
     install_requires= [r for r in map(str.strip, open("requirements.txt").readlines())],
-    python_requires='>3.7',
+    python_requires='>=3.7',
     options={
         'app': {
             'formal_name': 'Ancilla',

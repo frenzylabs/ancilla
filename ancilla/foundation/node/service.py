@@ -24,11 +24,15 @@ from ..data.models import Camera, Printer, Service, CameraRecording
 from .events.camera import Camera as CameraEvent
 from .api import NodeApi
 
+
 class NodeService(App):
     __actions__ = []
     
     def __init__(self, identity=b'localhost'):
         super().__init__()
+
+        
+
         self.config.update({
             "catchall": True
         })
@@ -111,7 +115,7 @@ class NodeService(App):
         __import__(module[:-3], locals(), globals())
 
     def mount_service(self, model):
-      print("INSIDE MOUNT SERVICE")
+      # print("INSIDE MOUNT SERVICE")
       prefix = model.api_prefix #f"/services/{model.kind}/{model.id}/"
       res = next((item for item in self._mounts if item.config['_mount.prefix'] == prefix), None)
       if res:
@@ -162,7 +166,6 @@ class NodeService(App):
         model = instance
         print(f"PostSaveHandler OLDName = {oldname}, instan= {instance.name}", flush=True)
         if oldname != instance.name:
-          print("Handle name change")
           self.handle_name_change(oldname, instance.name)
           
         if srv:
