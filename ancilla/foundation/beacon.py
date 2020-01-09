@@ -8,6 +8,7 @@
 
 import socket
 import zeroconf
+import time
 
 from zeroconf import Zeroconf, ServiceInfo, ServiceBrowser
 
@@ -41,6 +42,13 @@ class MyListener:
         addresses = [("%s" % socket.inet_ntoa(a)) for a in info.addresses]
         self.myservices[f"{name}"] = {"addresses": addresses, "port": info.port, "server": info.server}
 
+    def update_record(self, zeroconf, now, record):
+      print("uPDATE DNS RECORD")
+      info = zeroconf.get_service_info(type, record.name)
+      addresses = [("%s" % socket.inet_ntoa(a)) for a in info.addresses]
+      self.myservices[f"{record.name}"] = {"addresses": addresses, "port": info.port, "server": info.server}
+      # pass
+
 class Beacon(object):
 
   def __init__(self, name="ancilla", port=5000, *args, **kwargs):
@@ -48,6 +56,7 @@ class Beacon(object):
     # self.conf.unregister_all_services()
 
     self.listener = MyListener()
+    time.sleep(2)
     
     
     self.name       = "{}".format(name.capitalize())
@@ -74,6 +83,7 @@ class Beacon(object):
     print("INSIDE PEERS")
     _broadcast  = self.conf.get_service_info(self.type, "{}.{}".format(self.name, self.type))
     print(f"INSIDE PEERSBROD {_broadcast}")
+    return self.sb.services
     if not _broadcast:
       return []
 

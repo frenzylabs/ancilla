@@ -28,6 +28,21 @@ class DiscoveryResource(BaseHandler):
     # _addrs      = [("%s" % socket.inet_ntoa(a)) for a in _broadcast.addresses]
     # print(f"INSIDE GET Broadcast {_addrs}")
     # print(f"Get Services {self.beacon.listener.myservices}")
+    # info = zeroconf.get_service_info(type, name)
+    # addresses = [("%s" % socket.inet_ntoa(a)) for a in info.addresses]
+    # services = map(lambda s: self.beacon.sb.services
+    # services = {}
+    # for name in self.beacon.sb.services:
+    #   s = self.beacon.sb.services[name]
+    #   print(s)
+    #   print(f"name: {s.name}")
+      # print(s.addresses)
+
+      # addresses = [("%s" % socket.inet_ntoa(a)) for a in s.addresses]
+      # services[name] = {"addresses": addresses, "port": s.port, "server": s.server}
+    
+    # self.myservices[f"{name}"] = {"addresses": addresses, "port": info.port, "server": info.server}
+
     self.write(
       {'nodes': self.beacon.listener.myservices}
     )

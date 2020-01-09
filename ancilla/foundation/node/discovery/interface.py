@@ -36,11 +36,12 @@ class Interface(object):
     ctx = None      # Our context
     pipe = None     # Pipe through to agent
 
-    def __init__(self):
+    def __init__(self, node):
         print(f"START UDP PING AGENT")
+        self.node = node
         self.ctx = zmq.Context()
         p0, p1 = pipe(self.ctx)
-        self.agent = InterfaceAgent(self.ctx, p1)
+        self.agent = InterfaceAgent(self.ctx, self.node, p1)
         self.agent_thread = Thread(target=self.agent.start)
         self.agent_thread.start()
         self.pipe = p0
@@ -95,8 +96,9 @@ class InterfaceAgent(object):
     peers = None               # Hash of known peers, fast lookup
 
 
-    def __init__(self, ctx, pipe, loop=None):
+    def __init__(self, ctx, node, pipe, loop=None):
         self.ctx = ctx
+        self.node = node
         self.pipe = pipe
         self.loop = loop
         self.udp = UDP(PING_PORT_NUMBER)
@@ -141,7 +143,8 @@ class InterfaceAgent(object):
 
     def send_ping(self, *a, **kw):
         try:
-            self.udp.send(self.uuid)
+            print(f'Self node #{self.node.identity}')
+            self.udp.send([self.node.identity, self.uuid])
         except Exception as e:
             self.loop.stop()
 

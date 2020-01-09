@@ -32,7 +32,7 @@ class NodeService(App):
     def __init__(self, identity=b'localhost'):
         super().__init__()
 
-        self.discovery = Interface()
+        self.discovery = Interface(self)
 
         
 
