@@ -45,7 +45,7 @@ class Beacon(object):
 
   def __init__(self, name="ancilla", port=5000, *args, **kwargs):
     self.conf       = Zeroconf()
-    self.conf.unregister_all_services()
+    # self.conf.unregister_all_services()
 
     self.listener = MyListener()
     
