@@ -32,6 +32,7 @@ from .resources import (
   PrintResource,
   ServiceAttachmentResource,
   LayerkeepResource,
+  DiscoveryResource,
   StaticResource
 )
 
@@ -375,10 +376,11 @@ class NodeSocket(WebSocketHandler):
 
 
 class APIServer(object):
-  def __init__(self, document_store, node_server):
+  def __init__(self, document_store, node_server, discovery):
     print("INIT")
     self.document_store = document_store
     self.node_server = node_server
+    self.discovery = discovery
     
 
 
@@ -391,6 +393,7 @@ class APIServer(object):
 
     _app = Application([
       (r"/api/document",  DocumentResource, dict(document=self.document_store)),
+      (r"/api/nodes",  DiscoveryResource, dict(beacon=self.discovery)),      
       (r"/api/files",     FileResource, dict(node=self.node_server)),
       (r"/api/files(.*)",     FileResource, dict(node=self.node_server)),
       (r"/api/layerkeep(.*)",     LayerkeepResource, dict(node=self.node_server)),
@@ -420,6 +423,7 @@ class APIServer(object):
     # server = tornado.httpserver.HTTPServer(self.app)
     # server.bind(5000)
     # server.start(0)
+    print(f'Server IO LOOP = {IOLoop.current()}', flush=True)
     self.app.listen(5000, **{'max_buffer_size': 10485760000})
     IOLoop.current().start()
 

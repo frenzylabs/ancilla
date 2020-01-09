@@ -94,7 +94,7 @@ class Application():
 
   def main_loop(self):
     self.node_server    = NodeService() # NodeServer()
-    self.api_server     = APIServer(self.document_store, self.node_server)    
+    self.api_server     = APIServer(self.document_store, self.node_server, self.beacon)
 
     self._start_dev()
     # if Env.get('RUN_ENV') == 'DEV':

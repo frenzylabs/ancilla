@@ -24,12 +24,15 @@ from ..data.models import Camera, Printer, Service, CameraRecording
 from .events.camera import Camera as CameraEvent
 from .api import NodeApi
 
+from .discovery.interface import Interface
 
 class NodeService(App):
     __actions__ = []
     
     def __init__(self, identity=b'localhost'):
         super().__init__()
+
+        self.discovery = Interface()
 
         
 
@@ -309,39 +312,7 @@ class NodeService(App):
       print(f"CurMounts = {curmounts}", flush=True)
       self.remount_apps(curmounts)
         
-      # if not fileserviceexist:
-        
-      #   ServiceCls = getattr(importlib.import_module("ancilla.foundation.node.services"), s.class_name)  
-      #   service = ServiceCls(s)
-      #   self.mount(f"/services/{s.kind}s/{s.id}/", service)
-      # filemodel = Service.select().where(Service.kind == "file").first()
-      # if not filemodel:
-      #   self.__create_file_service()
-
-      #   filemodel = query.get()
-      # else:
-      #   filemodel = self.__create_file_service()
       
-      # ServiceCls = getattr(importlib.import_module("ancilla.foundation.node.services"), filemodel.class_name)  
-      # service = ServiceCls(filemodel)
-      # # self.mount(f"/files<:re:\/?>", service)
-      # # self.mount(f"/files/", service)
-      # self.mount(f"/services/{filemodel.kind}/{filemodel.id}/", service)
-
-      # # self.route('/services/<service>/<service_id><other:re:.*>', ['GET', 'PUT', 'POST', 'DELETE', 'PATCH'], self.catchUnmountedServices)  
-      # self.route('/services/<name><other:re:.*>', 'GET', self.catchIt)
-      # ServiceCls = getattr(importlib.import_module("ancilla.foundation.node.services.camera"), "Camera")
-      # service = ServiceCls("mbplocal")
-      # self.mount(f"/services/cameras/1/", service)
-
-      # for k, v in self.service_models.items():
-      #   self.mount(f"/{k}/{v.id}/", v)
-      
-      # for service in Service.select():
-      #     identifier = service.name.encode('ascii')
-      #     self.service_models[service.id] = service
-      # pass
-      # self.mount()
     def __create_layerkeep_service(self):
       service = Service(name="layerkeep", kind="layerkeep", class_name="Layerkeep")
       service.save(force_insert=True)
@@ -351,20 +322,6 @@ class NodeService(App):
       service = Service(name="local", kind="file", class_name="FileService")
       service.save(force_insert=True)
       return service
-
-    # def __connect_service(self, identifier, model):
-    #   try:
-    #     ServiceCls = getattr(importlib.import_module("ancilla.foundation.node.services"), model.device_type)
-    #     device = ServiceCls(self.ctx, identifier)
-    #     device.start()
-    #     time.sleep(0.1) # Allow connection to come up
-    #     # print("CONNECT DEVICE", flush=True)
-    #     self.active_devices[identifier] = device
-    #     return device
-    #   except Exception as e:
-    #       print(f"EXception connecting to device {str(e)}", flush=True)
-    #       raise Exception(f'Could Not Connect to Device: {str(e)}')
-        
 
     def send(self, environ = {}, **kwargs):
       res = self._handle(environ)
