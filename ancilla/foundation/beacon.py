@@ -10,7 +10,7 @@ import socket
 import zeroconf
 import time
 
-from zeroconf import Zeroconf, ServiceInfo, ServiceBrowser
+from zeroconf import Zeroconf, ServiceInfo, ServiceBrowser, NonUniqueNameException
 
     # def __init__(
     #     self,
@@ -52,13 +52,13 @@ class MyListener:
 class Beacon(object):
 
   def __init__(self, name="ancilla", port=5000, *args, **kwargs):
-    self.conf       = Zeroconf()
+    self.conf       = Zeroconf(unicast=True)
     # self.conf.unregister_all_services()
 
     self.listener = MyListener()
     time.sleep(2)
     
-    
+    self.identifier = 1
     self.name       = "{}".format(name.capitalize())
     self.type       = "_{}._tcp.local.".format(name.lower())
     self.port       = port
@@ -122,6 +122,12 @@ class Beacon(object):
     return _info
 
   def register(self):
+    # try:
+    self.conf.check_service(self.info, allow_name_change=True)
+    print(f"RegisteService: {self.info}")
+    # except NonUniqueNameException as e:
+      
+      
     self.conf.register_service(self.info)
     
   def update(self):
