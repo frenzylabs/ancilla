@@ -36,10 +36,6 @@ from .resources import (
 )
 
 from .resources.node_api import NodeApiHandler
-# Sockets
-from ..socket import (
-  SerialResource
-)
 
 from ..data.models import Service
 
@@ -54,7 +50,6 @@ from tornado.websocket import WebSocketHandler
 import json
 import time
 
-import cv2
 # import h5py
 from datetime import datetime
 

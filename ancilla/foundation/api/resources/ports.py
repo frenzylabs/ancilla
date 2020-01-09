@@ -9,7 +9,6 @@
 import json
 
 from .base      import BaseHandler
-# from ...serial  import SerialConnection
 
 from serial.tools import list_ports
 

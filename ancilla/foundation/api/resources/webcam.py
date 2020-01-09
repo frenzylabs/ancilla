@@ -10,13 +10,12 @@ import json
 
 from tornado.web    import RequestHandler
 from .base      import BaseHandler
-from ...serial  import SerialConnection
 
 from ...data.models import Service
 
 import re
 import pickle 
-import numpy as np
+# import numpy as np
 import zmq
 from zmq.eventloop.zmqstream import ZMQStream
 from tornado.ioloop import IOLoop

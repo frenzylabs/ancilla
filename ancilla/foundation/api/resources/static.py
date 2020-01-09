@@ -9,7 +9,6 @@
 import json
 
 from .base      import BaseHandler
-# from ...serial  import SerialConnection
 from tornado.web    import Application, RequestHandler, StaticFileHandler
 
 from serial.tools import list_ports
@@ -40,4 +39,3 @@ class StaticResource(StaticFileHandler):
     self.path = self.parse_url_path(path)
 
     await super().get(path, True)
-    
