@@ -52,18 +52,24 @@ class MyListener:
 class Beacon(object):
 
   def __init__(self, name="ancilla", port=5000, *args, **kwargs):
-    self.conf       = Zeroconf(unicast=True)
+    self.conf       = Zeroconf()
     # self.conf.unregister_all_services()
 
     self.listener = MyListener()
-    time.sleep(2)
     
-    self.identifier = 1
+    
+    self.num        = 1    
     self.name       = "{}".format(name.capitalize())
+    self.identifier = self.name
     self.type       = "_{}._tcp.local.".format(name.lower())
     self.port       = port
     self.sb = ServiceBrowser(zc=self.conf, type_=self.type,
                              listener=self.listener) 
+
+    self.conf.wait(2000)                
+    
+             
+
     self.host_name  = socket.gethostname() 
     self.host_ip    = socket.gethostbyname(self.host_name) 
 
@@ -96,24 +102,29 @@ class Beacon(object):
 
   @property
   def instance_name(self):
-    name = self.name
-    if len(self.peers) > 0:
-      name = "{}-{}".format(self.name, len(self.peers) + 1)
+    self.identifier = self.name
+    # if len(self.peers) > 0:
+    if self.num > 1:
+      self.identifier = "{}-{}".format(self.name, self.num)
+    
+
+      # self.name = name
       
-      self.name = name
-      
-    return "{}.{}".format(name, self.type)
+    print(f"INSIDE instance_name {self.identifier}")  
+    # return name
+    return "{}.{}".format(self.identifier, self.type)
 
   @property
   def domain(self):
-    return "{}.local.".format(self.name.lower())
+    return "{}.local.".format(self.identifier.lower())
 
   @property
   def info(self):
     print("## IP: {}  // Ssss: {}".format(self.local_ip, self.peers))
+    name = self.instance_name
     _info = ServiceInfo(
       self.type,
-      self.instance_name,
+      name,
       addresses=[socket.inet_aton(self.local_ip)],
       port=self.port,
       server=self.domain
@@ -122,13 +133,19 @@ class Beacon(object):
     return _info
 
   def register(self):
-    # try:
-    self.conf.check_service(self.info, allow_name_change=True)
-    print(f"RegisteService: {self.info}")
-    # except NonUniqueNameException as e:
+    # self.conf.register_service(self.info, allow_name_change=False)
+    try:
+      # self.conf.check_service(self.info, allow_name_change=False)
+      self.conf.register_service(self.info, allow_name_change=False)
+      print(f"RegisteService: {self.info}")
+    except Exception as e:
+      print("Unique Name EXception")
+      self.num += 1
+      self.register()
+
       
       
-    self.conf.register_service(self.info)
+    
     
   def update(self):
     self.conf.update_service(self.info)
