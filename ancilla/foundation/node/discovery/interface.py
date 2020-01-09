@@ -144,7 +144,8 @@ class InterfaceAgent(object):
     def send_ping(self, *a, **kw):
         try:
             print(f'Self node #{self.node.identity}')
-            self.udp.send([self.node.identity, self.uuid])
+            # self.udp.send([self.node.identity, self.uuid])
+            self.udp.send(self.uuid)
         except Exception as e:
             self.loop.stop()
 
