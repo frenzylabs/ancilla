@@ -30,18 +30,23 @@ from zeroconf import Zeroconf, ServiceInfo
 class Beacon(object):
 
   def __init__(self, name="ancilla", port=5000, *args, **kwargs):
-    self.conf  = Zeroconf()
+    self.conf       = Zeroconf()
+    self.conf.unregister_all_services()
     self.name       = "{}".format(name.capitalize())
     self.type       = "_{}._tcp.local.".format(name.lower())
     self.port       = port
     self.host_name  = socket.gethostname() 
     self.host_ip    = socket.gethostbyname(self.host_name) 
 
+
   @property
   def local_ip(self):
-    return socket.gethostbyname(
-      socket.gethostname()
-    )
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    s.connect(("8.8.8.8", 80))
+    return s.getsockname()[0]
+    # return socket.gethostbyname(
+    #   socket.gethostname()
+    # )
     
   @property
   def peers(self):
@@ -75,7 +80,7 @@ class Beacon(object):
     _info = ServiceInfo(
       self.type,
       self.instance_name,
-      addresses=[socket.inet_aton(self.host_ip)],
+      addresses=[socket.inet_aton(self.local_ip)],
       port=self.port,
       server=self.domain
     )
