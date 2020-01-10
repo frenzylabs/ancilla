@@ -27,6 +27,8 @@ from .foundation.data.models  import (
   Printer
 )
 
+import atexit
+
 class Application():
   
   def __init__(self, *args, **kwargs):
@@ -36,9 +38,25 @@ class Application():
     self.start_db()
     self.beacon.register()
     self.document_store = Document()
+    self.node_server    = NodeService() # NodeServer()
+    self.api_server     = APIServer(self.document_store, self.node_server, self.beacon)
+    
+    self.running = True
+    atexit.register(self.stop)
     
     
-    
+  def __del__(self):
+    print(f"Delete Application ", flush=True)
+    self.stop()
+  
+  def stop(self):
+    print(f"Stop Application ", flush=True)
+    if self.running:
+      self.running = False
+      self.api_server.stop()
+      self.beacon.close()
+      self.node_server.cleanup()
+      
 
   # @property
   # def webview(self):
@@ -93,8 +111,7 @@ class Application():
     # self.window.show()
 
   def main_loop(self):
-    self.node_server    = NodeService() # NodeServer()
-    self.api_server     = APIServer(self.document_store, self.node_server, self.beacon)
+    
 
     self._start_dev()
     # if Env.get('RUN_ENV') == 'DEV':

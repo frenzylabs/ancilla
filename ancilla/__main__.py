@@ -6,6 +6,7 @@
  Copyright 2019 Wess Cope
 '''
 from ancilla.app import Application
+import sys
 
 # from foundation.app import Application
 
@@ -18,4 +19,12 @@ if __name__ == "__main__":
   # Application().startup() #.main_loop()
   # tornado.ioloop.IOLoop.instance().start()
   # Application().startup() #.main_loop()
-  Application('Ancilla', 'com.layerkeep.ancilla').main_loop()
+  app = None
+  try:
+      app = Application('Ancilla', 'com.layerkeep.ancilla')
+      app.main_loop()
+  except KeyboardInterrupt:
+      print('Interrupted')    
+      app.stop()
+      sys.exit(0)
+  

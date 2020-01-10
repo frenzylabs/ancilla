@@ -14,6 +14,7 @@ from tornado.ioloop import IOLoop, PeriodicCallback
 import asyncio
 
 from tornado.platform.asyncio import AnyThreadEventLoopPolicy
+import json
 
 from .udp import UDP 
 
@@ -49,7 +50,8 @@ class Interface(object):
     def stop(self):
         self.pipe.close()
         self.agent.stop()
-        self.ctx.term()
+        self.ctx.destroy()
+        # self.ctx.term()
 
     def send(self, evt):
         self.pipe.send_multipart(evt)
@@ -70,17 +72,25 @@ UUID_BYTES          = 32
 class Peer(object):
 
     uuid = None
+    name = None
+    ip   = None
     expires_at = None
 
-    def __init__(self, uuid):
+    def __init__(self, uuid, name, ip):
         self.uuid = uuid
+        self.name = name
+        self.ip = ip
         self.is_alive()
 
-    def is_alive(self):
+    def is_alive(self, *args):
         """Reset the peers expiry time
 
         Call this method whenever we get any activity from a peer.
         """
+        if len(args) > 0:
+            uuid, name, ip, *rest = args
+            self.name = name
+            self.ip = ip
         self.expires_at = time.time() + PEER_EXPIRY
 
 
@@ -102,12 +112,18 @@ class InterfaceAgent(object):
         self.pipe = pipe
         self.loop = loop
         self.udp = UDP(PING_PORT_NUMBER)
-        self.uuid = uuid.uuid4().hex.encode('utf8')
+        # self.uuid = uuid.uuid4().hex.encode('utf8')
+        self.uuid = uuid.uuid4().hex
         self.peers = {}
 
     def stop(self):
-        self.pipe.close()
+        self.stream.close()
+        if self.reappc:
+            self.reappc.stop()
+        if self.pingpc:
+            self.pingpc.stop()
         self.loop.stop()
+
 
     def __del__(self):
         try:
@@ -120,33 +136,31 @@ class InterfaceAgent(object):
 
         if self.loop is None:
             if not IOLoop.current(instance=False):
-                # evloop = asyncio.new_event_loop()
-                # asyncio.set_event_loop(evloop)
-                self.loop = IOLoop()          
-                # loop.make_current()
-                # asyncio.set_event_loop(loop)
-                print(f'INIT LOOP = {self.loop}')
+                self.loop = IOLoop()
             else:
                 self.loop = IOLoop.current()
-                print(f'INIT LOOP 2= {self.loop}')
-
 
         loop = self.loop
         loop.add_handler(self.udp.handle.fileno(), self.handle_beacon, loop.READ)
-        stream = ZMQStream(self.pipe, loop)
-        stream.on_recv(self.control_message)
-        pc = PeriodicCallback(self.send_ping, PING_INTERVAL * 3000, 0.1)
-        pc.start()
-        pc = PeriodicCallback(self.reap_peers, PING_INTERVAL * 3000, 0.1)
-        pc.start()
+        self.stream = ZMQStream(self.pipe, loop)
+        self.stream.on_recv(self.control_message)
+        self.pingpc = PeriodicCallback(self.send_ping, PING_INTERVAL * 3000, 0.1)
+        self.pingpc.start()
+        self.reappc = PeriodicCallback(self.reap_peers, PING_INTERVAL * 3000, 0.1)
+        self.reappc.start()
         loop.start()
 
     def send_ping(self, *a, **kw):
         try:
-            print(f'Self node #{self.node.identity}')
-            # self.udp.send([self.node.identity, self.uuid])
-            self.udp.send(self.uuid)
+            # print(f'node = {self.node.identity}')
+            # print(f'uuid = {self.uuid}')
+            packet = json.dumps([self.uuid, self.node.name]).encode('utf-8')
+            # packet = b'['+self.node.identity+ b', '+ self.uuid + b']'
+            # print(f'Self node #{packet}')
+            self.udp.send(packet)
+            # self.udp.send(self.uuid)
         except Exception as e:
+            print(f'Exception = {str(e)}')
             self.loop.stop()
 
     def control_message(self, event):
@@ -154,13 +168,24 @@ class InterfaceAgent(object):
         print("control message: %s"%event)
 
     def handle_beacon(self, fd, event):
-        uuid = self.udp.recv(UUID_BYTES)
-        print(f"Handle beacon {uuid}")
-        if uuid in self.peers:
-            self.peers[uuid].is_alive()
-        else:
-            self.peers[uuid] = Peer(uuid)
-            self.pipe.send_multipart([b'JOINED', uuid])
+        # uuid = self.udp.recv(UUID_BYTES)
+        packet, ip = self.udp.recv(128)
+        pack = packet.decode('utf-8')
+        try:
+            res = json.loads(pack)
+            uuid = res[0]
+            name = res[1]
+            
+            # print(f"Handle beacon {ip} {uuid}  {res}")
+            if uuid in self.peers:
+                
+                self.peers[uuid].is_alive(*res, ip)
+            else:
+                print("Found peer %s, %s, %s" % (uuid, name, ip))
+                self.peers[uuid] = Peer(uuid, name, ip)
+                self.pipe.send_multipart([b'JOINED', uuid.encode('utf-8')])
+        except Exception as e:
+            print(f'handle beacon exception = {str(e)}')
 
     def reap_peers(self):
         now = time.time()
@@ -168,4 +193,4 @@ class InterfaceAgent(object):
             if peer.expires_at < now:
                 print("reaping %s" % peer.uuid, peer.expires_at, now)
                 self.peers.pop(peer.uuid)
-                self.pipe.send_multipart([b'LEFT', peer.uuid])
+                self.pipe.send_multipart([b'LEFT', peer.uuid.encode('utf-8')])

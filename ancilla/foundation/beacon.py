@@ -35,18 +35,22 @@ class MyListener:
 
     def remove_service(self, zeroconf, type, name):
         print("Service %s removed" % (name,))
-        del self.myservices[name]
+        nm = name.split(type)[0].rstrip(".")
+        del self.myservices[nm]
 
     def add_service(self, zeroconf, type, name):
         info = zeroconf.get_service_info(type, name)
+        print(f"ADD SERVICE {info}")
         addresses = [("%s" % socket.inet_ntoa(a)) for a in info.addresses]
-        self.myservices[f"{name}"] = {"addresses": addresses, "port": info.port, "server": info.server}
+        nm = name.split(info.type)[0].rstrip(".")
+        self.myservices[f"{nm}"] = {"addresses": addresses, "port": info.port, "server": info.server.rstrip("."), "type": info.type}
 
     def update_record(self, zeroconf, now, record):
       print("uPDATE DNS RECORD")
       info = zeroconf.get_service_info(type, record.name)
       addresses = [("%s" % socket.inet_ntoa(a)) for a in info.addresses]
-      self.myservices[f"{record.name}"] = {"addresses": addresses, "port": info.port, "server": info.server}
+      nm = info.name.split(info.type)[0].rstrip(".")
+      self.myservices[f"{nm}"] = {"addresses": addresses, "port": info.port, "server": info.server.rstrip("."), "type": info.type}
       # pass
 
 class Beacon(object):
@@ -110,7 +114,7 @@ class Beacon(object):
 
       # self.name = name
       
-    print(f"INSIDE instance_name {self.identifier}")  
+    # print(f"INSIDE instance_name {self.identifier}")  
     # return name
     return "{}.{}".format(self.identifier, self.type)
 
@@ -145,7 +149,8 @@ class Beacon(object):
 
       
       
-    
+  def close(self):
+    self.conf.unregister_service(self.info)
     
   def update(self):
     self.conf.update_service(self.info)

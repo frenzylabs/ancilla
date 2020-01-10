@@ -16,6 +16,7 @@ from tornado.web    import Application, RequestHandler, StaticFileHandler
 import threading
 
 import asyncio
+import atexit
 
 # Local imports
 from ..env import Env
@@ -60,11 +61,13 @@ from datetime import datetime
 class ZMQNodePubSub(object):
 
     def __init__(self, node, request_callback, subscribe_callback):
+
         self.callback = request_callback
         self.subscribe_callback = subscribe_callback
         self.node = node
 
     def connect(self):
+        print("Node PUbsub connect", flush=True)
         self.context = zmq.Context()
         self.socket = self.context.socket(zmq.ROUTER)
         # url_worker = "ipc://backend.ipc"
@@ -381,8 +384,11 @@ class APIServer(object):
     self.document_store = document_store
     self.node_server = node_server
     self.discovery = discovery
-    
+    atexit.register(self.cleanup)
 
+  def cleanup(self):
+    print(f"clenup api server")
+    self.stop()
 
   @property
   def app(self):

@@ -1,4 +1,4 @@
 [submodule "ancilla-ui"]
 	path = ancilla-ui
 	url = git@github.com:frenzylabs/ancilla-ui.git
-	branch = features/services
+	branch = master

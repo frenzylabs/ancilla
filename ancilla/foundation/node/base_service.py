@@ -39,7 +39,10 @@ class BaseService(App):
         self.identity = self.name.encode('ascii')
         
         # self.ctx = Context()
-        self.ctx = zmq.Context()
+        self.ctx = zmq.Context.instance()
+        # self.ctx = zmq.Context()
+
+        print(f'Service Name {self.name} {self.model.json}', flush=True)
         # def __init__(self, ctx, name, **kwargs):    
         # print(f'Service NAME = {self.name}', flush=True)  
         # if type(name) == bytes:
@@ -74,14 +77,14 @@ class BaseService(App):
         self.data_stream = self.ctx.socket(zmq.PULL)
         # print(f'BEFORE CONNECT COLLECTOR NAME = {deid}', flush=True)  
         self.data_stream.bind(deid)
-        time.sleep(0.1)        
+        # time.sleep(0.1)        
         self.data_stream = ZMQStream(self.data_stream)
         self.data_stream.on_recv(self.on_data)
         # self.data_stream.stop_on_recv()
 
-        self.event_stream = self.ctx.socket(zmq.SUB)
-        self.event_stream.connect("ipc://publisher")
-        self.event_stream = ZMQStream(self.event_stream)
+        event_stream = self.ctx.socket(zmq.SUB)
+        event_stream.connect("ipc://publisher")
+        self.event_stream = ZMQStream(event_stream)
         self.event_stream.on_recv(self.on_message)
 
         self.settings._add_change_listener(
@@ -101,6 +104,14 @@ class BaseService(App):
         self.setup_routes()
 
         self.event_class = EventService
+
+    def cleanup(self):
+      print("cleanup service", flush=True)
+      self.pusher.close()
+      self.event_stream.close()
+      self.data_stream.close()
+
+      
 
     def load_config(self, dic):
       self.config.load_dict(dic)

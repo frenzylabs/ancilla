@@ -18,6 +18,7 @@ from types import CoroutineType
 from zmq.eventloop.future import Context
 
 from playhouse.signals import Signal, post_save
+import atexit
 
 from .app import App, yields, ConfigDict
 from ..data.models import Camera, Printer, Service, CameraRecording
@@ -43,29 +44,35 @@ class NodeService(App):
         self.identity = identity
         self.name = identity.decode('utf-8')
         # self.ctx = Context()
-        self.ctx = zmq.Context()
+        self.ctx = zmq.Context.instance()
         self.bind_address = "tcp://*:5556"
         self.router_address = "tcp://127.0.0.1:5556"
 
-        self.zrouter = self.ctx.socket(zmq.ROUTER)
-        self.zrouter.identity = self.identity
-        self.zrouter.bind("tcp://*:5556")
-        self.zmq_router = ZMQStream(self.zrouter, IOLoop.current())
+        zrouter = self.ctx.socket(zmq.ROUTER)
+        zrouter.identity = self.identity
+        zrouter.bind("tcp://*:5556")
+        self.zmq_router = ZMQStream(zrouter, IOLoop.current())
         self.zmq_router.on_recv(self.router_message)
         self.zmq_router.on_send(self.router_message_sent)
 
-        self.pubsocket = self.ctx.socket(zmq.PUB)
-        self.pubsocket.bind("ipc://publisher")
-        self.publisher = ZMQStream(self.pubsocket)
+        # self.pubsocket = self.ctx.socket(zmq.PUB)
+        # self.pubsocket.bind("ipc://publisher")
+        # self.publisher = ZMQStream(self.pubsocket)
+        publisher = self.ctx.socket(zmq.PUB)
+        publisher.setsockopt( zmq.LINGER, 1 )
+        publisher.bind("ipc://publisher")
+        self.publisher = ZMQStream(publisher)
+        
 
         # self.event_stream = self.ctx.socket(zmq.SUB)
         # self.event_stream.connect("ipc://publisher")
         # self.event_stream = ZMQStream(self.event_stream)
         # self.event_stream.on_recv(self.event_message)
 
-        self.collectorsocket = self.ctx.socket(zmq.PULL)
-        self.collectorsocket.bind("ipc://collector")
-        self.collector = ZMQStream(self.collectorsocket)
+        collector = self.ctx.socket(zmq.PULL)
+        collector.bind("ipc://collector")
+        collector.setsockopt( zmq.LINGER, 1 )
+        self.collector = ZMQStream(collector)
         self.collector.on_recv(self.handle_collect)
 
         
@@ -84,6 +91,8 @@ class NodeService(App):
         self.api = NodeApi(self)
 
         post_save.connect(self.post_save_handler, name=f'service_model', sender=Service)
+
+        # atexit.register(self.cleanup)
         # self.pipe, peer = zpipe(self.ctx)        
         # self.agent = threading.Thread(target=self.run_server, args=(self.ctx,peer))
         # self.agent.daemon = True
@@ -106,6 +115,23 @@ class NodeService(App):
         # self.events = []
 
         # self.data_stream.stop_on_recv()
+
+    def cleanup(self):
+
+      self.file_service = None
+      self.layerkeep_service = None
+      self.zmq_router.close()
+      self.collector.close()
+      self.publisher.close(linger=1)
+      for s in self._mounts:
+        s.cleanup()
+        
+      self._mounts = []
+      self.ctx.destroy()         
+      self.discovery.stop()
+
+      
+
 
     def list_actions(self, *args):
       return self.__actions__
@@ -253,7 +279,7 @@ class NodeService(App):
           service.install(LayerkeepCls())
           self.file_service = service
           self.mount(f"/api/services/{s.kind}/{s.id}/", service)
-        if s.kind == "layerkeep":          
+        elif s.kind == "layerkeep":          
           ServiceCls = getattr(importlib.import_module("ancilla.foundation.node.services"), s.class_name)  
           service = ServiceCls(s) 
           self.layerkeep_service = service
@@ -266,9 +292,8 @@ class NodeService(App):
           
     def delete_service(self, service):
       self._services = [item for item in self._services if item.id != service.id]
-      print("removing services")
       srv = next((item for item in self._mounts if item.model.id == service.id), None)
-      print(f"Srv = {srv}", flush=True)
+      print(f"Del Srv = {srv}", flush=True)
       if srv:
         self.unmount(srv)
 
