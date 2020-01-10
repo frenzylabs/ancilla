@@ -67,7 +67,7 @@ class ZMQNodePubSub(object):
         self.node = node
 
     def connect(self):
-        print("Node PUbsub connect", flush=True)
+        # print("Node PUbsub connect", flush=True)
         self.context = zmq.Context()
         self.socket = self.context.socket(zmq.ROUTER)
         # url_worker = "ipc://backend.ipc"
@@ -261,7 +261,7 @@ class NodeSocket(WebSocketHandler):
     
     def subscribe_callback(self, data):
       # print("SUBSCRIBE CB", flush=True)
-      # print(data, flush=True)
+      # print(f"subcallback, {data}", flush=True)
       if data and len(data) > 2:
         topic, status, msg, *other = data
         # print(topic, flush=True)
@@ -269,17 +269,21 @@ class NodeSocket(WebSocketHandler):
         # print(node_identifier, flush=True)
         topic = topic.decode('utf-8')
         msg = msg.decode('utf-8')
+        senddata = True
         try:
           if (topic.endswith('printer.data_received')):
             if (time.time() - self.timer) > 2:
               self.timer = time.time()
             else:
-              return
+              senddata = False
           msg = json.loads(msg)
         except:
+          senddata = False
           pass
+
         # to = to.decode('utf-8')
-        self.write_message(json.dumps([topic, msg]))
+        if senddata:
+          self.write_message(json.dumps([topic, msg]))
         # self.write_message(msg, binary=True)
       # self.write_message("HI")
 
@@ -293,7 +297,7 @@ class NodeSocket(WebSocketHandler):
         to = ""
         try:
           msg     = json.loads(message)
-          print(msg, flush=True)
+          # print(msg, flush=True)
           target = msg.pop(0)
           action = None
           
@@ -384,7 +388,7 @@ class APIServer(object):
     self.document_store = document_store
     self.node_server = node_server
     self.discovery = discovery
-    atexit.register(self.cleanup)
+    # atexit.register(self.cleanup)
 
   def cleanup(self):
     print(f"clenup api server")
