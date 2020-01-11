@@ -18,6 +18,10 @@ import json
 
 from .udp import UDP 
 
+from ...utils.service_json_encoder import ServiceJsonEncoder
+from ..response import AncillaError
+from ...data.models import Node
+from .beacon import Beacon
 # =====================================================================
 # Synchronous part, works in our application thread
 
@@ -36,23 +40,69 @@ class Interface(object):
     Just starts a UDP ping agent in a background thread."""
     ctx = None      # Our context
     pipe = None     # Pipe through to agent
+    requestpipe = None
+    beacon = None
+    agent_thread = None
 
     def __init__(self, node):
         print(f"START UDP PING AGENT")
+        self.cached_peers = [] 
         self.node = node
-        self.ctx = zmq.Context()
-        p0, p1 = pipe(self.ctx)
-        self.agent = InterfaceAgent(self.ctx, self.node, p1)
-        self.agent_thread = Thread(target=self.agent.start)
-        self.agent_thread.start()
-        self.pipe = p0
+        self.beacon = Beacon(self.node.name)
+        self.networkcb = PeriodicCallback(self.check_nodes, PING_INTERVAL * 4000, 0.1)
+        if self.node.settings.discovery == True:
+            self.start()
+
+            
+    def run(self, val):
+        if val:
+            self.start()
+        else:
+            self.stop()
 
     def stop(self):
-        self.pipe.close()
-        self.agent.stop()
-        self.ctx.destroy()
+        print(f"Stop Discovery", flush=True)
+        self.stop_checking()
+        if self.beacon:
+            self.beacon.close()
+        if self.pipe:
+            self.pipe.close()
+        if self.requestpipe:
+            self.requestpipe.close()
+        if self.agent:
+            self.agent.stop()
+        if self.ctx:
+            self.ctx.destroy()
         # self.ctx.term()
 
+    def start(self):
+        print(f"Start Discovery", flush=True)
+        self.beacon.run()
+        if self.node.settings.discoverable == True:            
+            self.make_discoverable(True)
+        if not (self.agent_thread and self.agent_thread.is_alive()):
+            self.ctx = zmq.Context()
+            p0, p1 = pipe(self.ctx)
+            p2, p3 = pipe(self.ctx)
+            self.agent = InterfaceAgent(self.ctx, self.node, p1, p3)
+            self.agent_thread = Thread(target=self.agent.start)
+            self.agent_thread.start()
+            self.pipe = p0
+            self.requestpipe = p2
+            self.networkcb.start()
+
+    def update_name(self, name):
+        self.beacon.update_name(name)
+        if self.node.settings.discoverable == True:
+            self.beacon.update()
+
+    def make_discoverable(self, val):
+        # print(f"Make discoverable: {val}",flush=True)
+        if val:
+            self.beacon.register()
+        else:
+            self.beacon.unregister()
+    
     def send(self, evt):
         self.pipe.send_multipart(evt)
         
@@ -60,6 +110,39 @@ class Interface(object):
         """receive a message from our interface"""
         return self.pipe.recv_multipart()
 
+    def nodes(self):
+        if self.node.settings.discovery == True:            
+            return self.cached_peers
+        else:
+            return []
+            # return [{"uuid": self.node.model.uuid, "name": self.node.name, "ip": self.beacon.local_ip}]
+            # return [self.node.model.to_json(only = [Node.uuid, Node.name])]
+
+    def request(self, msg):
+        # print("Send request, get reply")
+        # request = [b"REQUEST"] + msg
+        if not self.requestpipe:
+            raise AncillaError(400, {"error": "Discovery is not running"})
+        self.requestpipe.send_multipart(msg)
+        reply = self.requestpipe.recv_multipart()
+        # print(f'Reply = {reply}', flush=True)
+        kind, msg = reply
+        return msg.decode('utf-8')
+
+    def stop_checking(self):
+        self.networkcb.stop()
+        msg = [b'notifications.nodes_changed', b'check', b'{"nodes":"check"}']
+        if self.node.publisher:
+            self.node.publisher.send_multipart(msg)
+
+    def check_nodes(self):
+        res = self.request([b'peers'])
+        new_peers = json.loads(res)
+        if self.cached_peers != new_peers:
+            # print(f"Peers are different")
+            self.cached_peers = new_peers         
+            msg = [b'notifications.nodes_changed', b'check', b'{"nodes":"check"}']
+            self.node.publisher.send_multipart(msg)
 
 # =====================================================================
 # Asynchronous part, works in the background
@@ -92,6 +175,9 @@ class Peer(object):
             self.name = name
             self.ip = ip
         self.expires_at = time.time() + PEER_EXPIRY
+    
+    def to_json(self):
+        return {"uuid": self.uuid, "name": self.name, "ip": self.ip}
 
 
 class InterfaceAgent(object):
@@ -106,14 +192,15 @@ class InterfaceAgent(object):
     peers = None               # Hash of known peers, fast lookup
 
 
-    def __init__(self, ctx, node, pipe, loop=None):
+    def __init__(self, ctx, node, pipe, request, loop=None):
         self.ctx = ctx
         self.node = node
         self.pipe = pipe
+        self.request = request
         self.loop = loop
         self.udp = UDP(PING_PORT_NUMBER)
         # self.uuid = uuid.uuid4().hex.encode('utf8')
-        self.uuid = uuid.uuid4().hex
+        self.uuid = self.node.model.uuid # uuid.uuid4().hex
         self.peers = {}
 
     def stop(self):
@@ -122,6 +209,7 @@ class InterfaceAgent(object):
             self.reappc.stop()
         if self.pingpc:
             self.pingpc.stop()
+        self.udp = None
         self.loop.stop()
 
 
@@ -142,7 +230,7 @@ class InterfaceAgent(object):
 
         loop = self.loop
         loop.add_handler(self.udp.handle.fileno(), self.handle_beacon, loop.READ)
-        self.stream = ZMQStream(self.pipe, loop)
+        self.stream = ZMQStream(self.request, loop)
         self.stream.on_recv(self.control_message)
         self.pingpc = PeriodicCallback(self.send_ping, PING_INTERVAL * 3000, 0.1)
         self.pingpc.start()
@@ -151,6 +239,8 @@ class InterfaceAgent(object):
         loop.start()
 
     def send_ping(self, *a, **kw):
+        if not self.node.settings.discoverable:
+            return
         try:
             # print(f'node = {self.node.identity}')
             # print(f'uuid = {self.uuid}')
@@ -165,8 +255,19 @@ class InterfaceAgent(object):
 
     def control_message(self, event):
         """Here we handle the different control messages from the frontend."""
-        print("control message: %s"%event)
+        
+        action, *res = event
+        if action == b'peers':
+            p = [p.to_json() for p in self.peers.values()]
+            # print(f'peer values = {p}', flush=True)
+            # list(self.peers.values())
+            t = [b'peers', json.dumps(p, cls=ServiceJsonEncoder).encode('utf-8')]
+            # print(f"ACTION PEERS {t}", flush=True)
+            self.request.send_multipart(t)
+        else:
+            print("control message: %s"%event)
 
+        
     def handle_beacon(self, fd, event):
         # uuid = self.udp.recv(UUID_BYTES)
         packet, ip = self.udp.recv(128)

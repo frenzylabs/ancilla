@@ -12,6 +12,8 @@ import asyncio
 # import zmq.asyncio
 import typing
 import os, shutil
+import uuid
+import functools
 
 from types import CoroutineType
 
@@ -21,28 +23,46 @@ from playhouse.signals import Signal, post_save
 import atexit
 
 from .app import App, yields, ConfigDict
-from ..data.models import Camera, Printer, Service, CameraRecording
+from ..data.models import Camera, Printer, Service, CameraRecording, Node
 from .events.camera import Camera as CameraEvent
 from .api import NodeApi
 
 from .discovery.interface import Interface
 
+
 class NodeService(App):
     __actions__ = []
     
-    def __init__(self, identity=b'localhost'):
+    def __init__(self):
         super().__init__()
 
-        self.discovery = Interface(self)
-
-        
+        nodemodel = Node.select().first()
+        if not nodemodel:
+          nodemodel = Node(uuid=uuid.uuid4().hex)
+          nodemodel.node_name = "Ancilla"
+          nodemodel.save(force_insert=True)
+        self.model = nodemodel
+        self.identity = self.model.uuid.encode('utf-8')
+        self.name = self.model.name #identity.decode('utf-8')
 
         self.config.update({
             "catchall": True
         })
 
-        self.identity = identity
-        self.name = identity.decode('utf-8')
+        self.settings = self.config._make_overlay()
+        self.settings.load_dict(self.model.settings)
+
+
+        self.discovery = Interface(self)
+
+
+        self.settings._add_change_listener(
+            functools.partial(self.settings_changed, 'settings'))
+        
+
+        
+
+        
         # self.ctx = Context()
         self.ctx = zmq.Context.instance()
         self.bind_address = "tcp://*:5556"
@@ -82,7 +102,7 @@ class NodeService(App):
         #         if res:
         #           return res
         
-        self.settings = self.config._make_overlay()
+        
         self.file_service = None
         self.layerkeep_service = None
         self._services = []
@@ -91,6 +111,7 @@ class NodeService(App):
         self.api = NodeApi(self)
 
         post_save.connect(self.post_save_handler, name=f'service_model', sender=Service)
+        post_save.connect(self.post_save_node_handler, name=f'node_model', sender=Node)
 
         # atexit.register(self.cleanup)
         # self.pipe, peer = zpipe(self.ctx)        
@@ -117,7 +138,7 @@ class NodeService(App):
         # self.data_stream.stop_on_recv()
 
     def cleanup(self):
-
+      self.discovery.stop()
       self.file_service = None
       self.layerkeep_service = None
       self.zmq_router.close()
@@ -128,7 +149,7 @@ class NodeService(App):
         
       self._mounts = []
       self.ctx.destroy()         
-      self.discovery.stop()
+      
 
       
 
@@ -156,7 +177,7 @@ class NodeService(App):
       self.mount(prefix, service)
       return ["created", service]
 
-    def handle_name_change(self, oldname, newname):
+    def handle_service_name_change(self, oldname, newname):
       sc = Service.event_listeners.children().alias('children')
       services = Service.select().from_(Service, sc).where(sc.c.Key.startswith(oldname))[:]      
       for s in services:
@@ -174,9 +195,40 @@ class NodeService(App):
 
     # services = Service.update(Service.settings["event_handlers"].update(evhandlers)).where
     # .from_(Service, sc).where(sc.c.Key.startswith(oldname))[:]      
-            
+    def settings_changed(self, event, oldval, key, newval):
+      print(f'Event = {event}')
+      print(f'key= {key}  OldVal = {oldval}  NewVal: {newval}')
+      if key == "discovery":
+        # newval == True:
+        self.discovery.run(newval)
+      elif key == "discoverable":
+        self.discovery.make_discoverable(newval)
+      pass
+
+    def post_save_node_handler(self, sender, instance, *args, **kwargs):
+      print(f"Post save Node handler {sender}", flush=True)
+      print(f"model = {self.model.json}")
+      print(f"instance = {instance.json}", flush=True)
+      if self.model.name != self.name:
+        print(f'Change instance name')
+        self.name = instance.name
+        self.discovery.update_name(self.name)
+      
+      old_settings = self.settings.to_json()
+      new_settings = ConfigDict().load_dict(self.model.settings).to_json() 
+      if old_settings != new_settings:
+        print(f"OldSet = {old_settings}", flush=True)
+        print(f"NEWSet = {new_settings}", flush=True)
+        self.settings.update(new_settings)
+        oldkeys = old_settings.keys()
+        newkeys = new_settings.keys()
+        for key in oldkeys - newkeys:
+          if key not in self.settings._virtual_keys:
+            del self.settings[key]
+
+
     def post_save_handler(self, sender, instance, *args, **kwargs):
-      print(f"Post save handler {sender}", flush=True)
+      print(f"Post save Service handler {sender}", flush=True)
       model = None
       for idx, item in enumerate(self._services):
         if item.id == instance.id:
@@ -195,7 +247,7 @@ class NodeService(App):
         model = instance
         print(f"PostSaveHandler OLDName = {oldname}, instan= {instance.name}", flush=True)
         if oldname != instance.name:
-          self.handle_name_change(oldname, instance.name)
+          self.handle_service_name_change(oldname, instance.name)
           
         if srv:
           srv.model = model

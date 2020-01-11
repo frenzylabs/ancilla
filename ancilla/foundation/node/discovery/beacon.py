@@ -45,6 +45,13 @@ class MyListener:
         nm = name.split(info.type)[0].rstrip(".")
         self.myservices[f"{nm}"] = {"addresses": addresses, "port": info.port, "server": info.server.rstrip("."), "type": info.type}
 
+    def update_service(self, zeroconf, type, name):
+        info = zeroconf.get_service_info(type, name)
+        print(f"Update SERVICE {info}")
+        addresses = [("%s" % socket.inet_ntoa(a)) for a in info.addresses]
+        nm = name.split(info.type)[0].rstrip(".")
+        self.myservices[f"{nm}"] = {"addresses": addresses, "port": info.port, "server": info.server.rstrip("."), "type": info.type}
+
     def update_record(self, zeroconf, now, record):
       print("uPDATE DNS RECORD")
       info = zeroconf.get_service_info(type, record.name)
@@ -58,25 +65,28 @@ class Beacon(object):
   def __init__(self, name="ancilla", port=5000, *args, **kwargs):
     self.conf       = Zeroconf()
     # self.conf.unregister_all_services()
-
+    self.registered = False
     self.listener = MyListener()
     
     
     self.num        = 1    
     self.name       = "{}".format(name.capitalize())
     self.identifier = self.name
-    self.type       = "_{}._tcp.local.".format(name.lower())
+    self.type       = "_ancilla._tcp.local."
     self.port       = port
-    self.sb = ServiceBrowser(zc=self.conf, type_=self.type,
-                             listener=self.listener) 
 
-    self.conf.wait(2000)                
     
              
 
     self.host_name  = socket.gethostname() 
     self.host_ip    = socket.gethostbyname(self.host_name) 
+    self._info = None
 
+  def run(self):
+    self.sb = ServiceBrowser(zc=self.conf, type_=self.type,
+                             listener=self.listener) 
+
+    self.conf.wait(2000)
 
   @property
   def local_ip(self):
@@ -90,19 +100,19 @@ class Beacon(object):
   # conf.get_service_info(ztype, "{}.{}".format(name, ztype))  
   @property
   def peers(self):
-    print("INSIDE PEERS")
-    _broadcast  = self.conf.get_service_info(self.type, "{}.{}".format(self.name, self.type))
-    print(f"INSIDE PEERSBROD {_broadcast}")
     return self.sb.services
-    if not _broadcast:
-      return []
+    
+    # _broadcast  = self.conf.get_service_info(self.type, "{}.{}".format(self.name, self.type))
+    # print(f"INSIDE PEERSBROD {_broadcast}")    
+    # if not _broadcast:
+    #   return []
 
     
-    _addrs      = [("%s" % socket.inet_ntoa(a)) for a in _broadcast.addresses]
-    print(f"INSIDE PEERS_ADDRS {_addrs}")
-    return list(
-      filter(lambda a: a != self.local_ip, _addrs)
-    )
+    # _addrs      = [("%s" % socket.inet_ntoa(a)) for a in _broadcast.addresses]
+    # print(f"INSIDE PEERS_ADDRS {_addrs}")
+    # return list(
+    #   filter(lambda a: a != self.local_ip, _addrs)
+    # )
 
   @property
   def instance_name(self):
@@ -125,32 +135,53 @@ class Beacon(object):
   @property
   def info(self):
     print("## IP: {}  // Ssss: {}".format(self.local_ip, self.peers))
-    name = self.instance_name
-    _info = ServiceInfo(
+    # name = self.instance_name
+    self._info = ServiceInfo(
       self.type,
-      name,
+      self.instance_name,
       addresses=[socket.inet_aton(self.local_ip)],
       port=self.port,
       server=self.domain
     )
 
-    return _info
+    return self._info
 
   def register(self):
+
     # self.conf.register_service(self.info, allow_name_change=False)
     try:
-      # self.conf.check_service(self.info, allow_name_change=False)
       self.conf.register_service(self.info, allow_name_change=False)
+      self.registered = True
       print(f"RegisteService: {self.info}")
-    except Exception as e:
+    except NonUniqueNameException as e:
       print("Unique Name EXception")
       self.num += 1
       self.register()
+    except Exception as e:
+      print(f"BeaconEXception {str(e)}")
+      
 
+  def update_name(self, name):
+    self.name = name
+    self.identifier = name
+    self.num = 1
       
-      
+  def unregister(self):
+    if self.registered:
+      self.conf.unregister_service(self.info)
+    self.registered = False
+
   def close(self):
-    self.conf.unregister_service(self.info)
+    self.unregister()
+    self.sb.cancel()
+    self.listener = MyListener()
+    
     
   def update(self):
-    self.conf.update_service(self.info)
+    try:
+      # print(f"UPDATE SERVICE {self._info}")
+      # self.conf.update_service(self.info)
+      self.conf.unregister_service(self._info)
+      self.register()
+    except Exception as e:
+      print(f"BeaconUpdateEXception {str(e)}")

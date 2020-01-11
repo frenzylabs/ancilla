@@ -251,7 +251,8 @@ class NodeSocket(WebSocketHandler):
         self.subscription = subscription
         self.node_connector = ZMQNodePubSub(self.node, self.on_data, self.subscribe_callback)
         self.node_connector.connect()
-        self.node_connector.subscribe(self.node.name+".notifications")
+        self.node_connector.subscribe("notifications")
+
         # self.node.connect("tcp://localhost:5556", "localhost")
         # self.node.add_device("Printer", "/dev/cu.usbserial-14140", subscription)
         # self.node.add_device('camera', '0', subscription)
@@ -277,11 +278,12 @@ class NodeSocket(WebSocketHandler):
             else:
               senddata = False
           msg = json.loads(msg)
-        except:
+        except Exception as e:
+          print(f"SubscribeEXCE = {str(e)}")
           senddata = False
           pass
 
-        # to = to.decode('utf-8')
+
         if senddata:
           self.write_message(json.dumps([topic, msg]))
         # self.write_message(msg, binary=True)
@@ -383,11 +385,11 @@ class NodeSocket(WebSocketHandler):
 
 
 class APIServer(object):
-  def __init__(self, document_store, node_server, discovery):
+  def __init__(self, document_store, node_server):
     print("INIT")
     self.document_store = document_store
     self.node_server = node_server
-    self.discovery = discovery
+    # self.discovery = discovery
     # atexit.register(self.cleanup)
 
   def cleanup(self):
@@ -403,7 +405,7 @@ class APIServer(object):
 
     _app = Application([
       (r"/api/document",  DocumentResource, dict(document=self.document_store)),
-      (r"/api/nodes",  DiscoveryResource, dict(beacon=self.discovery)),      
+      # (r"/api/nodes",  DiscoveryResource, dict(beacon=self.discovery)),      
       (r"/api/files",     FileResource, dict(node=self.node_server)),
       (r"/api/files(.*)",     FileResource, dict(node=self.node_server)),
       (r"/api/layerkeep(.*)",     LayerkeepResource, dict(node=self.node_server)),

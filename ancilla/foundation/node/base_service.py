@@ -42,7 +42,7 @@ class BaseService(App):
         self.ctx = zmq.Context.instance()
         # self.ctx = zmq.Context()
 
-        print(f'Service Name {self.name} {self.model.json}', flush=True)
+        # print(f'Service Name {self.name} {self.model.json}', flush=True)
         # def __init__(self, ctx, name, **kwargs):    
         # print(f'Service NAME = {self.name}', flush=True)  
         # if type(name) == bytes:

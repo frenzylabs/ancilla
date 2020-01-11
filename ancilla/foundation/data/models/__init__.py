@@ -17,3 +17,5 @@ from .camera_recording import CameraRecording
 
 from .service import Service
 from .service_attachment import ServiceAttachment
+
+from .node import Node

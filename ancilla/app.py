@@ -15,7 +15,6 @@ import subprocess
 from .foundation.env  import Env
 
 from .foundation import (
-  Beacon,
   APIServer,
   Document
 )
@@ -33,15 +32,15 @@ class Application():
   
   def __init__(self, *args, **kwargs):
     # super().__init__(*args, **kwargs)    
-    self.beacon         = Beacon()
+
+    self.running = True
     self.setup_env()
-    self.start_db()
-    self.beacon.register()
+    self.start_db()    
     self.document_store = Document()
     self.node_server    = NodeService() # NodeServer()
-    self.api_server     = APIServer(self.document_store, self.node_server, self.beacon)
+    self.api_server     = APIServer(self.document_store, self.node_server)
     
-    self.running = True
+    
     atexit.register(self.stop)
     
     
@@ -54,7 +53,6 @@ class Application():
     if self.running:
       self.running = False
       self.api_server.stop()
-      self.beacon.close()
       self.node_server.cleanup()
       
 
