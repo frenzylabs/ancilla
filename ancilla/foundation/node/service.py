@@ -38,7 +38,8 @@ class NodeService(App):
 
         nodemodel = Node.select().first()
         if not nodemodel:
-          nodemodel = Node(uuid=uuid.uuid4().hex)
+          settings = {"discovery": True, "discoverable": True}
+          nodemodel = Node(uuid=uuid.uuid4().hex, settings=settings)
           nodemodel.node_name = "Ancilla"
           nodemodel.save(force_insert=True)
         self.model = nodemodel

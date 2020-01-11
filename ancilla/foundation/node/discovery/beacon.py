@@ -62,7 +62,7 @@ class MyListener:
 
 class Beacon(object):
 
-  def __init__(self, name="ancilla", port=5000, *args, **kwargs):
+  def __init__(self, name="Ancilla", port=5000, *args, **kwargs):
     self.conf       = Zeroconf()
     # self.conf.unregister_all_services()
     self.registered = False
@@ -70,7 +70,7 @@ class Beacon(object):
     
     
     self.num        = 1    
-    self.name       = "{}".format(name.capitalize())
+    self.name       = "{}".format(name)
     self.identifier = self.name
     self.type       = "_ancilla._tcp.local."
     self.port       = port
@@ -116,10 +116,10 @@ class Beacon(object):
 
   @property
   def instance_name(self):
-    self.identifier = self.name
+    self.identifier = self.name.lower()
     # if len(self.peers) > 0:
     if self.num > 1:
-      self.identifier = "{}-{}".format(self.name, self.num)
+      self.identifier = "{}-{}".format(self.name.lower(), self.num)
     
 
       # self.name = name
