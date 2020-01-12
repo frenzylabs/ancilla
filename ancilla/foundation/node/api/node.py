@@ -47,7 +47,7 @@ class NodeApi(Api):
 
   def update_node(self, request, *args):
     model  = self.service.model
-    frozen_keys = ['id', 'name', 'created_at', 'updated_at']
+    frozen_keys = ['id', 'name', 'original_name', 'created_at', 'updated_at']
 
     newname = request.params.get("name")
     if newname:

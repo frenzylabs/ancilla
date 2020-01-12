@@ -23,6 +23,7 @@ class Node(BaseModel):
   name             = CharField()
   original_name    = CharField()
   uuid             = CharField()
+  description      = CharField(null=True)
   configuration    = JSONField(default={})
   settings         = JSONField(default={})
   event_listeners  = JSONField(default={})

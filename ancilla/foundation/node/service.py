@@ -53,7 +53,6 @@ class NodeService(App):
         self.settings = self.config._make_overlay()
         self.settings.load_dict(self.model.settings)
 
-
         self.discovery = Interface(self)
 
 
@@ -61,9 +60,6 @@ class NodeService(App):
             functools.partial(self.settings_changed, 'settings'))
         
 
-        
-
-        
         # self.ctx = Context()
         self.ctx = zmq.Context.instance()
         self.bind_address = "tcp://*:5556"

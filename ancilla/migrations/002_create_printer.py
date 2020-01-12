@@ -64,4 +64,8 @@ def rollback(migrator, database, fake=False, **kwargs):
 # from peewee_migrate import Router
 # path = "/".join([Env.ancilla, ".a_store"])
 # conn = SqliteDatabase(path, {'foreign_keys' : 1})
-# router = Router(conn)
+# import os
+# migrate_dir = os.path.join(os.getcwd(), './ancilla/migrations')
+# router = Router(conn, migrate_dir=migrate_dir)
+# router.rollback("002_create_printer")
+# router.rollback("006_create_node")

@@ -43,6 +43,7 @@ class Interface(object):
     requestpipe = None
     beacon = None
     agent_thread = None
+    agent = None
 
     def __init__(self, node):
         print(f"START UDP PING AGENT")
@@ -63,6 +64,7 @@ class Interface(object):
     def stop(self):
         print(f"Stop Discovery", flush=True)
         self.stop_checking()
+        self.cached_peers = []
         if self.beacon:
             self.beacon.close()
         if self.pipe:
@@ -71,6 +73,7 @@ class Interface(object):
             self.requestpipe.close()
         if self.agent:
             self.agent.stop()
+            self.agent = None
         if self.ctx:
             self.ctx.destroy()
         # self.ctx.term()
@@ -80,7 +83,8 @@ class Interface(object):
         self.beacon.run()
         if self.node.settings.discoverable == True:            
             self.make_discoverable(True)
-        if not (self.agent_thread and self.agent_thread.is_alive()):
+        # if not (self.agent_thread and self.agent_thread.is_alive()):
+        if not self.agent or not self.agent_thread.is_alive():
             self.ctx = zmq.Context()
             p0, p1 = pipe(self.ctx)
             p2, p3 = pipe(self.ctx)
@@ -90,6 +94,7 @@ class Interface(object):
             self.pipe = p0
             self.requestpipe = p2
             self.networkcb.start()
+            
 
     def update_name(self, name):
         self.beacon.update_name(name)
@@ -138,11 +143,14 @@ class Interface(object):
     def check_nodes(self):
         res = self.request([b'peers'])
         new_peers = json.loads(res)
+        
         if self.cached_peers != new_peers:
             # print(f"Peers are different")
             self.cached_peers = new_peers         
             msg = [b'notifications.nodes_changed', b'check', b'{"nodes":"check"}']
             self.node.publisher.send_multipart(msg)
+        # else:
+        #     print(f"Peers the same")
 
 # =====================================================================
 # Asynchronous part, works in the background
