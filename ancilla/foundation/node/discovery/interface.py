@@ -259,7 +259,7 @@ class InterfaceAgent(object):
             # self.udp.send(self.uuid)
         except Exception as e:
             print(f'Exception = {str(e)}')
-            self.loop.stop()
+            # self.loop.stop()
 
     def control_message(self, event):
         """Here we handle the different control messages from the frontend."""

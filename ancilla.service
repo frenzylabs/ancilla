@@ -2,8 +2,9 @@
 Description=Ancilla 3D print management
 
 [Service]
+Type=simple
+WorkingDirectory=/home/pi/ancilla
 Environment=PATH=/home/pi/.pyenv/versions/3.7.4/bin:$PATH
 ExecStart=/home/pi/ancilla/run.py
+Restart=always
 User=pi
-Restart=on-failure
-Type=simple
