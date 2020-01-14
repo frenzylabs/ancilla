@@ -8,6 +8,9 @@ VERSION			 	= `cat $(VERSION_FILE)`
 
 all: run
 
+clean-ui:
+	@rm -rf ancilla/ui
+
 clean:
 	@rm -rf publisher \
 	&& rm -rf collector \

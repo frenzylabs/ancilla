@@ -7,8 +7,7 @@
 '''
 
 from .env               import Env
-from .beacon            import Beacon
+# from .beacon            import Beacon
 from .server            import Server
 from .api.server        import APIServer
-from .serial            import SerialConnection
 from .data.document     import Document

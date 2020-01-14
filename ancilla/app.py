@@ -6,7 +6,7 @@
  Copyright 2019 Wess Cope
 '''
 
-import toga
+# import toga
 import pathlib
 import os
 import threading
@@ -15,7 +15,6 @@ import subprocess
 from .foundation.env  import Env
 
 from .foundation import (
-  Beacon,
   APIServer,
   Document
 )
@@ -27,33 +26,49 @@ from .foundation.data.models  import (
   Printer
 )
 
-class Application(toga.App):
+import atexit
+
+class Application():
   
   def __init__(self, *args, **kwargs):
-    super().__init__(*args, **kwargs)    
-    self.beacon         = Beacon()
+    # super().__init__(*args, **kwargs)    
+
+    self.running = True
     self.setup_env()
-    self.start_db()
-    self.beacon.register()
+    self.start_db()    
     self.document_store = Document()
+    self.node_server    = NodeService() # NodeServer()
+    self.api_server     = APIServer(self.document_store, self.node_server)
     
     
+    atexit.register(self.stop)
     
-
-  @property
-  def webview(self):
-    _webview      = toga.WebView()
-    _webview.url  = "http://127.0.0.1:5000/"
+    
+  def __del__(self):
+    print(f"Delete Application ", flush=True)
+    self.stop()
   
-    return _webview
+  def stop(self):
+    print(f"Stop Application ", flush=True)
+    if self.running:
+      self.running = False
+      self.api_server.stop()
+      self.node_server.cleanup()
+      
 
-  @property
-  def window(self):
-    _window         = toga.MainWindow(title="Ancilla", size=(1200, 680))
-    _window.app     = self
-    _window.content = self.webview
+  # @property
+  # def webview(self):
+  #   _webview      = toga.WebView()
+  #   _webview.url  = "http://127.0.0.1:5000/"
+  
+  #   return _webview
 
-    return _window
+  # @property
+  # def window(self):
+  #   _window         = toga.MainWindow(title="Ancilla", size=(1200, 680))
+  #   _window.app     = self
+  #   _window.content = self.webview
+  #   return _window
 
   def open_document(self, url):
     pass
@@ -70,7 +85,7 @@ class Application(toga.App):
     # ])
 
   def _start_dev(self):
-    print("START DEV 1", flush=True)
+    print("START DEV 1")
     # self.th = threading.Thread(target=self.api_server.start)
     # self.th.start()        
     # self.window.show()
@@ -86,18 +101,18 @@ class Application(toga.App):
     
   
   def _start_prod(self):
-    print("START PROD", flush=True)
+    print("START PROD")
+    self.api_server.start()
     # self.node_server    = NodeService() # NodeServer()
-    self.th = threading.Thread(target=self.api_server.start)
-    self.th.start()
+    # self.th = threading.Thread(target=self.api_server.start)
+    # self.th.start()
+    # self.window.show()
 
-    self.window.show()
+  def main_loop(self):
+    
 
-  def startup(self):
-    self.node_server    = NodeService() # NodeServer()
-    self.api_server     = APIServer(self.document_store, self.node_server)    
-
-    if Env.get('RUN_ENV') == 'DEV':
-      self._start_dev()
-    else:
-      self._start_prod()    
+    self._start_dev()
+    # if Env.get('RUN_ENV') == 'DEV':
+    #   self._start_dev()
+    # else:
+    #   self._start_prod()    

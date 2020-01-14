@@ -1152,7 +1152,7 @@ class App(object):
                     if not self.catchall:
                         raise e
                     
-                    re_pattern = re.compile('^(/services/(?P<service>[^/]+)/(?P<service_id>[^/]+))(?P<other>.*)$')
+                    re_pattern = re.compile('^(/api/services/(?P<service>[^/]+)/(?P<service_id>[^/]+))(?P<other>.*)$')
                     re_match = re_pattern.match(request.path)
                     # print(f"Request path = {request.path}", flush=True)
                     # print(f"Request Match = {re_match}", flush=True)

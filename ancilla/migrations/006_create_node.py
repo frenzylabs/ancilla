@@ -33,17 +33,16 @@ except ImportError:
 
 SQL = pw.SQL
 
-from ancilla.foundation.data.models import Printer, Print, PrinterCommand
+from ancilla.foundation.data.models import Node
 
 def migrate(migrator, database, fake=False, **kwargs):
     """Write your migrations here."""
     # database.drop_tables([Printer])
     database.create_tables([
-        Printer,
-        Print,
-        PrinterCommand
+        Node
     ])
 
+    # migrator.add_index(ServiceAttachment, "parent_id", "attachment_id", unique=True)
     # migrator.add_index(PrinterCommand, "", "device_type", unique=True)
     # migrator.add_fields(Printer, device=pw.ForeignKeyField(Device, backref='specific'))
 
@@ -52,20 +51,6 @@ def migrate(migrator, database, fake=False, **kwargs):
 def rollback(migrator, database, fake=False, **kwargs):
     """Write your rollback migrations here."""
     database.drop_tables([
-        Printer,
-        Print,
-        PrinterCommand
+        Node
     ])
 
-
-# from ancilla.foundation.data.models import Device
-# from ancilla.foundation.env import Env
-# from peewee import SqliteDatabase
-# from peewee_migrate import Router
-# path = "/".join([Env.ancilla, ".a_store"])
-# conn = SqliteDatabase(path, {'foreign_keys' : 1})
-# import os
-# migrate_dir = os.path.join(os.getcwd(), './ancilla/migrations')
-# router = Router(conn, migrate_dir=migrate_dir)
-# router.rollback("002_create_printer")
-# router.rollback("006_create_node")

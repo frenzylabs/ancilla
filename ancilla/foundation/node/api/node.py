@@ -1,7 +1,7 @@
 import time
 from .api import Api
 from ..events import Event
-from ...data.models import Service, Printer, Camera, ServiceAttachment, CameraRecording
+from ...data.models import Service, Printer, Camera, ServiceAttachment, CameraRecording, Node
 from ..response import AncillaError, AncillaResponse
 
 
@@ -9,6 +9,8 @@ import asyncio
 import re
 import math
 import os
+import json
+# import bluetooth
 
 MB = 1 << 20
 BUFF_SIZE = 10 * MB
@@ -18,6 +20,9 @@ class NodeApi(Api):
   def setup(self):
     super().setup("/api")
     # self.service.route('/services', 'GET', self.services)
+    self.service.route('/api/node', 'GET', self.get_node)
+    self.service.route('/api/node', 'PATCH', self.update_node)
+    self.service.route('/api/nodes', 'GET', self.discover_nodes)
     self.service.route('/api/services', 'GET', self.services)
     self.service.route('/api/recordings', 'GET', self.recordings)
     self.service.route('/api/recordings/<recording_id>', 'GET', self.get_recording)
@@ -35,6 +40,73 @@ class NodeApi(Api):
     self.service.route('/api/services/printer', 'GET', self.list_printers)
     # self.service.route('/services/<service>/<service_id><other:re:.*>', ['GET', 'PUT', 'POST', 'DELETE', 'PATCH'], self.catchUnmountedServices)  
     # self.service.route('/services/<name><other:re:.*>', 'GET', self.catchIt)
+
+  def get_node(self, request, *args):
+    model  = self.service.model
+    return {"node": model.json}
+
+  def update_node(self, request, *args):
+    model  = self.service.model
+    frozen_keys = ['id', 'name', 'original_name', 'created_at', 'updated_at']
+
+    newname = request.params.get("name")
+    if newname:
+      model.node_name = newname
+    
+    modelkeys = model.__data__.keys() - frozen_keys
+    for k in modelkeys:
+      kval = request.params.get(k)
+      if kval:
+        model.__setattr__(k, kval)
+
+    if not model.is_valid:
+      raise AncillaError(400, {"errors": model.errors})
+    
+    model.save()
+    
+    return {"node": model}
+    # newname = request.params.get("name")
+    # n = Node.select().first()
+
+  def discover_nodes(self, request, *args):
+    res  = self.service.discovery.nodes()
+    # print(f'Node res = {res}')
+    nodes = []
+    ips = {}
+    for r in res:
+      if "ip" in r:
+        ips[r["ip"]] = r
+    networkservices = self.service.discovery.beacon.listener.myservices    
+
+    # {'addresses': ['192.168.1.129'], 'port': 5000, 'server': 'ancilla.local', 'type': '_ancilla._tcp.local.'}
+    try:
+      for key, ns in networkservices.items():
+        
+        ip = ns["addresses"][0]
+        if ip:
+          nd = {"network_name": key}
+          if ip in ips:
+            nd.update({**ns, **ips[ip]})
+            nodes.append(nd)
+            del ips[ip]
+          else:
+            nd.update(ns)
+            nodes.append(nd)
+    except Exception as e:
+      print(f"Exception = {str(e)}", flush=True)
+
+    ## The rest of ips not part of the bonjour services for some reason")
+    for n in ips.values():
+      nodes.append(n)
+
+    return {"nodes": nodes}
+
+  #   nearby_devices = bluetooth.discover_devices(lookup_names=True)
+  #   print("Found {} devices.".format(len(nearby_devices)))
+
+  #   return {"devices": [{addr: name} for addr, name in nearby_devices]}
+      # print("  {} - {}".format(addr, name))
+    
 
   async def delete_service(self, request, layerkeep, service_id, *args):
     smodel = Service.get_by_id(service_id)

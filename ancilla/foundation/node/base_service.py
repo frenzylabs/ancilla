@@ -39,9 +39,12 @@ class BaseService(App):
         self.identity = self.name.encode('ascii')
         
         # self.ctx = Context()
-        self.ctx = zmq.Context()
+        self.ctx = zmq.Context.instance()
+        # self.ctx = zmq.Context()
+
+        # print(f'Service Name {self.name} {self.model.json}', flush=True)
         # def __init__(self, ctx, name, **kwargs):    
-        print(f'Service NAME = {self.name}', flush=True)  
+        # print(f'Service NAME = {self.name}', flush=True)  
         # if type(name) == bytes:
         #   self.identity = name
         #   self.name = name.decode('utf-8')
@@ -74,14 +77,14 @@ class BaseService(App):
         self.data_stream = self.ctx.socket(zmq.PULL)
         # print(f'BEFORE CONNECT COLLECTOR NAME = {deid}', flush=True)  
         self.data_stream.bind(deid)
-        time.sleep(0.1)        
+        # time.sleep(0.1)        
         self.data_stream = ZMQStream(self.data_stream)
         self.data_stream.on_recv(self.on_data)
         # self.data_stream.stop_on_recv()
 
-        self.event_stream = self.ctx.socket(zmq.SUB)
-        self.event_stream.connect("ipc://publisher")
-        self.event_stream = ZMQStream(self.event_stream)
+        event_stream = self.ctx.socket(zmq.SUB)
+        event_stream.connect("ipc://publisher")
+        self.event_stream = ZMQStream(event_stream)
         self.event_stream.on_recv(self.on_message)
 
         self.settings._add_change_listener(
@@ -102,6 +105,14 @@ class BaseService(App):
 
         self.event_class = EventService
 
+    def cleanup(self):
+      print("cleanup service", flush=True)
+      self.pusher.close()
+      self.event_stream.close()
+      self.data_stream.close()
+
+      
+
     def load_config(self, dic):
       self.config.load_dict(dic)
 
@@ -114,7 +125,7 @@ class BaseService(App):
       # self.input_stream.on_recv(self.on_message)
 
     def events_changed(self, event, oldval, key, newval):
-      print(f"INSIDE event_changed CHANGED HOOK EVENT: {event}, {oldval},  {key}, {newval}", flush=True)
+      # print(f"INSIDE event_changed CHANGED HOOK EVENT: {event}, {oldval},  {key}, {newval}", flush=True)
       if not newval:
         print(f"UNSUBSCRIBING from event {key}", flush=True)
         self.event_stream.setsockopt(zmq.UNSUBSCRIBE, key.encode('ascii'))
@@ -123,10 +134,12 @@ class BaseService(App):
         self.event_stream.setsockopt(zmq.SUBSCRIBE, key.encode('ascii'))
 
     def config_changed(self, event, oldval, key, newval):
-      print(f"INSIDE config CHANGED HOOK EVENT: {event}, {oldval},  {key}, {newval}", flush=True)
+      # print(f"INSIDE config CHANGED HOOK EVENT: {event}, {oldval},  {key}, {newval}", flush=True)
+      pass
 
     def settings_changed(self, event, oldval, key, newval):
-      print(f"INSIDE settings CHANGED HOOK EVENT: {event}, {oldval},  {key}, {newval}", flush=True)
+      pass
+      # print(f"INSIDE settings CHANGED HOOK EVENT: {event}, {oldval},  {key}, {newval}", flush=True)
       # self.event_stream.setsockopt(zmq.SUBSCRIBE, b"test")
       # self.event_stream.setsockopt(zmq.SUBSCRIBE, b"test")
       # if key == "event_handlers":
@@ -196,7 +209,7 @@ class BaseService(App):
 
 
     def on_message(self, msg):
-      print("ON MESSGE", msg)      
+      # print("ON MESSGE", msg)      
       if not msg or len(msg) < 3:
         return
       topic, ident, pstring, *other = msg
@@ -298,7 +311,7 @@ class BaseService(App):
 
 
     def fire_event(self, evtname, payload):
-      print(f"fire event {evtname}", flush=True)
+      # print(f"fire event {evtname}", flush=True)
       if isinstance(evtname, Event):
         evtname = evtname.value()
       evtname = evtname.encode('ascii')

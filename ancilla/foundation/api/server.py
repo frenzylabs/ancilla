@@ -16,6 +16,7 @@ from tornado.web    import Application, RequestHandler, StaticFileHandler
 import threading
 
 import asyncio
+import atexit
 
 # Local imports
 from ..env import Env
@@ -32,14 +33,11 @@ from .resources import (
   PrintResource,
   ServiceAttachmentResource,
   LayerkeepResource,
+  DiscoveryResource,
   StaticResource
 )
 
 from .resources.node_api import NodeApiHandler
-# Sockets
-from ..socket import (
-  SerialResource
-)
 
 from ..data.models import Service
 
@@ -54,8 +52,7 @@ from tornado.websocket import WebSocketHandler
 import json
 import time
 
-import cv2
-import h5py
+# import h5py
 from datetime import datetime
 
 
@@ -64,11 +61,13 @@ from datetime import datetime
 class ZMQNodePubSub(object):
 
     def __init__(self, node, request_callback, subscribe_callback):
+
         self.callback = request_callback
         self.subscribe_callback = subscribe_callback
         self.node = node
 
     def connect(self):
+        # print("Node PUbsub connect", flush=True)
         self.context = zmq.Context()
         self.socket = self.context.socket(zmq.ROUTER)
         # url_worker = "ipc://backend.ipc"
@@ -252,7 +251,8 @@ class NodeSocket(WebSocketHandler):
         self.subscription = subscription
         self.node_connector = ZMQNodePubSub(self.node, self.on_data, self.subscribe_callback)
         self.node_connector.connect()
-        self.node_connector.subscribe(self.node.name+".notifications")
+        self.node_connector.subscribe("notifications")
+
         # self.node.connect("tcp://localhost:5556", "localhost")
         # self.node.add_device("Printer", "/dev/cu.usbserial-14140", subscription)
         # self.node.add_device('camera', '0', subscription)
@@ -262,7 +262,7 @@ class NodeSocket(WebSocketHandler):
     
     def subscribe_callback(self, data):
       # print("SUBSCRIBE CB", flush=True)
-      # print(data, flush=True)
+      # print(f"subcallback, {data}", flush=True)
       if data and len(data) > 2:
         topic, status, msg, *other = data
         # print(topic, flush=True)
@@ -270,17 +270,22 @@ class NodeSocket(WebSocketHandler):
         # print(node_identifier, flush=True)
         topic = topic.decode('utf-8')
         msg = msg.decode('utf-8')
+        senddata = True
         try:
           if (topic.endswith('printer.data_received')):
             if (time.time() - self.timer) > 2:
               self.timer = time.time()
             else:
-              return
+              senddata = False
           msg = json.loads(msg)
-        except:
+        except Exception as e:
+          print(f"SubscribeEXCE = {str(e)}")
+          senddata = False
           pass
-        # to = to.decode('utf-8')
-        self.write_message(json.dumps([topic, msg]))
+
+
+        if senddata:
+          self.write_message(json.dumps([topic, msg]))
         # self.write_message(msg, binary=True)
       # self.write_message("HI")
 
@@ -294,7 +299,7 @@ class NodeSocket(WebSocketHandler):
         to = ""
         try:
           msg     = json.loads(message)
-          print(msg, flush=True)
+          # print(msg, flush=True)
           target = msg.pop(0)
           action = None
           
@@ -384,8 +389,12 @@ class APIServer(object):
     print("INIT")
     self.document_store = document_store
     self.node_server = node_server
-    
+    # self.discovery = discovery
+    # atexit.register(self.cleanup)
 
+  def cleanup(self):
+    print(f"clenup api server")
+    self.stop()
 
   @property
   def app(self):
@@ -396,6 +405,7 @@ class APIServer(object):
 
     _app = Application([
       (r"/api/document",  DocumentResource, dict(document=self.document_store)),
+      # (r"/api/nodes",  DiscoveryResource, dict(beacon=self.discovery)),      
       (r"/api/files",     FileResource, dict(node=self.node_server)),
       (r"/api/files(.*)",     FileResource, dict(node=self.node_server)),
       (r"/api/layerkeep(.*)",     LayerkeepResource, dict(node=self.node_server)),
@@ -425,6 +435,7 @@ class APIServer(object):
     # server = tornado.httpserver.HTTPServer(self.app)
     # server.bind(5000)
     # server.start(0)
+    print(f'Server IO LOOP = {IOLoop.current()}', flush=True)
     self.app.listen(5000, **{'max_buffer_size': 10485760000})
     IOLoop.current().start()
 

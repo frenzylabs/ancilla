@@ -12,53 +12,84 @@ import asyncio
 # import zmq.asyncio
 import typing
 import os, shutil
+import uuid
+import functools
 
 from types import CoroutineType
 
 from zmq.eventloop.future import Context
 
 from playhouse.signals import Signal, post_save
+import atexit
 
 from .app import App, yields, ConfigDict
-from ..data.models import Camera, Printer, Service, CameraRecording
+from ..data.models import Camera, Printer, Service, CameraRecording, Node
 from .events.camera import Camera as CameraEvent
 from .api import NodeApi
+
+from .discovery.interface import Interface
+
 
 class NodeService(App):
     __actions__ = []
     
-    def __init__(self, identity=b'localhost'):
+    def __init__(self):
         super().__init__()
+
+        nodemodel = Node.select().first()
+        if not nodemodel:
+          settings = {"discovery": True, "discoverable": True}
+          nodemodel = Node(uuid=uuid.uuid4().hex, settings=settings)
+          nodemodel.node_name = "Ancilla"
+          nodemodel.save(force_insert=True)
+        self.model = nodemodel
+        self.identity = self.model.uuid.encode('utf-8')
+        self.name = self.model.name #identity.decode('utf-8')
+
         self.config.update({
             "catchall": True
         })
 
-        self.identity = identity
-        self.name = identity.decode('utf-8')
+        self.settings = self.config._make_overlay()
+        self.settings.load_dict(self.model.settings)
+
+        self.discovery = Interface(self)
+
+
+        self.settings._add_change_listener(
+            functools.partial(self.settings_changed, 'settings'))
+        
+
         # self.ctx = Context()
-        self.ctx = zmq.Context()
+        self.ctx = zmq.Context.instance()
         self.bind_address = "tcp://*:5556"
         self.router_address = "tcp://127.0.0.1:5556"
 
-        self.zrouter = self.ctx.socket(zmq.ROUTER)
-        self.zrouter.identity = self.identity
-        self.zrouter.bind("tcp://*:5556")
-        self.zmq_router = ZMQStream(self.zrouter, IOLoop.current())
+        zrouter = self.ctx.socket(zmq.ROUTER)
+        zrouter.identity = self.identity
+        zrouter.bind("tcp://*:5556")
+        self.zmq_router = ZMQStream(zrouter, IOLoop.current())
         self.zmq_router.on_recv(self.router_message)
         self.zmq_router.on_send(self.router_message_sent)
 
-        self.pubsocket = self.ctx.socket(zmq.PUB)
-        self.pubsocket.bind("ipc://publisher")
-        self.publisher = ZMQStream(self.pubsocket)
+        # self.pubsocket = self.ctx.socket(zmq.PUB)
+        # self.pubsocket.bind("ipc://publisher")
+        # self.publisher = ZMQStream(self.pubsocket)
+        publisher = self.ctx.socket(zmq.PUB)
+        publisher.setsockopt( zmq.LINGER, 1 )
+        publisher.bind("ipc://publisher")
+        self.publisher = ZMQStream(publisher)
+        
 
         # self.event_stream = self.ctx.socket(zmq.SUB)
         # self.event_stream.connect("ipc://publisher")
         # self.event_stream = ZMQStream(self.event_stream)
         # self.event_stream.on_recv(self.event_message)
 
-        self.collectorsocket = self.ctx.socket(zmq.PULL)
-        self.collectorsocket.bind("ipc://collector")
-        self.collector = ZMQStream(self.collectorsocket)
+        collector = self.ctx.socket(zmq.PULL)
+        collector.bind("ipc://collector")
+        collector.setsockopt( zmq.LINGER, 1 )
+        self.collector = ZMQStream(collector)
         self.collector.on_recv(self.handle_collect)
 
         
@@ -68,7 +99,7 @@ class NodeService(App):
         #         if res:
         #           return res
         
-        self.settings = self.config._make_overlay()
+        
         self.file_service = None
         self.layerkeep_service = None
         self._services = []
@@ -77,6 +108,9 @@ class NodeService(App):
         self.api = NodeApi(self)
 
         post_save.connect(self.post_save_handler, name=f'service_model', sender=Service)
+        post_save.connect(self.post_save_node_handler, name=f'node_model', sender=Node)
+
+        # atexit.register(self.cleanup)
         # self.pipe, peer = zpipe(self.ctx)        
         # self.agent = threading.Thread(target=self.run_server, args=(self.ctx,peer))
         # self.agent.daemon = True
@@ -100,6 +134,23 @@ class NodeService(App):
 
         # self.data_stream.stop_on_recv()
 
+    def cleanup(self):
+      self.discovery.stop()
+      self.file_service = None
+      self.layerkeep_service = None
+      self.zmq_router.close()
+      self.collector.close()
+      self.publisher.close(linger=1)
+      for s in self._mounts:
+        s.cleanup()
+        
+      self._mounts = []
+      self.ctx.destroy()         
+      
+
+      
+
+
     def list_actions(self, *args):
       return self.__actions__
 
@@ -111,7 +162,7 @@ class NodeService(App):
         __import__(module[:-3], locals(), globals())
 
     def mount_service(self, model):
-      print("INSIDE MOUNT SERVICE")
+      # print("INSIDE MOUNT SERVICE")
       prefix = model.api_prefix #f"/services/{model.kind}/{model.id}/"
       res = next((item for item in self._mounts if item.config['_mount.prefix'] == prefix), None)
       if res:
@@ -123,7 +174,7 @@ class NodeService(App):
       self.mount(prefix, service)
       return ["created", service]
 
-    def handle_name_change(self, oldname, newname):
+    def handle_service_name_change(self, oldname, newname):
       sc = Service.event_listeners.children().alias('children')
       services = Service.select().from_(Service, sc).where(sc.c.Key.startswith(oldname))[:]      
       for s in services:
@@ -141,9 +192,40 @@ class NodeService(App):
 
     # services = Service.update(Service.settings["event_handlers"].update(evhandlers)).where
     # .from_(Service, sc).where(sc.c.Key.startswith(oldname))[:]      
-            
+    def settings_changed(self, event, oldval, key, newval):
+      print(f'Event = {event}')
+      print(f'key= {key}  OldVal = {oldval}  NewVal: {newval}')
+      if key == "discovery":
+        # newval == True:
+        self.discovery.run(newval)
+      elif key == "discoverable":
+        self.discovery.make_discoverable(newval)
+      pass
+
+    def post_save_node_handler(self, sender, instance, *args, **kwargs):
+      print(f"Post save Node handler {sender}", flush=True)
+      print(f"model = {self.model.json}")
+      print(f"instance = {instance.json}", flush=True)
+      if self.model.name != self.name:
+        print(f'Change instance name')
+        self.name = instance.name
+        self.discovery.update_name(self.name)
+      
+      old_settings = self.settings.to_json()
+      new_settings = ConfigDict().load_dict(self.model.settings).to_json() 
+      if old_settings != new_settings:
+        print(f"OldSet = {old_settings}", flush=True)
+        print(f"NEWSet = {new_settings}", flush=True)
+        self.settings.update(new_settings)
+        oldkeys = old_settings.keys()
+        newkeys = new_settings.keys()
+        for key in oldkeys - newkeys:
+          if key not in self.settings._virtual_keys:
+            del self.settings[key]
+
+
     def post_save_handler(self, sender, instance, *args, **kwargs):
-      print(f"Post save handler {sender}", flush=True)
+      print(f"Post save Service handler {sender}", flush=True)
       model = None
       for idx, item in enumerate(self._services):
         if item.id == instance.id:
@@ -162,8 +244,7 @@ class NodeService(App):
         model = instance
         print(f"PostSaveHandler OLDName = {oldname}, instan= {instance.name}", flush=True)
         if oldname != instance.name:
-          print("Handle name change")
-          self.handle_name_change(oldname, instance.name)
+          self.handle_service_name_change(oldname, instance.name)
           
         if srv:
           srv.model = model
@@ -247,7 +328,7 @@ class NodeService(App):
           service.install(LayerkeepCls())
           self.file_service = service
           self.mount(f"/api/services/{s.kind}/{s.id}/", service)
-        if s.kind == "layerkeep":          
+        elif s.kind == "layerkeep":          
           ServiceCls = getattr(importlib.import_module("ancilla.foundation.node.services"), s.class_name)  
           service = ServiceCls(s) 
           self.layerkeep_service = service
@@ -260,9 +341,8 @@ class NodeService(App):
           
     def delete_service(self, service):
       self._services = [item for item in self._services if item.id != service.id]
-      print("removing services")
       srv = next((item for item in self._mounts if item.model.id == service.id), None)
-      print(f"Srv = {srv}", flush=True)
+      print(f"Del Srv = {srv}", flush=True)
       if srv:
         self.unmount(srv)
 
@@ -306,39 +386,7 @@ class NodeService(App):
       print(f"CurMounts = {curmounts}", flush=True)
       self.remount_apps(curmounts)
         
-      # if not fileserviceexist:
-        
-      #   ServiceCls = getattr(importlib.import_module("ancilla.foundation.node.services"), s.class_name)  
-      #   service = ServiceCls(s)
-      #   self.mount(f"/services/{s.kind}s/{s.id}/", service)
-      # filemodel = Service.select().where(Service.kind == "file").first()
-      # if not filemodel:
-      #   self.__create_file_service()
-
-      #   filemodel = query.get()
-      # else:
-      #   filemodel = self.__create_file_service()
       
-      # ServiceCls = getattr(importlib.import_module("ancilla.foundation.node.services"), filemodel.class_name)  
-      # service = ServiceCls(filemodel)
-      # # self.mount(f"/files<:re:\/?>", service)
-      # # self.mount(f"/files/", service)
-      # self.mount(f"/services/{filemodel.kind}/{filemodel.id}/", service)
-
-      # # self.route('/services/<service>/<service_id><other:re:.*>', ['GET', 'PUT', 'POST', 'DELETE', 'PATCH'], self.catchUnmountedServices)  
-      # self.route('/services/<name><other:re:.*>', 'GET', self.catchIt)
-      # ServiceCls = getattr(importlib.import_module("ancilla.foundation.node.services.camera"), "Camera")
-      # service = ServiceCls("mbplocal")
-      # self.mount(f"/services/cameras/1/", service)
-
-      # for k, v in self.service_models.items():
-      #   self.mount(f"/{k}/{v.id}/", v)
-      
-      # for service in Service.select():
-      #     identifier = service.name.encode('ascii')
-      #     self.service_models[service.id] = service
-      # pass
-      # self.mount()
     def __create_layerkeep_service(self):
       service = Service(name="layerkeep", kind="layerkeep", class_name="Layerkeep")
       service.save(force_insert=True)
@@ -348,20 +396,6 @@ class NodeService(App):
       service = Service(name="local", kind="file", class_name="FileService")
       service.save(force_insert=True)
       return service
-
-    # def __connect_service(self, identifier, model):
-    #   try:
-    #     ServiceCls = getattr(importlib.import_module("ancilla.foundation.node.services"), model.device_type)
-    #     device = ServiceCls(self.ctx, identifier)
-    #     device.start()
-    #     time.sleep(0.1) # Allow connection to come up
-    #     # print("CONNECT DEVICE", flush=True)
-    #     self.active_devices[identifier] = device
-    #     return device
-    #   except Exception as e:
-    #       print(f"EXception connecting to device {str(e)}", flush=True)
-    #       raise Exception(f'Could Not Connect to Device: {str(e)}')
-        
 
     def send(self, environ = {}, **kwargs):
       res = self._handle(environ)
