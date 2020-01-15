@@ -33,7 +33,7 @@ from .resources import (
   PrintResource,
   ServiceAttachmentResource,
   LayerkeepResource,
-  DiscoveryResource,
+  WifiResource,
   StaticResource
 )
 
@@ -405,7 +405,7 @@ class APIServer(object):
 
     _app = Application([
       (r"/api/document",  DocumentResource, dict(document=self.document_store)),
-      # (r"/api/nodes",  DiscoveryResource, dict(beacon=self.discovery)),      
+      (r"/api/wifi",  WifiResource, dict(node=self.node_server)),
       (r"/api/files",     FileResource, dict(node=self.node_server)),
       (r"/api/files(.*)",     FileResource, dict(node=self.node_server)),
       (r"/api/layerkeep(.*)",     LayerkeepResource, dict(node=self.node_server)),

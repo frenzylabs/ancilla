@@ -60,11 +60,8 @@ $ make package
 ```
 
 
-docker run -d --restart=unless-stopped --privileged --net host -v "$HOME/.ancilla":"/root/.ancilla" layerkeep/ancilla:initial
+docker run -d --restart=unless-stopped --privileged --net host -v "$HOME/.ancilla":"$HOME/.ancilla" layerkeep/ancilla:initial
   -v <HOST_PATH>/wpa_supplicant.conf:<CONTAINER_PATH>/wpa_supplicant.conf cjimti/iotwifi
 
-docker run -d --restart=unless-stopped --privileged --net host -v $HOME/wificfg.json:/cfg/wificfg.json cjimti/iotwifi
+docker run -d --restart=unless-stopped --privileged --net host -v $(pwd)/wificfg.json:/cfg/wificfg.json cjimti/iotwifi
   -v <HOST_PATH>/wpa_supplicant.conf:<CONTAINER_PATH>/wpa_supplicant.conf cjimti/iotwifi
-
-
-docker run -d --restart=unless-stopped --privileged --net host -v $HOME/wifinohost.json:/cfg/wificfg.json cjimti/iotwifi  

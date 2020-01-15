@@ -44,15 +44,27 @@ class Interface(object):
     beacon = None
     agent_thread = None
     agent = None
+    networkcb = None
+    nodecb = None
+    current_address = None
 
     def __init__(self, node):
         print(f"START UDP PING AGENT")
         self.cached_peers = [] 
         self.node = node
         self.beacon = Beacon(self.node.name)
-        self.networkcb = PeriodicCallback(self.check_nodes, PING_INTERVAL * 4000, 0.1)
-        if self.node.settings.discovery == True:
-            self.start()
+        # self.udp = UDP(PING_PORT_NUMBER)
+        
+        
+        self.networkcb = PeriodicCallback(self.check_network, PING_INTERVAL * 2000, 0.2)
+        self.nodecb = PeriodicCallback(self.check_nodes, PING_INTERVAL * 4000, 0.1)
+        self.run(self.node.settings.discovery)
+        # self.run(False)
+
+        
+        
+        # if self.node.settings.discovery == True:
+        #     self.start()
 
             
     def run(self, val):
@@ -64,6 +76,7 @@ class Interface(object):
     def stop(self):
         print(f"Stop Discovery", flush=True)
         self.stop_checking()
+        self.networkcb.stop()
         self.cached_peers = []
         if self.beacon:
             self.beacon.close()
@@ -79,7 +92,7 @@ class Interface(object):
         # self.ctx.term()
 
     def start(self):
-        print(f"Start Discovery", flush=True)
+        print(f"Start Discovery here", flush=True)
         self.beacon.run()
         if self.node.settings.discoverable == True:            
             self.make_discoverable(True)
@@ -93,7 +106,8 @@ class Interface(object):
             self.agent_thread.start()
             self.pipe = p0
             self.requestpipe = p2
-            self.networkcb.start()
+            self.nodecb.start()     
+            self.networkcb.start()       
             
 
     def update_name(self, name):
@@ -135,22 +149,31 @@ class Interface(object):
         return msg.decode('utf-8')
 
     def stop_checking(self):
-        self.networkcb.stop()
+        self.nodecb.stop()
         msg = [b'notifications.nodes_changed', b'check', b'{"nodes":"check"}']
-        if self.node.publisher:
+        if hasattr(self.node, 'publisher'):
             self.node.publisher.send_multipart(msg)
 
     def check_nodes(self):
         res = self.request([b'peers'])
         new_peers = json.loads(res)
-        
         if self.cached_peers != new_peers:
             # print(f"Peers are different")
             self.cached_peers = new_peers         
             msg = [b'notifications.nodes_changed', b'check', b'{"nodes":"check"}']
             self.node.publisher.send_multipart(msg)
-        # else:
-        #     print(f"Peers the same")
+
+    def check_network(self):
+        #     # print("CHECK NETWORK")
+        if self.agent and self.agent.udp:
+            adr = self.agent.udp.get_address()
+            if self.current_address != adr:
+                self.current_address = adr
+                if self.current_address:
+                    self.beacon.update_network(self.node.settings.discovery, self.node.settings.discoverable)
+
+
+
 
 # =====================================================================
 # Asynchronous part, works in the background
@@ -206,6 +229,7 @@ class InterfaceAgent(object):
         self.pipe = pipe
         self.request = request
         self.loop = loop
+        # self.udp = udp
         self.udp = UDP(PING_PORT_NUMBER)
         # self.uuid = uuid.uuid4().hex.encode('utf8')
         self.uuid = self.node.model.uuid # uuid.uuid4().hex

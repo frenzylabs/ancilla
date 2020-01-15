@@ -36,7 +36,8 @@ class MyListener:
     def remove_service(self, zeroconf, type, name):
         print("Service %s removed" % (name,))
         nm = name.split(type)[0].rstrip(".")
-        del self.myservices[nm]
+        if nm in self.myservices:
+          del self.myservices[nm]
 
     def add_service(self, zeroconf, type, name):
         info = zeroconf.get_service_info(type, name)
@@ -77,12 +78,25 @@ class Beacon(object):
 
     
              
-
+    self.update_network()
+    
+    self._info = None
+  
+  def update_network(self, discovery=False, discoverable=False):
     self.host_name  = socket.gethostname() 
     self.host_ip    = socket.gethostbyname(self.host_name) 
-    self._info = None
+    if discovery:
+      if hasattr(self, 'sb'):
+        self.sb.cancel()
+      self.run()
+      if discoverable:
+        if self.registered:
+          self.update()
+        else:
+          self.register()
 
   def run(self):
+    self.is_running = True
     self.sb = ServiceBrowser(zc=self.conf, type_=self.type,
                              listener=self.listener) 
 
@@ -158,7 +172,10 @@ class Beacon(object):
       self.num += 1
       self.register()
     except Exception as e:
-      print(f"BeaconEXception {str(e)}")
+      template = "A Beacon exception of type {0} occurred. Arguments:\n{1!r}"
+      message = template.format(type(e).__name__, e.args)
+      print(message)
+      # print(f"BeaconEXception {str(e)}")
       
 
   def update_name(self, name):
@@ -173,7 +190,9 @@ class Beacon(object):
 
   def close(self):
     self.unregister()
-    self.sb.cancel()
+    if hasattr(self, 'sb'):
+      self.sb.cancel()
+    self.is_running = False
     self.listener = MyListener()
     
     

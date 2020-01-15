@@ -1,0 +1,13 @@
+[Unit]
+Description=Ancilla 3D Services
+
+[Service]
+Type=simple
+WorkingDirectory=/home/pi
+ExecStart=/home/pi/ancilla/run.sh
+Restart=always
+User=pi
+
+
+[Install]
+WantedBy=multi-user.target

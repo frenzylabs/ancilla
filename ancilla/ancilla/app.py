@@ -26,6 +26,8 @@ from .foundation.data.models  import (
   Printer
 )
 
+from tornado.ioloop import IOLoop
+
 import atexit
 
 class Application():
@@ -37,8 +39,11 @@ class Application():
     self.setup_env()
     self.start_db()    
     self.document_store = Document()
-    self.node_server    = NodeService() # NodeServer()
-    self.api_server     = APIServer(self.document_store, self.node_server)
+    if not IOLoop.current(instance=False):
+      loop = IOLoop().initialize(make_current=True)  
+    print(f"IO LOOP = #{IOLoop.current()}")
+    # self.node_server    = NodeService() # NodeServer()
+    # self.api_server     = APIServer(self.document_store, self.node_server)
     
     
     atexit.register(self.stop)
@@ -95,13 +100,15 @@ class Application():
     # self.th.start()
     # subprocess.
     
-    # self.node_server    = NodeService() # NodeServer()
-    # self.api_server     = APIServer(self.document_store, self.node_server)
+    self.node_server    = NodeService() # NodeServer()
+    self.api_server     = APIServer(self.document_store, self.node_server)
     self.api_server.start()
     
   
   def _start_prod(self):
     print("START PROD")
+    self.node_server    = NodeService() # NodeServer()
+    self.api_server     = APIServer(self.document_store, self.node_server)
     self.api_server.start()
     # self.node_server    = NodeService() # NodeServer()
     # self.th = threading.Thread(target=self.api_server.start)

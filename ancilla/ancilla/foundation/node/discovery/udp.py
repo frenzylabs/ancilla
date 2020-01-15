@@ -11,10 +11,11 @@ class UDP(object):
 
     def __init__(self, port, address=None, broadcast=None):
         if address is None:
-            local_addrs = socket.gethostbyname_ex(socket.gethostname())[-1]
-            for addr in local_addrs:
-                if not addr.startswith('127'):
-                    address = addr
+            self.get_address()
+            # local_addrs = socket.gethostbyname_ex(socket.gethostname())[-1]
+            # for addr in local_addrs:
+            #     if not addr.startswith('127'):
+            #         address = addr
         if broadcast is None:
             broadcast = '255.255.255.255'
 
@@ -29,6 +30,17 @@ class UDP(object):
 
         # Bind UDP socket to local port so we can receive pings
         self.handle.bind(('', port))
+
+    def get_address(self):        
+        address = None
+        local_addrs = socket.gethostbyname_ex(socket.gethostname())[-1]
+        for addr in local_addrs:
+            if not addr.startswith('127'):
+                address = addr
+        self.address = address
+        return self.address
+        
+
 
     def send(self, buf):
         self.handle.sendto(buf, 0, (self.broadcast, self.port))

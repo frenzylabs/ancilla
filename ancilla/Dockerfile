@@ -15,7 +15,6 @@ RUN apt-get update && apt-get dist-upgrade -y && apt-get install -y \
 # something with the baleana python doesnt have the pip indices and this adds them
 RUN apt-get install -y python3-pip && apt remove python3-pip
 
-COPY get-pip.py .
 # RUN python3.7 get-pip.py
 RUN pip install --no-cache-dir --upgrade pip
 WORKDIR /home/pi/ancilla
@@ -26,11 +25,15 @@ RUN pip install -r requirements.txt
 COPY run.py .
 COPY ancilla.service .
 RUN mkdir -p /home/pi/ancilla/ancilla
-COPY ancilla /home/pi/ancilla/ancilla/
+COPY src /home/pi/ancilla/ancilla/
 
 COPY VERSION .
 COPY README.md .
 COPY setup.py .
+
+RUN mkdir -p /home/pi/.ancilla
+COPY discovery.txt /home/pi/.ancilla
+
 
 # RUN python setup.py bdist
 # VOLUME [ "" ]

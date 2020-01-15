@@ -17,5 +17,7 @@ from .service    import ServiceResource
 from .service_attachment import ServiceAttachmentResource
 from .layerkeep    import LayerkeepResource
 
-from .discovery  import DiscoveryResource
+
 from .static  import StaticResource
+
+from .wifi  import WifiResource

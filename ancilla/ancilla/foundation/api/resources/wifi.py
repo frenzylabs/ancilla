@@ -16,9 +16,9 @@ import socket
 
 from ...data.models import Service
 
-class DiscoveryResource(BaseHandler):
-  def initialize(self, beacon):
-    self.beacon = beacon
+class WifiResource(BaseHandler):
+  def initialize(self, node):
+    self.node = node
 
   def get(self, *args):
     # print("INSIDE GET Discvoer", self.beacon)
@@ -44,7 +44,7 @@ class DiscoveryResource(BaseHandler):
     # self.myservices[f"{name}"] = {"addresses": addresses, "port": info.port, "server": info.server}
 
     self.write(
-      {'nodes': self.beacon.listener.myservices}
+      {'nodes': []}
     )
 
   # def post(self, *args, **kwargs):

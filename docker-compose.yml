@@ -1,0 +1,19 @@
+version: '3.2'
+services:
+  ancilla:
+    container_name: ancilla
+    build: ./ancilla  
+    image: "localhost/ancilla:${ANCILLA_COMMIT:-latest}"
+    ports:
+      - "5000:5000"
+    # volumes:
+    #   - ./ancilla/app:/var/www/layerkeep/app
+      
+    # environment:
+    #   RAILS_ENV: ${RAILS_ENV:-production}
+    #   PG_HOST: db
+    #   PG_USERNAME: ${PG_USERNAME:-postgres}
+    #   PG_PASSWORD: ${PG_PASSWORD:-''}
+    #   PG_DATABASE: ${PG_DATABASE:-layerkeep}  
+    #   RABBITMQ_URL: "amqp://rabbit:rabbit@rabbitmq:5672"
+    #   REPO_MOUNT_PATH: "../repos"
