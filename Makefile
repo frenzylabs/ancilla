@@ -20,7 +20,7 @@ build-web:
 	ANCILLA_COMMIT=${LK_COMMIT} docker-compose build ancilla
 
 push_staging:
-	$(eval LK_COMMIT=$(shell git --git-dir=./layerkeep/.git rev-parse --short HEAD))
+	$(eval LK_COMMIT=$(shell git --git-dir=./.git rev-parse --short HEAD))
 	docker tag localhost/ancilla:${LK_COMMIT} layerkeep/ancilla:staging-${LK_COMMIT}
 	docker push layerkeep/ancilla:staging-${LK_COMMIT}
 	
@@ -48,7 +48,7 @@ run:
 bundle_js:
 	@cd ancilla-ui \
 	&& yarn install --check-files \
-	&& ./node_modules/.bin/parcel build src/index.html --public-url '/static' --out-dir ../ancilla/src/ui/dist
+	&& ./node_modules/.bin/parcel build src/index.html --public-url '/static' --out-dir ../ancilla/ancilla/ui/dist
 	# && npm run build
 
 
