@@ -145,6 +145,7 @@ class NodeService(App):
         s.cleanup()
         
       self._mounts = []
+      print("CLEANUP SELF.CTX")
       self.ctx.destroy()         
       
 

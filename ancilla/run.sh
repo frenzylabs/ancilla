@@ -4,20 +4,19 @@ ANCILLA_HOME="$HOME/.ancilla"
 
 LTIME=`stat -c %Z $ANCILLA_HOME/discovery.txt`
 
+
+# run_ancilla() {
+#   docker run --name=ancilla -d --restart=unless-stopped --privileged --net host -v "$ANCILLA_HOME":"$ANCILLA_HOME" layerkeep/ancilla:staging-9692b74
+# }
+
 LNETWORKON=$(grep -Po "(?<=^AP=).*" $ANCILLA_HOME/discovery.txt)
 LSSID=""
 
 
 CONTAINER_NAME=wifi
 
-CONTAINER_EXIST=$(docker ps -a --filter name=^$CONTAINER_NAME$ | grep $CONTAINER_NAME)
+# CONTAINER_EXIST=$(docker ps -a --filter name=^$CONTAINER_NAME$ | grep $CONTAINER_NAME)
 
-if [ -z "$CONTAINER_EXIST" ]
-then
-  echo "NO WIFI CONTAINER"
-else
-  echo "WIFI CONTAINER"
-fi
 
 # WIFIRUNNING=`docker inspect -f '{{.State.Running}}' wifi`
 toggle_wifi() {

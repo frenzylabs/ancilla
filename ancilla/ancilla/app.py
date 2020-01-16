@@ -59,6 +59,8 @@ class Application():
       self.running = False
       self.api_server.stop()
       self.node_server.cleanup()
+      print("CLEANUP node server")
+      IOLoop.current().stop()
       
 
   # @property

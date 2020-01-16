@@ -125,6 +125,11 @@ class Printer(BaseService):
     #     "get_state",
     #     "command"
     #   ]
+    def cleanup(self):
+      print("printer cleanup", flush=True)
+      if self.connector:
+        self.connector.close()
+      super().cleanup()
 
     def test_hook(self, *args):
       print(f"TESTHOOK Fired: {args}", flush=True)

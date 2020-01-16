@@ -96,6 +96,13 @@ class Camera(BaseService):
     #     "record"
     #   ]
 
+    def cleanup(self):
+      print("cleanup camera", flush=True)
+      if self.connector:
+        self.connector.close()
+      super().cleanup()
+
+
     def start(self, *args):
       print(f"START Camera {self.identity}", flush=True)
       self.connector = CameraConnector(self.ctx, self.identity, self.camera_model.endpoint)

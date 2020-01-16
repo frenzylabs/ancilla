@@ -22,6 +22,8 @@ from tornado.ioloop import IOLoop
 import asyncio
 import cv2
 import datetime
+import time
+import numpy as np
 
 numbers = re.compile(r'(\d+)')
 def numericalSort(value):
@@ -46,13 +48,15 @@ class ZMQCameraPubSub(object):
         self.subscriber = ZMQStream(self.subscriber)
         self.subscriber.on_recv(self.callback)
         
-        self.subscriber.setsockopt( zmq.LINGER, 0 )
+        # self.subscriber.setsockopt( zmq.LINGER, 0 )
         # self.request.linger = 0
         # self.request.setsockopt(zmq.SUBSCRIBE, b"")
 
     def close(self):
-      self.subscriber.stop_on_recv()
-      self.subscriber.close()
+      if self.subscriber:
+        self.subscriber.stop_on_recv()
+        self.subscriber.close()
+        self.subscriber = None
 
     def subscribe(self, to, topic=''):
       subscribeto = to
@@ -79,41 +83,68 @@ class ZMQCameraPubSub(object):
 class WebcamHandler(RequestHandler):
     def initialize(self, node):
       self.node = node
+      self.running = True
       self.ready = True
+      self.timer = time.time()
 
     # @gen.coroutine
     def on_message(self, data):
-      # print("ON MESSAGE: ", flush=True)
+      
       # topic, msg = yield self.socket.request.recv_multipart()
+      
+
+      starttime = time.time()
+      
       topic, device, framenum, msg = data
       fnum = int(framenum.decode('utf-8'))
-      # if (fnum % 100) == 0:
+      if not self.ready or not self.running:
+        print(f"Not ready {fnum} {self}")
+        return
+
       
-      # print(f"fRAME = {fnum} {datetime.datetime.now()}")
+      # if (fnum % 100) == 0:
+      timedif = time.time() - self.timer
+      if timedif > 0.01:
+        self.timer = time.time()
+        # print(f"fRAME = {fnum} {timedif},  {self.timer}")
+        
+      else:
+        print(f"NOtReady fRAME = {fnum} {timedif},  {self.timer}")
+        return
+
+      self.ready = False
 
       frame = pickle.loads(msg)
+      
       frame = cv2.flip(frame, 1)
-
+      # x = frame
+      
       x = cv2.resize(frame, dsize=(640, 480), interpolation=cv2.INTER_CUBIC)
-      # print(x.shape)
-
-      # x = x.astype(np.uint8)
+      
+      # # print(x.shape)
+      x = x.astype(np.uint8)
+      # encodedImage = x
       (flag, encodedImage) = cv2.imencode(".jpg", x)
 
       self.write(b'--frame\r\n')
       self.write(b'Content-Type: image/jpeg\r\n\r\n')
       self.write(encodedImage.tobytes())
       self.write(b'\r\n\r\n')
-      if self.ready:
-        IOLoop.current().add_callback(self.flushit)
+      
+      # print(f'Finish Time = {time.time() - starttime}')
+      IOLoop.current().add_callback(self.flushit)
 
     
     async def flushit(self):
       # print("FLUSHING WRITE", flush=True)
       try:
         await self.flush()
-      except:
+        self.ready = True
+      except Exception as e:
+        print(f"EXCEPTION {str(e)}")
         self.ready = False
+        self.running = False
+        self.pubsub.close()
 
     
 
@@ -131,11 +162,8 @@ class WebcamHandler(RequestHandler):
         self.pubsub.subscribe(subscription)
         # "events.camera')
         # IOLoop.current().add_callback(self.flushit)
-        while True:
-          if self.ready:
-            await asyncio.sleep(2.0)
-          else:
-            break
+        while self.running:
+          await asyncio.sleep(1.0)
 
 
     async def get(self, *args):
@@ -186,6 +214,7 @@ class WebcamHandler(RequestHandler):
           finally:
             self.pubsub.close()
 
+        self.running = False
         self.ready = False
 
 
