@@ -76,6 +76,7 @@ class ZMQNodePubSub(object):
         self.socket.connect('tcp://127.0.0.1:5556')
         # self.socket.connect(url_client)
         self.stream = ZMQStream(self.socket)
+        self.stream.setsockopt( zmq.LINGER, 0 )
         self.stream.on_recv(self.callback)
 
         self.subscriber = self.context.socket(zmq.SUB)
@@ -83,6 +84,8 @@ class ZMQNodePubSub(object):
         # self.request.connect('tcp://127.0.0.1:5557')
         # self.request.connect('ipc://devicepublisher')
         self.subscriber = ZMQStream(self.subscriber)
+        self.subscriber.setsockopt( zmq.LINGER, 0 )
+        # self.subscriber.setsockopt( ZMQ:IMMEDIATE)
         self.subscriber.on_recv(self.subscribe_callback)
         
 
@@ -112,10 +115,15 @@ class ZMQNodePubSub(object):
       self.subscriber.setsockopt(zmq.UNSUBSCRIBE, subscribetopic)
 
     def close(self):
-      self.subscriber.stop_on_recv()
-      self.stream.stop_on_recv()
-      self.stream.close()
-      self.subscriber.close()
+      if self.subscriber:
+        self.subscriber.stop_on_recv()
+        self.subscriber.close()
+        self.subscriber = None
+      if self.stream:
+        self.stream.stop_on_recv()
+        self.stream.close()
+        self.stream = None
+      
 
     def make_request(self, target, action, msg = None):
       # if msg and type(msg) == dict:

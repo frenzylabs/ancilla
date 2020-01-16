@@ -48,7 +48,7 @@ class ZMQCameraPubSub(object):
         self.subscriber = ZMQStream(self.subscriber)
         self.subscriber.on_recv(self.callback)
         
-        # self.subscriber.setsockopt( zmq.LINGER, 0 )
+        self.subscriber.setsockopt( zmq.LINGER, 0 )
         # self.request.linger = 0
         # self.request.setsockopt(zmq.SUBSCRIBE, b"")
 
@@ -126,10 +126,15 @@ class WebcamHandler(RequestHandler):
       # encodedImage = x
       (flag, encodedImage) = cv2.imencode(".jpg", x)
 
+      ebytes = encodedImage.tobytes()
+      framesize = len(ebytes)
+      # print(f"FRAME SIZE = {framesize}")
       self.write(b'--frame\r\n')
-      self.write(b'Content-Type: image/jpeg\r\n\r\n')
-      self.write(encodedImage.tobytes())
-      self.write(b'\r\n\r\n')
+      self.write(b'Content-Type: image/jpeg\r\n')
+      self.write(f"Content-Length: {framesize} \r\n".encode('ascii'))
+      self.write(b'\r\n')
+      self.write(ebytes)
+      self.write(b'\r\n')
       
       # print(f'Finish Time = {time.time() - starttime}')
       IOLoop.current().add_callback(self.flushit)
@@ -206,8 +211,11 @@ class WebcamHandler(RequestHandler):
           self.flush()
         else:
           try:
-            self.set_header('Connection', 'close')
+            # self.set_header('Connection', 'close')
+            # self.set_header('Connection', 'keep-alive')
             self.set_header('Content-Type', 'multipart/x-mixed-replace; boundary=frame')
+            self.set_header("Expires", datetime.datetime.utcnow())
+            self.set_header("Pragma", "no-cache")
             await self.camera_frame(self.subscription)
           except Exception as e:
             print(f"exception {str(e)}", flush=True)
