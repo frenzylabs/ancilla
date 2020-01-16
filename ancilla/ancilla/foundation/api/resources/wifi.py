@@ -16,41 +16,46 @@ import socket
 
 from ...data.models import Service
 
+import asyncio
+import functools
+import requests
+
 class WifiResource(BaseHandler):
   def initialize(self, node):
     self.node = node
+    self.session = requests.Session()
+    self.session.headers.update({"Content-Type" : "application/json", "Accept": "application/json"})
 
-  def get(self, *args):
-    # print("INSIDE GET Discvoer", self.beacon)
-    # print(f"INSIDE GET beacon {self.beacon.type}, {self.beacon.name}")
-    # _broadcast  = self.beacon.conf.get_service_info(self.beacon.type, "{}.{}".format(self.beacon.name, self.beacon.type))
-    # print(f"INSIDE GET Broadcast {_broadcast}")
-    # _addrs      = [("%s" % socket.inet_ntoa(a)) for a in _broadcast.addresses]
-    # print(f"INSIDE GET Broadcast {_addrs}")
-    # print(f"Get Services {self.beacon.listener.myservices}")
-    # info = zeroconf.get_service_info(type, name)
-    # addresses = [("%s" % socket.inet_ntoa(a)) for a in info.addresses]
-    # services = map(lambda s: self.beacon.sb.services
-    # services = {}
-    # for name in self.beacon.sb.services:
-    #   s = self.beacon.sb.services[name]
-    #   print(s)
-    #   print(f"name: {s.name}")
-      # print(s.addresses)
+  async def make_request(self, req, content_type = 'json', auth = True, options = {"verify": False}):
+      print(f"Requ = {req}")
+      prepped = self.session.prepare_request(req)
+      if not auth:
+        del prepped.headers['Authorization']
+      print(f"prepped = {prepped.headers}", flush=True)
+      loop = asyncio.get_event_loop()
+      makerequest = functools.partial(self.session.send, prepped, **options)
 
-      # addresses = [("%s" % socket.inet_ntoa(a)) for a in s.addresses]
-      # services[name] = {"addresses": addresses, "port": s.port, "server": s.server}
-    
-    # self.myservices[f"{name}"] = {"addresses": addresses, "port": info.port, "server": info.server}
+      future = loop.run_in_executor(None, makerequest)
 
-    self.write(
-      {'nodes': []}
-    )
+      resp = await future
 
-  # def post(self, *args, **kwargs):
-  #   kind = self.params.get('kind', None)
-  #   name = self.params.get('name', None)
-  #   self.node.add_device(kind, name)
+  async def post(self, *args):
+    url = f'http://localhost:8080/connect'    
+    req = requests.Request('POST', url, json=self.params)
+    resp = await self.make_request(req)
+    return resp
 
-  #   self.write("success")
-    
+
+  async def get(self, *args):
+    # myparams = { k: self.get_argument(k) for k in self.request.arguments }
+    # print(f'My params = {myparams}') 
+    url = f'http://localhost:8080/status'
+    req = requests.Request('GET', url)
+    resp = await self.make_request(req)
+    return resp
+
+    # self.write(
+    #   {'nodes': []}
+    # )
+
+
