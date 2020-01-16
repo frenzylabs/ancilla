@@ -98,7 +98,7 @@ class WebcamHandler(RequestHandler):
       topic, device, framenum, msg = data
       fnum = int(framenum.decode('utf-8'))
       if not self.ready or not self.running:
-        print(f"Not ready {fnum} {self}")
+        # print(f"Not ready {fnum} {self}")
         return
 
       
@@ -109,7 +109,7 @@ class WebcamHandler(RequestHandler):
         # print(f"fRAME = {fnum} {timedif},  {self.timer}")
         
       else:
-        print(f"NOtReady fRAME = {fnum} {timedif},  {self.timer}")
+        # print(f"NOtReady fRAME = {fnum} {timedif},  {self.timer}")
         return
 
       self.ready = False
