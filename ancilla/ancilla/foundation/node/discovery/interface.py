@@ -86,13 +86,16 @@ class Interface(object):
         self.cached_peers = []
         if self.beacon:
             self.beacon.close()
+        print(f"Closed Beacon", flush=True)
         if self.pipe:
             self.pipe.close()
         if self.requestpipe:
             self.requestpipe.close()
+        print(f"Closed Pipes", flush=True)
         if self.agent:
             self.agent.stop()
             self.agent = None
+        print(f"Closed Agent", flush=True)
         if self.ctx:
             self.ctx.destroy()
         # self.ctx.term()
@@ -230,11 +233,17 @@ class Interface(object):
     def check_network(self):
         #     # print("CHECK NETWORK")
         adr = self.check_interface_addresses()
-        print(f"address = {adr}", flush=True)
+        
         if self.current_address != adr:
+            print(f"address change = {adr}", flush=True)
             self.current_address = adr
             if self.current_address:
                 self.agent.udp.broadcast = self.broadcast or '255.255.255.255'
+                if self.beacon:
+                    self.beacon.close()
+                    self.beacon = None
+                
+                self.beacon = Beacon(self.node.name)
                 self.beacon.address = self.current_address                
                 self.beacon.update_network(self.node.settings.discovery, self.node.settings.discoverable)
         # if self.agent and self.agent.udp:
