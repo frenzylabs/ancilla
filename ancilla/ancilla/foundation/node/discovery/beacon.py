@@ -78,13 +78,12 @@ class Beacon(object):
 
     
              
-    self.update_network()
+    # self.update_network()
     
     self._info = None
+    self._address = None
   
-  def update_network(self, discovery=False, discoverable=False):
-    self.host_name  = socket.gethostname() 
-    self.host_ip    = socket.gethostbyname(self.host_name) 
+  def update_network(self, discovery=False, discoverable=False):    
     if discovery:
       if hasattr(self, 'sb'):
         self.sb.cancel()
@@ -103,13 +102,21 @@ class Beacon(object):
     self.conf.wait(2000)
 
   @property
-  def local_ip(self):
-    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    s.connect(("8.8.8.8", 80))
-    return s.getsockname()[0]
+  def address(self):
+    if not self._address:
+      return '127.0.0.1'
+    else:
+      return self._address
+    # s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    # s.connect(("8.8.8.8", 80))
+    # return s.getsockname()[0]
+
     # return socket.gethostbyname(
     #   socket.gethostname()
     # )
+  @address.setter
+  def address(self, val):
+    self._address = val
     
   # conf.get_service_info(ztype, "{}.{}".format(name, ztype))  
   @property
@@ -148,12 +155,12 @@ class Beacon(object):
 
   @property
   def info(self):
-    print("## IP: {}  // Ssss: {}".format(self.local_ip, self.peers))
+    print("## IP: {}  // Ssss: {}".format(self.address, self.peers))
     # name = self.instance_name
     self._info = ServiceInfo(
       self.type,
       self.instance_name,
-      addresses=[socket.inet_aton(self.local_ip)],
+      addresses=[socket.inet_aton(self.address)],
       port=self.port,
       server=self.domain
     )

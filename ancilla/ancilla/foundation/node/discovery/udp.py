@@ -1,6 +1,7 @@
 # A Simple UDP class
 
 import socket
+import netifaces
 
 class UDP(object):
     """simple UDP ping class"""
@@ -31,6 +32,9 @@ class UDP(object):
         # Bind UDP socket to local port so we can receive pings
         self.handle.bind(('', port))
 
+
+
+
     def get_address(self):        
         address = None
         local_addrs = socket.gethostbyname_ex(socket.gethostname())[-1]
@@ -40,7 +44,8 @@ class UDP(object):
         self.address = address
         return self.address
         
-
+    def close(self):
+        self.handle.close()
 
     def send(self, buf):
         self.handle.sendto(buf, 0, (self.broadcast, self.port))

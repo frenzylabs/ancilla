@@ -6,7 +6,7 @@ LTIME=`stat -c %Z $ANCILLA_HOME/discovery.txt`
 
 
 # run_ancilla() {
-#   docker run --name=ancilla -d --restart=unless-stopped --privileged --net host -v "$ANCILLA_HOME":"$ANCILLA_HOME" layerkeep/ancilla:staging-9692b74
+#   docker run --name=ancilla -d --restart=unless-stopped --privileged --net host -v "$ANCILLA_HOME":"$ANCILLA_HOME" layerkeep/ancilla:staging-6b2aeb4
 # }
 
 LNETWORKON=$(grep -Po "(?<=^AP=).*" $ANCILLA_HOME/discovery.txt)

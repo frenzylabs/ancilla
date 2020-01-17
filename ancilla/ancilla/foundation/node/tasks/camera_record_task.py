@@ -65,7 +65,7 @@ class CameraRecordTask(AncillaTask):
     self.event_socket.setsockopt(zmq.SUBSCRIBE, self.service.identity + b'.events.camera.data_received')
     self.event_socket.setsockopt(zmq.SUBSCRIBE, self.service.identity + b'.events.camera.connection.closed')
     self.event_stream = ZMQStream(self.event_socket)
-    # self.event_stream.linger = 0
+    self.event_stream.linger = 0
     self.event_stream.on_recv(self.on_data)
 
     self.current_frame_num = 0

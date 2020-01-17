@@ -79,12 +79,14 @@ class BaseService(App):
         self.data_stream.bind(deid)
         # time.sleep(0.1)        
         self.data_stream = ZMQStream(self.data_stream)
+        self.data_stream.linger = 0
         self.data_stream.on_recv(self.on_data)
         # self.data_stream.stop_on_recv()
 
         event_stream = self.ctx.socket(zmq.SUB)
         event_stream.connect("ipc://publisher")
         self.event_stream = ZMQStream(event_stream)
+        self.event_stream.linger = 0
         self.event_stream.on_recv(self.on_message)
 
         self.settings._add_change_listener(

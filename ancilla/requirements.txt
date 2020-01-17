@@ -55,4 +55,5 @@ Werkzeug==0.16.0
 whichcraft==0.6.1
 zeroconf==0.23.0
 zmq==0.0.0
+netifaces>=0.10.9
 # pybluez>=0.0.0

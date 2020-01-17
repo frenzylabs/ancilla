@@ -244,6 +244,9 @@ class NodeSocket(WebSocketHandler):
         # node = kwargs.get("node")
         self.node = kwargs.pop('node', None)
         self.timer = time.time()
+        self.node_connector = ZMQNodePubSub(self.node, self.on_data, self.subscribe_callback)
+        self.node_connector.connect()
+        self.node_connector.subscribe("notifications")
         super().__init__(application, request, **kwargs)
 
 
@@ -257,9 +260,8 @@ class NodeSocket(WebSocketHandler):
         
         # print("OPEN NODE SOCKET", flush=True)
         self.subscription = subscription
-        self.node_connector = ZMQNodePubSub(self.node, self.on_data, self.subscribe_callback)
-        self.node_connector.connect()
-        self.node_connector.subscribe("notifications")
+        
+        
 
         # self.node.connect("tcp://localhost:5556", "localhost")
         # self.node.add_device("Printer", "/dev/cu.usbserial-14140", subscription)
@@ -413,7 +415,7 @@ class APIServer(object):
 
     _app = Application([
       (r"/api/document",  DocumentResource, dict(document=self.document_store)),
-      (r"/api/wifi",  WifiResource, dict(node=self.node_server)),
+      (r"/api/wifi(.*)",  WifiResource, dict(node=self.node_server)),
       (r"/api/files",     FileResource, dict(node=self.node_server)),
       (r"/api/files(.*)",     FileResource, dict(node=self.node_server)),
       (r"/api/layerkeep(.*)",     LayerkeepResource, dict(node=self.node_server)),

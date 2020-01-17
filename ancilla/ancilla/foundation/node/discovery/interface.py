@@ -16,6 +16,9 @@ import asyncio
 from tornado.platform.asyncio import AnyThreadEventLoopPolicy
 import json
 
+import socket
+import netifaces
+
 from .udp import UDP 
 
 from ...utils.service_json_encoder import ServiceJsonEncoder
@@ -55,6 +58,8 @@ class Interface(object):
         self.beacon = Beacon(self.node.name)
         # self.udp = UDP(PING_PORT_NUMBER)
         
+        self.current_address = self.check_interface_addresses()
+        self.beacon.address = self.current_address
         
         self.networkcb = PeriodicCallback(self.check_network, PING_INTERVAL * 2000, 0.2)
         self.nodecb = PeriodicCallback(self.check_nodes, PING_INTERVAL * 4000, 0.1)
@@ -163,14 +168,70 @@ class Interface(object):
             msg = [b'notifications.nodes_changed', b'check', b'{"nodes":"check"}']
             self.node.publisher.send_multipart(msg)
 
+    def check_interface_addresses(self):
+        ##  uap0 interface is used by our wifi docker container to be used as a wifi access point (allow incoming connections)
+        ## wlan0 interface is used as the client to connect to outside wifi
+        accesspointinterface = 'uap0'
+        gws = netifaces.gateways()
+        interfaces = netifaces.interfaces()
+        default_interface = None
+        address = None
+        # if netifaces.AF_INET in gws['default']:
+        i = gws['default'].get(netifaces.AF_INET) or ()
+        if len(i) > 1:
+            default_interface = i[1]
+
+        if default_interface:
+            netaddress = netifaces.ifaddresses(default_interface).get(netifaces.AF_INET) or []
+            addr = (netaddress[0] or {}).get('addr')
+            if addr and not addr.startswith('127'):
+                address = addr
+        
+        
+        if not address:
+            for face in interfaces:
+                addrs = (netifaces.ifaddresses(face).get(netifaces.AF_INET) or [])
+                for addrdict in addrs:
+                    addr = addrdict.get('addr')
+                    if not address and addr and not addr.startswith('127'):
+                        address = addr
+
+        if not address:
+            if accesspointinterface in interfaces:
+                netaddress = netifaces.ifaddresses(accesspointinterface).get(netifaces.AF_INET) or []                
+                for addrdict in addrs:
+                    addr = addrdict.get('addr')
+                    if not address and addr and not addr.startswith('127'):
+                        address = addr
+
+                
+
+        if not address:
+            try:
+                address = socket.gethostbyname_ex(socket.gethostname())[-1][0]
+            except Exception as e:
+                print(f"NoAddress {str(e)}")
+                address = '127.0.0.1'
+
+        return address
+
+
     def check_network(self):
         #     # print("CHECK NETWORK")
-        if self.agent and self.agent.udp:
-            adr = self.agent.udp.get_address()
-            if self.current_address != adr:
-                self.current_address = adr
-                if self.current_address:
-                    self.beacon.update_network(self.node.settings.discovery, self.node.settings.discoverable)
+        adr = self.check_interface_addresses()
+        print(f"address = {adr}")
+        if self.current_address != adr:
+            self.current_address = adr
+            if self.current_address:
+                self.beacon.address = self.current_address
+                self.beacon.update_network(self.node.settings.discovery, self.node.settings.discoverable)
+        # if self.agent and self.agent.udp:
+        #     adr = self.agent.udp.get_address()
+        #     print(f"address = {adr}")
+        #     if self.current_address != adr:
+        #         self.current_address = adr
+        #         if self.current_address:
+        #             self.beacon.update_network(self.node.settings.discovery, self.node.settings.discoverable)
 
 
 
@@ -241,6 +302,7 @@ class InterfaceAgent(object):
             self.reappc.stop()
         if self.pingpc:
             self.pingpc.stop()
+        self.udp.close()
         self.udp = None
         self.loop.stop()
 

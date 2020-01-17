@@ -8,3 +8,6 @@ Environment=PATH=/home/pi/.pyenv/versions/3.7.4/bin:$PATH
 ExecStart=/home/pi/ancilla/run.py
 Restart=always
 User=pi
+
+[Install]
+WantedBy=multi-user.target

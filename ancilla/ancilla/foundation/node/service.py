@@ -76,7 +76,8 @@ class NodeService(App):
         # self.pubsocket.bind("ipc://publisher")
         # self.publisher = ZMQStream(self.pubsocket)
         publisher = self.ctx.socket(zmq.PUB)
-        publisher.setsockopt( zmq.LINGER, 1 )
+        publisher.setsockopt( zmq.LINGER, 0 )
+        # publisher.setsockopt(zmq.DONTWAIT, True)
         publisher.bind("ipc://publisher")
         self.publisher = ZMQStream(publisher)
         

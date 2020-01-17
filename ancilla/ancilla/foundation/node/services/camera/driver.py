@@ -43,9 +43,6 @@ class CameraConnector(object):
         self.endpoint = int(self.endpoint)
 
       self.ctx = ctx
-
-      
-
       self.create_camera()
       
 
