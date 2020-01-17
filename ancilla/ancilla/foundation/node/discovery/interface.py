@@ -187,7 +187,7 @@ class Interface(object):
             if addr and not addr.startswith('127'):
                 address = addr
         
-        docker_interface = False
+        docker_address = None
         if not address:
             for face in interfaces:
                 addrs = (netifaces.ifaddresses(face).get(netifaces.AF_INET) or [])
@@ -195,10 +195,11 @@ class Interface(object):
                     addr = addrdict.get('addr')
                     if not address and addr and not addr.startswith('127'):
                         if face.startswith('docker'):
-                            docker_interface = True
-                        address = addr
+                            docker_address = addr
+                        else:
+                            address = addr
 
-        if not address or docker_interface:
+        if not address:
             if accesspointinterface in interfaces:
                 netaddress = netifaces.ifaddresses(accesspointinterface).get(netifaces.AF_INET) or []                
                 for addrdict in addrs:
@@ -221,7 +222,7 @@ class Interface(object):
     def check_network(self):
         #     # print("CHECK NETWORK")
         adr = self.check_interface_addresses()
-        print(f"address = {adr}")
+        print(f"address = {adr}", flush=True)
         if self.current_address != adr:
             self.current_address = adr
             if self.current_address:
