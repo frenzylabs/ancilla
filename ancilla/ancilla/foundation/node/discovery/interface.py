@@ -60,7 +60,7 @@ class Interface(object):
         
         self.current_address = self.check_interface_addresses()
         self.beacon.address = self.current_address
-        
+
         self.networkcb = PeriodicCallback(self.check_network, PING_INTERVAL * 2000, 0.2)
         self.nodecb = PeriodicCallback(self.check_nodes, PING_INTERVAL * 4000, 0.1)
         self.run(self.node.settings.discovery)
@@ -187,16 +187,18 @@ class Interface(object):
             if addr and not addr.startswith('127'):
                 address = addr
         
-        
+        docker_interface = False
         if not address:
             for face in interfaces:
                 addrs = (netifaces.ifaddresses(face).get(netifaces.AF_INET) or [])
                 for addrdict in addrs:
                     addr = addrdict.get('addr')
                     if not address and addr and not addr.startswith('127'):
+                        if face.startswith('docker'):
+                            docker_interface = True
                         address = addr
 
-        if not address:
+        if not address or docker_interface:
             if accesspointinterface in interfaces:
                 netaddress = netifaces.ifaddresses(accesspointinterface).get(netifaces.AF_INET) or []                
                 for addrdict in addrs:
