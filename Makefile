@@ -22,7 +22,9 @@ build-web:
 push_staging:
 	$(eval LK_COMMIT=$(shell git --git-dir=./.git rev-parse --short HEAD))
 	docker tag localhost/ancilla:${LK_COMMIT} layerkeep/ancilla:staging-${LK_COMMIT}
+	docker tag localhost/ancilla:${LK_COMMIT} layerkeep/ancilla:staging-latest
 	docker push layerkeep/ancilla:staging-${LK_COMMIT}
+	docker push layerkeep/ancilla:staging-latest
 	
 
 all: run

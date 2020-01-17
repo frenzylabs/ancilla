@@ -53,5 +53,5 @@ class UDP(object):
     def recv(self, n):
         buf, addrinfo = self.handle.recvfrom(n)
         # if addrinfo[0] != self.address:
-        #     print("Found peer %s:%d" % addrinfo)
+        print("Found peer %s:%d" % addrinfo)
         return (buf, addrinfo[0])

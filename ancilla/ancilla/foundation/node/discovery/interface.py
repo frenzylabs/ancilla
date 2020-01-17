@@ -50,6 +50,7 @@ class Interface(object):
     networkcb = None
     nodecb = None
     current_address = None
+    broadcast = None
 
     def __init__(self, node):
         print(f"START UDP PING AGENT")
@@ -174,6 +175,7 @@ class Interface(object):
         accesspointinterface = 'uap0'
         gws = netifaces.gateways()
         interfaces = netifaces.interfaces()
+        # list(filter(lambda x: netifaces.AF_INET in netifaces.ifaddresses(x), interfaces))
         default_interface = None
         address = None
         # if netifaces.AF_INET in gws['default']:
@@ -183,9 +185,12 @@ class Interface(object):
 
         if default_interface:
             netaddress = netifaces.ifaddresses(default_interface).get(netifaces.AF_INET) or []
-            addr = (netaddress[0] or {}).get('addr')
+            addrdict = (netaddress[0] or {})
+            addr = addrdict.get('addr')
             if addr and not addr.startswith('127'):
                 address = addr
+                if addrdict.get('broadcast'):
+                    self.broadcast = addrdict.get('broadcast')
         
         docker_address = None
         if not address:
@@ -198,6 +203,8 @@ class Interface(object):
                             docker_address = addr
                         else:
                             address = addr
+                            if addrdict.get('broadcast'):
+                                self.broadcast = addrdict.get('broadcast')
 
         if not address:
             if accesspointinterface in interfaces:
@@ -206,7 +213,8 @@ class Interface(object):
                     addr = addrdict.get('addr')
                     if not address and addr and not addr.startswith('127'):
                         address = addr
-
+                        if addrdict.get('broadcast'):
+                            self.broadcast = addrdict.get('broadcast')
                 
 
         if not address:
@@ -226,7 +234,8 @@ class Interface(object):
         if self.current_address != adr:
             self.current_address = adr
             if self.current_address:
-                self.beacon.address = self.current_address
+                self.agent.udp.broadcast = self.broadcast or '255.255.255.255'
+                self.beacon.address = self.current_address                
                 self.beacon.update_network(self.node.settings.discovery, self.node.settings.discoverable)
         # if self.agent and self.agent.udp:
         #     adr = self.agent.udp.get_address()
