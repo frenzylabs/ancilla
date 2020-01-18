@@ -30,7 +30,7 @@ class UDP(object):
         self.handle.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
 
         # Bind UDP socket to local port so we can receive pings
-        self.handle.bind(('', port))
+        self.handle.bind(('0.0.0.0', port))
 
 
 
@@ -49,7 +49,7 @@ class UDP(object):
 
     def send(self, buf):
         self.handle.sendto(buf, 0, (self.broadcast, self.port))
-
+# handle.sendto(b'hithered', 0, (broadcast, port))
     def recv(self, n):
         buf, addrinfo = self.handle.recvfrom(n)
         # if addrinfo[0] != self.address:

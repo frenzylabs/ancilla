@@ -59,7 +59,7 @@ class Interface(object):
         self.beacon = Beacon(self.node.name)
         # self.udp = UDP(PING_PORT_NUMBER)
         
-        self.current_address = self.check_interface_addresses()
+        self.current_address, self.broadcast = self.check_interface_addresses()
         self.beacon.address = self.current_address
 
         self.networkcb = PeriodicCallback(self.check_network, PING_INTERVAL * 2000, 0.2)
@@ -181,6 +181,7 @@ class Interface(object):
         # list(filter(lambda x: netifaces.AF_INET in netifaces.ifaddresses(x), interfaces))
         default_interface = None
         address = None
+        broadcast = None
         # if netifaces.AF_INET in gws['default']:
         i = gws['default'].get(netifaces.AF_INET) or ()
         if len(i) > 1:
@@ -193,7 +194,7 @@ class Interface(object):
             if addr and not addr.startswith('127'):
                 address = addr
                 if addrdict.get('broadcast'):
-                    self.broadcast = addrdict.get('broadcast')
+                    broadcast = addrdict.get('broadcast')
         
         docker_address = None
         if not address:
@@ -207,7 +208,7 @@ class Interface(object):
                         else:
                             address = addr
                             if addrdict.get('broadcast'):
-                                self.broadcast = addrdict.get('broadcast')
+                                broadcast = addrdict.get('broadcast')
 
         if not address:
             if accesspointinterface in interfaces:
@@ -217,7 +218,7 @@ class Interface(object):
                     if not address and addr and not addr.startswith('127'):
                         address = addr
                         if addrdict.get('broadcast'):
-                            self.broadcast = addrdict.get('broadcast')
+                            broadcast = addrdict.get('broadcast')
                 
 
         if not address:
@@ -227,18 +228,22 @@ class Interface(object):
                 print(f"NoAddress {str(e)}")
                 address = '127.0.0.1'
 
-        return address
+        return address, broadcast
 
 
     def check_network(self):
         #     # print("CHECK NETWORK")
-        adr = self.check_interface_addresses()
+        adr, bcast = self.check_interface_addresses()
         
+        if self.broadcast != bcast:
+            self.broadcast = bcast
+            self.agent.udp.broadcast = self.broadcast or '255.255.255.255'
+            print(f"broadcast change = {self.broadcast}", flush=True)
         if self.current_address != adr:
             print(f"address change = {adr}", flush=True)
             self.current_address = adr
             if self.current_address:
-                self.agent.udp.broadcast = self.broadcast or '255.255.255.255'
+                
                 if self.beacon:
                     self.beacon.close()
                     self.beacon = None
