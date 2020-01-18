@@ -189,12 +189,13 @@ class Interface(object):
 
         if default_interface:
             netaddress = netifaces.ifaddresses(default_interface).get(netifaces.AF_INET) or []
-            addrdict = (netaddress[0] or {})
-            addr = addrdict.get('addr')
-            if addr and not addr.startswith('127'):
-                address = addr
-                if addrdict.get('broadcast'):
-                    broadcast = addrdict.get('broadcast')
+            if len(netaddress) > 0:
+                addrdict = (netaddress[0] or {})
+                addr = addrdict.get('addr')
+                if addr and not addr.startswith('127'):
+                    address = addr
+                    if addrdict.get('broadcast'):
+                        broadcast = addrdict.get('broadcast')
         
         docker_address = None
         if not address:
@@ -235,11 +236,11 @@ class Interface(object):
         #     # print("CHECK NETWORK")
         adr, bcast = self.check_interface_addresses()
         
-        if self.broadcast != bcast:
+        if self.agent and self.agent.udp.broadcast != bcast:
             self.broadcast = bcast
             self.agent.udp.broadcast = self.broadcast or '255.255.255.255'
             print(f"broadcast change = {self.broadcast}", flush=True)
-        if self.current_address != adr:
+        if self.current_address != adr or (self.beacon and self.beacon.address != adr):
             print(f"address change = {adr}", flush=True)
             self.current_address = adr
             if self.current_address:
