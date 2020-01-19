@@ -8,7 +8,7 @@ class UDP(object):
     handle = None   # Socket for send/recv
     port = 0        # UDP port we work on
     address = ''    # Own address
-    broadcast = ''  # Broadcast address
+    _broadcast = ''  # Broadcast address
 
     def __init__(self, port, address=None, broadcast=None):
         if address is None:
@@ -33,6 +33,16 @@ class UDP(object):
         self.handle.bind(('0.0.0.0', port))
 
 
+    @property
+    def broadcast(self):
+        if not self._broadcast:
+            return '255.255.255.255'
+        else:
+            return self._broadcast
+
+    @broadcast.setter
+    def broadcast(self, val):
+        self._broadcast = val
 
 
     def get_address(self):        

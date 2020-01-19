@@ -63,7 +63,7 @@ class MyListener:
 
 class Beacon(object):
 
-  def __init__(self, name="Ancilla", port=5000, *args, **kwargs):
+  def __init__(self, name="Ancilla", port=5000, address=None, *args, **kwargs):
     self.conf       = Zeroconf()
     # self.conf.unregister_all_services()
     self.registered = False
@@ -81,7 +81,7 @@ class Beacon(object):
     # self.update_network()
     
     self._info = None
-    self._address = None
+    self._address = address
   
   def update_network(self, discovery=False, discoverable=False):    
     if discovery:

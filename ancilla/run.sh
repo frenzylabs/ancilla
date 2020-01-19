@@ -5,9 +5,13 @@ ANCILLA_HOME="$HOME/.ancilla"
 LTIME=`stat -c %Z $ANCILLA_HOME/discovery.txt`
 
 
-# run_ancilla() {
-#   docker run --name=ancilla -d --restart=unless-stopped --privileged --net host -v "$ANCILLA_HOME":"$ANCILLA_HOME" layerkeep/ancilla:staging-6b2aeb4
-# }
+# # run_ancilla() {
+#     CURRENT_DIGEST=`docker inspect --format='{{.Image}}' ancilla`
+#     CURRENT_IMAGE_ID=$(grep -Po "(?<=^AP=).*" $ANCILLA_HOME/discovery.txt)
+#     ANCILLA_IMAGE_ID=`docker images --format "{{.ID}}" layerkeep/ancilla:staging-latest`
+#     docker pull layerkeep/ancilla:staging-latest
+# #   docker run --name=ancilla -d --restart=unless-stopped --privileged --net host -v "$HOME/.ancilla":"$HOME/.ancilla" dfbb6772aa1flayerkeep/ancilla:staging-latest
+# # }
 
 LNETWORKON=$(grep -Po "(?<=^AP=).*" $ANCILLA_HOME/discovery.txt)
 LSSID=""

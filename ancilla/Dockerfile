@@ -32,7 +32,8 @@ COPY README.md .
 COPY setup.py .
 
 RUN mkdir -p /home/pi/.ancilla
-COPY discovery.txt /home/pi/.ancilla
+COPY config.json /home/pi/.ancilla
+COPY wificfg.json /home/pi/.ancilla
 
 
 # RUN python setup.py bdist

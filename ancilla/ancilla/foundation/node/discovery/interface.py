@@ -7,6 +7,8 @@ import time
 import uuid
 from threading import Thread
 
+import threading
+
 import zmq
 # from zmq.eventloop.ioloop import PeriodicCallback
 from zmq.eventloop.zmqstream import ZMQStream
@@ -56,11 +58,10 @@ class Interface(object):
         print(f"START UDP PING AGENT")
         self.cached_peers = [] 
         self.node = node
-        self.beacon = Beacon(self.node.name)
-        # self.udp = UDP(PING_PORT_NUMBER)
-        
+
         self.current_address, self.broadcast = self.check_interface_addresses()
-        self.beacon.address = self.current_address
+        self.beacon = Beacon(self.node.name, address=self.current_address)
+        # self.beacon.address = self.current_address
 
         self.networkcb = PeriodicCallback(self.check_network, PING_INTERVAL * 2000, 0.2)
         self.nodecb = PeriodicCallback(self.check_nodes, PING_INTERVAL * 4000, 0.1)
@@ -111,7 +112,8 @@ class Interface(object):
             p0, p1 = pipe(self.ctx)
             p2, p3 = pipe(self.ctx)
             self.agent = InterfaceAgent(self.ctx, self.node, p1, p3)
-            self.agent_thread = Thread(target=self.agent.start)
+            self.agent.udp.broadcast = self.broadcast
+            self.agent_thread = Thread(target=self.agent.start, daemon=True)
             self.agent_thread.start()
             self.pipe = p0
             self.requestpipe = p2
@@ -182,6 +184,7 @@ class Interface(object):
         default_interface = None
         address = None
         broadcast = None
+        used_interface = ''
         # if netifaces.AF_INET in gws['default']:
         i = gws['default'].get(netifaces.AF_INET) or ()
         if len(i) > 1:
@@ -193,6 +196,7 @@ class Interface(object):
                 addrdict = (netaddress[0] or {})
                 addr = addrdict.get('addr')
                 if addr and not addr.startswith('127'):
+                    used_interface = f'DefaultGateway {default_interface}'
                     address = addr
                     if addrdict.get('broadcast'):
                         broadcast = addrdict.get('broadcast')
@@ -207,58 +211,56 @@ class Interface(object):
                         if face.startswith('docker'):
                             docker_address = addr
                         else:
+                            used_interface = face
                             address = addr
                             if addrdict.get('broadcast'):
                                 broadcast = addrdict.get('broadcast')
 
-        if not address:
-            if accesspointinterface in interfaces:
-                netaddress = netifaces.ifaddresses(accesspointinterface).get(netifaces.AF_INET) or []                
-                for addrdict in addrs:
-                    addr = addrdict.get('addr')
-                    if not address and addr and not addr.startswith('127'):
-                        address = addr
-                        if addrdict.get('broadcast'):
-                            broadcast = addrdict.get('broadcast')
+        # if not address:
+        #     if accesspointinterface in interfaces:
+        #         netaddress = netifaces.ifaddresses(accesspointinterface).get(netifaces.AF_INET) or []                
+        #         for addrdict in addrs:
+        #             addr = addrdict.get('addr')
+        #             if not address and addr and not addr.startswith('127'):
+        #                 used_interface = accesspointinterface
+        #                 address = addr
+        #                 if addrdict.get('broadcast'):
+        #                     broadcast = addrdict.get('broadcast')
                 
 
         if not address:
             try:
+                used_interface = 'sockethostname'
                 address = socket.gethostbyname_ex(socket.gethostname())[-1][0]
             except Exception as e:
                 print(f"NoAddress {str(e)}")
                 address = '127.0.0.1'
-
+        
+        # print(f"Face: {used_interface} address = {address}, bcast= {broadcast}", flush=True)
+        print(f"Face: {used_interface} curadd= {self.current_address} address = {address}, currentbroad: {self.broadcast} bcast= {broadcast}", flush=True)
         return address, broadcast
 
 
     def check_network(self):
-        #     # print("CHECK NETWORK")
+        # print(f"CHECK NETWORK {threading.currentThread()}", flush=True)
         adr, bcast = self.check_interface_addresses()
-        
+        # print(f"curadd= {self.current_address} address = {adr}, currentbroad: {self.broadcast} bcast= {bcast}", flush=True)
         if self.agent and self.agent.udp.broadcast != bcast:
-            self.broadcast = bcast
-            self.agent.udp.broadcast = self.broadcast or '255.255.255.255'
+            self.broadcast = bcast or '255.255.255.255'
             print(f"broadcast change = {self.broadcast}", flush=True)
+            self.agent.udp.broadcast = self.broadcast 
+            
         if self.current_address != adr or (self.beacon and self.beacon.address != adr):
             print(f"address change = {adr}", flush=True)
             self.current_address = adr
+            if self.beacon:
+                self.beacon.close()
+                self.beacon = None
             if self.current_address:
-                
-                if self.beacon:
-                    self.beacon.close()
-                    self.beacon = None
-                
-                self.beacon = Beacon(self.node.name)
-                self.beacon.address = self.current_address                
+                self.beacon = Beacon(self.node.name, address=self.current_address)
+                # self.beacon.address = self.current_address                
                 self.beacon.update_network(self.node.settings.discovery, self.node.settings.discoverable)
-        # if self.agent and self.agent.udp:
-        #     adr = self.agent.udp.get_address()
-        #     print(f"address = {adr}")
-        #     if self.current_address != adr:
-        #         self.current_address = adr
-        #         if self.current_address:
-        #             self.beacon.update_network(self.node.settings.discovery, self.node.settings.discoverable)
+        
 
 
 
@@ -365,6 +367,7 @@ class InterfaceAgent(object):
         try:
             # print(f'node = {self.node.identity}')
             # print(f'uuid = {self.uuid}')
+            # print(f"SEND PING {threading.currentThread()}", flush=True)
             packet = json.dumps([self.uuid, self.node.name]).encode('utf-8')
             # packet = b'['+self.node.identity+ b', '+ self.uuid + b']'
             # print(f'Self node #{packet}')
