@@ -51,11 +51,12 @@ class Interface(object):
     agent = None
     networkcb = None
     nodecb = None
-    current_address = None
+    # current_address = None
     broadcast = None
 
     def __init__(self, node):
         print(f"START UDP PING AGENT")
+        self._current_address = None
         self.cached_peers = [] 
         self.node = node
 
@@ -72,7 +73,22 @@ class Interface(object):
         
         # if self.node.settings.discovery == True:
         #     self.start()
+    @property
+    def current_address(self):
+        if not self._current_address:
+            return '127.0.0.1'
+        else:
+            return self._current_address
+        # s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        # s.connect(("8.8.8.8", 80))
+        # return s.getsockname()[0]
 
+        # return socket.gethostbyname(
+        #   socket.gethostname()
+        # )
+    @current_address.setter
+    def current_address(self, val):
+        self._current_address = val
             
     def run(self, val):
         if val:
@@ -244,7 +260,7 @@ class Interface(object):
     def check_network(self):
         # print(f"CHECK NETWORK {threading.currentThread()}", flush=True)
         adr, bcast = self.check_interface_addresses()
-        # print(f"curadd= {self.current_address} address = {adr}, currentbroad: {self.broadcast} bcast= {bcast}", flush=True)
+        print(f"curadd= {self.current_address} address = {adr}, currentbroad: {self.broadcast} bcast= {bcast}", flush=True)
         if self.agent and self.agent.udp.broadcast != bcast:
             self.broadcast = bcast or '255.255.255.255'
             print(f"broadcast change = {self.broadcast}", flush=True)
@@ -260,6 +276,7 @@ class Interface(object):
                 self.beacon = Beacon(self.node.name, address=self.current_address)
                 # self.beacon.address = self.current_address                
                 self.beacon.update_network(self.node.settings.discovery, self.node.settings.discoverable)
+        
         
 
 
