@@ -96,6 +96,7 @@ class Beacon(object):
 
   def run(self):
     self.is_running = True
+    self.listener = MyListener()
     self.sb = ServiceBrowser(zc=self.conf, type_=self.type,
                              listener=self.listener) 
 
@@ -141,10 +142,7 @@ class Beacon(object):
     # if len(self.peers) > 0:
     if self.num > 1:
       self.identifier = "{}-{}".format(self.name.lower(), self.num)
-    
 
-      # self.name = name
-      
     # print(f"INSIDE instance_name {self.identifier}")  
     # return name
     return "{}.{}".format(self.identifier, self.type)
@@ -200,7 +198,8 @@ class Beacon(object):
     if hasattr(self, 'sb'):
       self.sb.cancel()
     self.is_running = False
-    self.listener = MyListener()
+    self.listener = None 
+    
     
     
   def update(self):

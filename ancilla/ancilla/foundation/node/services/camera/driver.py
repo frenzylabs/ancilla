@@ -103,6 +103,7 @@ class CameraConnector(object):
           print(f'Exception with Camera: {str(e)}', flush=True)
           device_collector.send_multipart([self.identity + b'.data_received', b'error', str(e).encode('ascii')])
           # device_collector.send_multipart([self.identity, b'error', str(e).encode('ascii')])
+          self.alive = False
           break
       self.alive = False
 
@@ -125,7 +126,7 @@ class CameraConnector(object):
       self.alive = False
       if self.thread_read:
           print("JOIN THREAD", flush=True)
-          res = self.thread_read.join(4.0)
+          res = self.thread_read.join(2.0)
           if not self.thread_read.isAlive():
             self.thread_read = None
 

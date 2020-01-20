@@ -231,17 +231,6 @@ class Interface(object):
                             address = addr
                             if addrdict.get('broadcast'):
                                 broadcast = addrdict.get('broadcast')
-
-        # if not address:
-        #     if accesspointinterface in interfaces:
-        #         netaddress = netifaces.ifaddresses(accesspointinterface).get(netifaces.AF_INET) or []                
-        #         for addrdict in addrs:
-        #             addr = addrdict.get('addr')
-        #             if not address and addr and not addr.startswith('127'):
-        #                 used_interface = accesspointinterface
-        #                 address = addr
-        #                 if addrdict.get('broadcast'):
-        #                     broadcast = addrdict.get('broadcast')
                 
 
         if not address:
@@ -252,15 +241,14 @@ class Interface(object):
                 print(f"NoAddress {str(e)}")
                 address = '127.0.0.1'
         
-        # print(f"Face: {used_interface} address = {address}, bcast= {broadcast}", flush=True)
-        print(f"Face: {used_interface} curadd= {self.current_address} address = {address}, currentbroad: {self.broadcast} bcast= {broadcast}", flush=True)
+        # print(f"Face: {used_interface} curadd= {self.current_address} address = {address}, currentbroad: {self.broadcast} bcast= {broadcast}", flush=True)
         return address, broadcast
 
 
     def check_network(self):
         # print(f"CHECK NETWORK {threading.currentThread()}", flush=True)
         adr, bcast = self.check_interface_addresses()
-        print(f"curadd= {self.current_address} address = {adr}, currentbroad: {self.broadcast} bcast= {bcast}", flush=True)
+        # print(f"curadd= {self.current_address} address = {adr}, currentbroad: {self.broadcast} bcast= {bcast}", flush=True)
         if self.agent and self.agent.udp.broadcast != bcast:
             self.broadcast = bcast or '255.255.255.255'
             print(f"broadcast change = {self.broadcast}", flush=True)
@@ -273,8 +261,7 @@ class Interface(object):
                 self.beacon.close()
                 self.beacon = None
             if self.current_address:
-                self.beacon = Beacon(self.node.name, address=self.current_address)
-                # self.beacon.address = self.current_address                
+                self.beacon = Beacon(self.node.name, address=self.current_address)           
                 self.beacon.update_network(self.node.settings.discovery, self.node.settings.discoverable)
         
         

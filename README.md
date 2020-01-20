@@ -59,8 +59,16 @@ $ make
 $ make package
 ```
 
+sudo vi /lib/systemd/system/ancilla.service
+sudo systemctl enable ancilla
+sudo systemctl daemon-reload
+<!-- systemctl enable ancilla -->
 
-docker run -d --restart=unless-stopped --privileged --net host -v "$HOME/.ancilla":"/root/.ancilla" layerkeep/ancilla:initial
+
+docker run --name=ancilla -d --restart=unless-stopped --privileged --net host -v "$HOME/.ancilla":"$HOME/.ancilla" layerkeep/ancilla:staging-972ea36
+
+docker run --name=ancilla -d --restart=unless-stopped --privileged --net host -v "$HOME/.ancilla":"/root/.ancilla" layerkeep/ancilla:staging-972ea36
+
   -v <HOST_PATH>/wpa_supplicant.conf:<CONTAINER_PATH>/wpa_supplicant.conf cjimti/iotwifi
 
 docker run -d --restart=unless-stopped --privileged --net host -v $HOME/wificfg.json:/cfg/wificfg.json cjimti/iotwifi

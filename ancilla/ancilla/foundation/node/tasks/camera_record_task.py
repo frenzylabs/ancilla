@@ -61,9 +61,17 @@ class CameraRecordTask(AncillaTask):
     print(f"CR root path = {self.root_path}")
 
     self.event_socket = self.service.ctx.socket(zmq.SUB)
-    self.event_socket.connect("ipc://publisher")
-    self.event_socket.setsockopt(zmq.SUBSCRIBE, self.service.identity + b'.events.camera.data_received')
-    self.event_socket.setsockopt(zmq.SUBSCRIBE, self.service.identity + b'.events.camera.connection.closed')
+    processor = self.service.get_or_create_video_processor()
+    if not processor:
+      return 
+    self.event_socket.connect(processor.processed_stream)
+    self.event_socket.setsockopt(zmq.SUBSCRIBE, b'')
+    self.event_socket.setsockopt(zmq.SUBSCRIBE, self.name.encode('ascii'))
+    
+
+    # self.event_socket.connect("ipc://publisher")
+    # self.event_socket.setsockopt(zmq.SUBSCRIBE, self.service.identity + b'.events.camera.data_received')
+    # self.event_socket.setsockopt(zmq.SUBSCRIBE, self.service.identity + b'.events.camera.connection.closed')
     self.event_stream = ZMQStream(self.event_socket)
     self.event_stream.linger = 0
     self.event_stream.on_recv(self.on_data)
@@ -76,34 +84,24 @@ class CameraRecordTask(AncillaTask):
   # return [b'events.camera.data_received', identifier, frm_num, frame]
   def on_data(self, data):
     # identity, identifier, frm_num, frame = data
-    if len(data) == 4:
-      topic, service, framenum, imgdata = data
+    if len(data) == 3:
+      topic, framenum, imgdata = data
     # print("CR Task, ON DATA", flush=True)
       self.current_frame = imgdata
     else:
       if data[0].endswith(b'connection.closed'):
         self.state.status = "finished"
         self.state.reason = "Connection Disconnected"
-    # fnum = int(framenum.decode('utf-8'))
 
-    # imgname = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
-    # print("fRAME = ", fnum)
+    # if len(data) == 4:
+    #   topic, service, framenum, imgdata = data
+    # # print("CR Task, ON DATA", flush=True)
+    #   self.current_frame = imgdata
+    # else:
+    #   if data[0].endswith(b'connection.closed'):
+    #     self.state.status = "finished"
+    #     self.state.reason = "Connection Disconnected"
     
-    # frame = pickle.loads(imgdata)
-    # frame = cv2.flip(frame, 1)
-
-    # x = cv2.resize(frame, dsize=(640, 480), interpolation=cv2.INTER_CUBIC)
-    # # print(x.shape)
-
-    # x = x.astype(np.uint8)
-    # (flag, encodedImage) = cv2.imencode(".jpg", x)
-
-    # self.write(b'--frame\r\n')
-    # self.write(b'Content-Type: image/jpeg\r\n\r\n')
-    # self.write(encodedImage.tobytes())
-    # self.write(b'\r\n\r\n')
-    # if self.ready:
-    #   IOLoop.current().add_callback(self.flushit)
       
   def flush_camera_frame(self):
     try:
@@ -111,16 +109,17 @@ class CameraRecordTask(AncillaTask):
         print("NO FRAME TO FLUSH", flush=True)
         return
       imgname = f'{datetime.datetime.now().strftime("%Y%m%d%H%M%S")}-{self.current_frame_num:06}.jpg'
-      frame = pickle.loads(self.current_frame)
-      frame = cv2.flip(frame, 1)
-
-      x = cv2.resize(frame, dsize=self.video_size, interpolation=cv2.INTER_CUBIC)
+      # frame = pickle.loads(self.current_frame)
+      # frame = cv2.flip(frame, 1)
+      nparr = np.fromstring(self.current_frame , np.uint8)
+      x = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+      # x = cv2.resize(frame, dsize=self.video_size, interpolation=cv2.INTER_CUBIC)
       # print(x.shape)
 
       # x = x.astype(np.uint8)
       # (flag, encodedImage) = cv2.imencode(".jpg", x)
   
-      cv2.imwrite(self.image_path+"/"+imgname, x)
+      # cv2.imwrite(self.image_path+"/"+imgname, x)
       if self.video_writer:
         self.video_writer.write(x)
       self.current_frame_num += 1

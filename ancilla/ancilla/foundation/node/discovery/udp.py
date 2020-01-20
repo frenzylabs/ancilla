@@ -58,8 +58,7 @@ class UDP(object):
         self.handle.close()
 
     def send(self, buf):
-        print(f"SEND BROAD CAST to #{self.broadcast}", flush=True)
-
+        # print(f"SEND BROAD CAST to #{self.broadcast}", flush=True)
         self.handle.sendto(buf, 0, (self.broadcast, self.port))
 
         # handle.sendto(b'hithered', 0, (broadcast, port))

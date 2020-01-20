@@ -386,6 +386,7 @@ class NodeService(App):
       self.api.setup()
       print("reseting app", flush=True)
       print(f"CurMounts = {curmounts}", flush=True)
+      app.cleanup()
       self.remount_apps(curmounts)
         
       

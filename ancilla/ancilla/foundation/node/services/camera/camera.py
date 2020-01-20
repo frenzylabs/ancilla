@@ -41,11 +41,13 @@ import string, random
 
 # from ..tasks.device_task import PeriodicTask
 from ...tasks.camera_record_task import CameraRecordTask
+from ...tasks.camera_process_video_task import CameraProcessVideoTask
+
 from ...events.camera import Camera as CameraEvent
 from ...events.event_pack import EventPack
 from ...middleware.camera_handler import CameraHandler
 from ...api.camera import CameraApi
-    
+from ...response import AncillaResponse, AncillaError
 
 class Camera(BaseService):
     # connector = None
@@ -79,6 +81,7 @@ class Camera(BaseService):
         self.register_data_handlers(self.camera_handler)
         self.api = CameraApi(self)
         self.connector = None
+        self.video_processor = None
 
         self.event_class = CameraEvent
 
@@ -100,12 +103,14 @@ class Camera(BaseService):
       print("cleanup camera", flush=True)
       if self.connector:
         self.connector.close()
+      if self.video_processor:
+        self.video_processor.close()
       super().cleanup()
 
 
     def start(self, *args):
-      print(f"START Camera {self.identity}", flush=True)
-      self.connector = CameraConnector(self.ctx, self.identity, self.camera_model.endpoint)
+      print(f"START Camera {self.identity} {self.model.model.endpoint}", flush=True)
+      self.connector = CameraConnector(self.ctx, self.identity, self.model.model.endpoint)
       # self.connector.start()
     
     def connect(self, *args):
@@ -130,6 +135,7 @@ class Camera(BaseService):
     def stop(self, *args):
       print("Camera Stop", flush=True)
       self.connector.close()
+      self.connector = None
       self.state.connected = False
       self.fire_event(CameraEvent.connection.closed, {"status": "success"})
 
@@ -370,6 +376,25 @@ class Camera(BaseService):
       except Exception as e:
         print(f"Cant record task {str(e)}", flush=True)
         return {"status": "error", "error": f"Could not record {str(e)}"}
+
+
+    def get_or_create_video_processor(self):
+      if not self.state.connected:
+        raise AncillaError(400, {"error": "Camera Not Connected"})
+      
+      if self.video_processor:
+          for k, v in self.current_task.items():
+            if isinstance(v, CameraProcessVideoTask):              
+              return v
+
+
+      payload = {"settings": {}}
+      self.video_processor = CameraProcessVideoTask("process_video", self, payload)
+      self.task_queue.put(self.video_processor)
+      loop = IOLoop().current()
+      loop.add_callback(partial(self._process_tasks))
+      return self.video_processor
+
 
     # def delete_recording(self, msg):
     #   if isinstance(msg, CameraRecording):

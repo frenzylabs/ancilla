@@ -12,6 +12,7 @@ from tornado.web    import RequestHandler
 from .base      import BaseHandler
 
 from ...data.models import Service
+from ...node.response import AncillaResponse
 
 import re
 import pickle 
@@ -24,6 +25,8 @@ import cv2
 import datetime
 import time
 import numpy as np
+import random
+import string
 
 numbers = re.compile(r'(\d+)')
 def numericalSort(value):
@@ -32,25 +35,32 @@ def numericalSort(value):
     return parts
 
 
+
+
 class ZMQCameraPubSub(object):
 
     def __init__(self, callback):
         self.callback = callback
+        self.name = "".join(random.choice(string.ascii_lowercase + string.digits) for x in range(6))
         # self.subscribe_callback = subscribe_callback
         # self.node = node
 
-    def connect(self):
+    def connect(self, stream):
         self.context = zmq.Context()
         self.subscriber = self.context.socket(zmq.SUB)
-        self.subscriber.connect('ipc://publisher')
-        # self.request.connect('tcp://127.0.0.1:5557')
-        # self.request.connect('ipc://devicepublisher')
+        self.subscriber.connect(stream)
         self.subscriber = ZMQStream(self.subscriber)
         self.subscriber.on_recv(self.callback)
         
         self.subscriber.setsockopt( zmq.LINGER, 0 )
         # self.request.linger = 0
-        # self.request.setsockopt(zmq.SUBSCRIBE, b"")
+        self.subscriber.setsockopt(zmq.SUBSCRIBE, b"")
+        self.subscriber.setsockopt(zmq.SUBSCRIBE, self.name.encode('ascii'))
+        
+        
+        # print(f'Send publihser')
+        # self.publisher.send_multipart([self.name.encode('ascii')])
+
 
     def close(self):
       if self.subscriber:
@@ -87,56 +97,23 @@ class WebcamHandler(RequestHandler):
       self.ready = True
       self.timer = time.time()
 
-    # @gen.coroutine
     def on_message(self, data):
-      
-      # topic, msg = yield self.socket.request.recv_multipart()
-      
-
-      starttime = time.time()
-      
-      topic, device, framenum, msg = data
-      fnum = int(framenum.decode('utf-8'))
       if not self.ready or not self.running:
-        # print(f"Not ready {fnum} {self}")
         return
 
-      
-      # if (fnum % 100) == 0:
-      timedif = time.time() - self.timer
-      if timedif > 0.01:
-        self.timer = time.time()
-        # print(f"fRAME = {fnum} {timedif},  {self.timer}")
-        
-      else:
-        # print(f"NOtReady fRAME = {fnum} {timedif},  {self.timer}")
-        return
-
+      topic, framenum, img = data
+      # fnum = int(framenum.decode('utf-8'))
       self.ready = False
 
-      frame = pickle.loads(msg)
-      
-      frame = cv2.flip(frame, 1)
-      # x = frame
-      
-      x = cv2.resize(frame, dsize=(640, 480), interpolation=cv2.INTER_CUBIC)
-      
-      # # print(x.shape)
-      x = x.astype(np.uint8)
-      # encodedImage = x
-      (flag, encodedImage) = cv2.imencode(".jpg", x)
-
-      ebytes = encodedImage.tobytes()
-      framesize = len(ebytes)
+      framesize = len(img)
       # print(f"FRAME SIZE = {framesize}")
       self.write(b'--frame\r\n')
       self.write(b'Content-Type: image/jpeg\r\n')
       self.write(f"Content-Length: {framesize} \r\n".encode('ascii'))
       self.write(b'\r\n')
-      self.write(ebytes)
+      self.write(img)
       self.write(b'\r\n')
       
-      # print(f'Finish Time = {time.time() - starttime}')
       IOLoop.current().add_callback(self.flushit)
 
     
@@ -154,7 +131,7 @@ class WebcamHandler(RequestHandler):
     
 
     # @gen.coroutine
-    async def camera_frame(self, subscription):
+    async def camera_frame(self, stream):
         """ Sleep without blocking the IOLoop. """        
         # # self.fourcc = cv2.VideoWriter_fourcc(*'MP42')
         # self.fourcc = cv2.VideoWriter_fourcc(*'MJPG')
@@ -163,13 +140,15 @@ class WebcamHandler(RequestHandler):
         # self.vidout = cv2.VideoWriter('output.mov', cv2.VideoWriter_fourcc('m','p','4','v'), 29, videosize)
         # # self.vidout = cv2.VideoWriter('output.mpeg', self.fourcc, 24.0, (640,480))
         self.pubsub = ZMQCameraPubSub(callback=self.on_message)
-        self.pubsub.connect()
-        self.pubsub.subscribe(subscription)
+        self.pubsub.connect(stream)
+        # self.pubsub.subscribe(subscription)
         # "events.camera')
         # IOLoop.current().add_callback(self.flushit)
         while self.running:
           await asyncio.sleep(1.0)
 
+    def set_resp_headers(self, resp):
+      [self.set_header(k, v) for (k, v) in resp.headers.items()]   
 
     async def get(self, *args):
         # def open(self, *args, **kwargs):
@@ -193,7 +172,8 @@ class WebcamHandler(RequestHandler):
 
         # print("Start Camera request", flush=True)
 
-        environ = {"REQUEST_METHOD": "GET", "PATH": f"/api/services/{service.kind}/{service.id}/state"}
+        # environ = {"REQUEST_METHOD": "GET", "PATH": f"/api/services/{service.kind}/{service.id}/state"}
+        environ = {"REQUEST_METHOD": "GET", "PATH": f"/api/services/{service.kind}/{service.id}/video_processor_stream"}
         
         # resp = self.node.device_request(payload)
         resp = {}
@@ -203,20 +183,26 @@ class WebcamHandler(RequestHandler):
           print(resp, flush=True)
 
           # resp = json.loads(resp)
+        except AncillaResponse as e:
+          print(f"CamAncilla ERRor {e.body}", flush=True)
+          self.set_resp_headers(e)
+          self.set_status(e.status_code)
+          self.write(e.body)
+
         except Exception as e:
           print(f"Cam ERRor {str(e)}", flush=True)
           resp = {"error": str(e)}
-        if resp.get("connected") != True:
+        if not resp.get("stream"):
           self.write_error(400, errors=resp)
           self.flush()
-        else:
+        else:          
           try:
             # self.set_header('Connection', 'close')
             # self.set_header('Connection', 'keep-alive')
             self.set_header('Content-Type', 'multipart/x-mixed-replace; boundary=frame')
             self.set_header("Expires", datetime.datetime.utcnow())
             self.set_header("Pragma", "no-cache")
-            await self.camera_frame(self.subscription)
+            await self.camera_frame(resp.get("stream"))
           except Exception as e:
             print(f"exception {str(e)}", flush=True)
           finally:

@@ -73,6 +73,7 @@ class BaseService(App):
         self.pusher.connect(f"ipc://collector")
 
         # self.ctx = zmq.Context()
+        print(f"INSIDE base service {self.identity}", flush=True)
         deid = f"inproc://{self.identity}_collector"
         self.data_stream = self.ctx.socket(zmq.PULL)
         # print(f'BEFORE CONNECT COLLECTOR NAME = {deid}', flush=True)  
@@ -113,7 +114,9 @@ class BaseService(App):
       self.event_stream.close()
       self.data_stream.close()
 
-      
+    def __del__(self):
+      print(f"DELETE SERVICE", flush=True)
+      self.cleanup()
 
     def load_config(self, dic):
       self.config.load_dict(dic)

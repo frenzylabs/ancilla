@@ -16,6 +16,7 @@ class CameraApi(Api):
 
   def setup(self):
     super().setup()
+    self.service.route('/video_processor_stream', 'GET', self.get_video_processor)
     self.service.route('/recordings', 'GET', self.recordings)
     self.service.route('/recordings/<recording_id>', 'GET', self.get_recording)
     self.service.route('/recordings/<recording_id>', 'DELETE', self.delete_recording)
@@ -120,6 +121,12 @@ class CameraApi(Api):
     raise AncillaError(400, {"errors": "Coud Not Delete Recording"})
 
 
+  def get_video_processor(self, request, *args):
+    processer = self.service.get_or_create_video_processor()    
+    if not processer:
+      raise AncillaError(400, {"errors": "Video Could Not be Processed"})
+    else:
+      return {"stream": processer.processed_stream}
 
 
   def stream_video(self, request, fp):    
