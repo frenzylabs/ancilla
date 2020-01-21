@@ -247,6 +247,7 @@ class NodeSocket(WebSocketHandler):
         self.node_connector = ZMQNodePubSub(self.node, self.on_data, self.subscribe_callback)
         self.node_connector.connect()
         self.node_connector.subscribe("notifications")
+        self.last_printer_command = ""
         super().__init__(application, request, **kwargs)
 
 
@@ -282,12 +283,15 @@ class NodeSocket(WebSocketHandler):
         msg = msg.decode('utf-8')
         senddata = True
         try:
-          if (topic.endswith('printer.data_received')):
-            if (time.time() - self.timer) > 2:
-              self.timer = time.time()
-            else:
-              senddata = False
           msg = json.loads(msg)
+          if (topic.endswith('printer.data_received')):
+            if msg.get("command") and msg.get("req_id") != 0:              
+              if (time.time() - self.timer) > 2:
+                self.timer = time.time()
+              else:
+                senddata = False
+          
+          
         except Exception as e:
           print(f"SubscribeEXCE = {str(e)}")
           senddata = False

@@ -1,3 +1,11 @@
+'''
+ driver.py
+ ancilla
+
+ Created by Kevin Musselman (kevin@frenzylabs.com) on 01/08/20
+ Copyright 2019 FrenzyLabs, LLC.
+'''
+
 import logging
 import socket
 import sys
@@ -7,24 +15,9 @@ import serial
 import serial.rfc2217
 import zmq
 
-import cv2
-
-# class CameraConnector(object):
-#   def __init__(self, ident, pub_endpoint, endpoint, baudrate, pipe, debug = True):
-#     self.thread_read = None
-#     self.publisher_endpoint = pub_endpoint
-#     self.identity = ident
-#     self.serial_endpoint = endpoint
-
-#     ctx = zmq.Context.instance()   
-#     socket = ctx.socket(zmq.PUB)
-#     socket.bind(f'ipc://{self.identity}')
-
-#     capture = cv2.VideoCapture('rtsp://192.168.1.64/1')
-#     # socket.bind("tcp://*:5555")
-#     self.video = cv2.VideoCapture(0)
-
-
+from cv2 import cv2, VideoCapture
+import imp
+import pickle 
 
 class CameraConnector(object):
     endpoint = None         # Server identity/endpoint
@@ -38,19 +31,30 @@ class CameraConnector(object):
       self.identity = identity
       self.endpoint = endpoint
       # if not isinstance(self.endpoint, (int, float, complex)) and not isinstance(self.endpoint, bool):
+      # imp.find_module("cv2")
+      # import cv2
+      # cvmodule = sys.modules.get("cv2")
+      # print(sys.modules.get("cv2"))
+      # print(VideoCapture)
+      # reload(sys.modules.get("cv2"))
+      # importlib.reload(cv2)
+      
 
       if isinstance(self.endpoint, str) and self.endpoint.isnumeric():
         self.endpoint = int(self.endpoint)
+      if self.endpoint == "-1":
+        self.endpoint = -1
 
       self.ctx = ctx
       self.create_camera()
       
 
-
     def create_camera(self):
       print("create camera", flush=True)
-      self.video = cv2.VideoCapture(self.endpoint)
+      self.video = VideoCapture(self.endpoint)
       if not self.video.isOpened():
+        self.video.release()
+        self.video = None
         raise Exception(f"Could Not Open Video with Endpoint {self.endpoint}")
       
 
@@ -90,10 +94,12 @@ class CameraConnector(object):
           # print("HI", ret)
           if ret:
             i += 1
+            
           # publisher.send_multipart([self.identity, frame])
-            device_collector.send(self.identity + b'.data_received', zmq.SNDMORE)
-            device_collector.send(f'{i}'.encode('ascii'), zmq.SNDMORE)
-            device_collector.send_pyobj(frame)
+            device_collector.send_multipart([self.identity + b'.data_received', f'{i}'.encode('ascii'), pickle.dumps(frame, -1)], copy=False)
+            # device_collector.send(self.identity + b'.data_received', zmq.SNDMORE)
+            # device_collector.send(f'{i}'.encode('ascii'), zmq.SNDMORE)
+            # device_collector.send_pyobj(frame)
           # else:
           #   if not self.video.isOpened():
           #     print("VIDEO IS NOT OPENED", flush=True)
@@ -131,7 +137,7 @@ class CameraConnector(object):
             self.thread_read = None
 
       try:
-        # print("CLOSE SERIAL", flush=True)
+        print("CLOSE SERIAL", flush=True)
         if self.video:          
           self.video.release()
           time.sleep(1)

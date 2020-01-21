@@ -136,7 +136,8 @@ class Printer(BaseService):
 
     def start(self, *args):
       print("START Printer", flush=True)
-      self.connector = SerialConnector(self.ctx, self.identity, self.printer.port, self.printer.baud_rate)
+      printer = self.model.model
+      self.connector = SerialConnector(self.ctx, self.identity, printer.port, printer.baud_rate)
       # self.connector.start()
     
     def connect(self, *args):
@@ -170,6 +171,7 @@ class Printer(BaseService):
     def stop(self, *args):
       print("Printer Stop", flush=True)
       res = self.connector.close()
+      self.connector = None
       self.command_queue.clear()      
       self.state.connected = False
       self.fire_event(PrinterEvent.connection.closed, res)
@@ -402,7 +404,8 @@ class Printer(BaseService):
           name = data.get("name") or f"print-{sf.name}"
           settings = data.get("settings") or {}
           
-          self.current_print = Print(name=name, status="idle", settings=settings, printer_snapshot=self.record, printer=self.printer, print_slice=sf)
+          printer_snapshot = self.model.model.json
+          self.current_print = Print(name=name, status="idle", settings=settings, printer_snapshot=printer_snapshot, printer=self.printer, print_slice=sf)
           self.current_print.save(force_insert=True)
 
           # name = prt.name

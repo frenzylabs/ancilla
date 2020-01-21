@@ -5,7 +5,7 @@ ANCILLA_HOME="$HOME" #/.ancilla"
 WIFI_CONFIG_FILE=$ANCILLA_HOME/wificfg.json
 CONFIG_FILE=$ANCILLA_HOME/config.json
 
-# docker run --name=ancilla --privileged --net host -v "$HOME/.ancilla":"$HOME/.ancilla" layerkeep/ancilla:staging-latest /bin/bash
+# docker run -it --name=ancilla --privileged --net host -v "$HOME/.ancilla":"$HOME/.ancilla" layerkeep/ancilla:staging-latest /bin/bash
 
 CONFIG=`jq '.' $CONFIG_FILE`
 WIFI_CONFIG=`jq '.' $WIFI_CONFIG_FILE`
@@ -45,7 +45,7 @@ update_node() {
   
   if [ ! -z "$NODE_LATEST_IMAGE_DIGEST" ]
   then
-    NEWWIFI=$(jq '.latest_image_digest |= "'$NODE_LATEST_IMAGE_DIGEST'"' <<< $NEWNODE)
+    NEWNODE=$(jq '.latest_image_digest |= "'$NODE_LATEST_IMAGE_DIGEST'"' <<< $NEWNODE)
   else
     NODE_LATEST_IMAGE_DIGEST=$(jq -r '.current_image_digest' <<< $NODE)
   fi

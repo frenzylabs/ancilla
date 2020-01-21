@@ -99,7 +99,7 @@ class CommandTask(AncillaTask):
           while (self.current_command.status == "pending" or 
                 self.current_command.status == "running" or 
                 self.current_command.status == "busy"):
-            await sleep(0.01)
+            await sleep(0.02)
             if self.state.status != "running":
               self.current_command.status = self.state.status
               break

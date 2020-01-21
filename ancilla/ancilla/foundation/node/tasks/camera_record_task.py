@@ -24,7 +24,7 @@ import pickle
 import cv2
 import numpy as np
 
-
+import gc
 
 class CameraRecordTask(AncillaTask):
   def __init__(self, name, service, payload, *args):
@@ -60,24 +60,25 @@ class CameraRecordTask(AncillaTask):
 
     print(f"CR root path = {self.root_path}")
 
-    self.event_socket = self.service.ctx.socket(zmq.SUB)
+    
     processor = self.service.get_or_create_video_processor()
     if not processor:
       return 
-    self.event_socket.connect(processor.processed_stream)
-    self.event_socket.setsockopt(zmq.SUBSCRIBE, b'')
-    self.event_socket.setsockopt(zmq.SUBSCRIBE, self.name.encode('ascii'))
-    
-
-    # self.event_socket.connect("ipc://publisher")
-    # self.event_socket.setsockopt(zmq.SUBSCRIBE, self.service.identity + b'.events.camera.data_received')
-    # self.event_socket.setsockopt(zmq.SUBSCRIBE, self.service.identity + b'.events.camera.connection.closed')
-    self.event_stream = ZMQStream(self.event_socket)
-    self.event_stream.linger = 0
-    self.event_stream.on_recv(self.on_data)
 
     self.current_frame_num = 0
     self.current_frame = None
+
+    event_socket = self.service.ctx.socket(zmq.SUB)
+    event_socket.connect(processor.processed_stream)    
+    
+
+    self.event_stream = ZMQStream(event_socket)
+    self.event_stream.linger = 0
+    self.event_stream.on_recv(self.on_data, copy=False)
+    event_socket.setsockopt(zmq.SUBSCRIBE, self.name.encode('ascii'))
+    event_socket.setsockopt(zmq.SUBSCRIBE, b'')
+
+    
     self.retry = 5
     # ["wessender", "start_print", {"name": "printit", "file_id": 1}]
 
@@ -87,26 +88,16 @@ class CameraRecordTask(AncillaTask):
     if len(data) == 3:
       topic, framenum, imgdata = data
     # print("CR Task, ON DATA", flush=True)
+      gc.collect()
       self.current_frame = imgdata
     else:
       if data[0].endswith(b'connection.closed'):
         self.state.status = "finished"
         self.state.reason = "Connection Disconnected"
 
-    # if len(data) == 4:
-    #   topic, service, framenum, imgdata = data
-    # # print("CR Task, ON DATA", flush=True)
-    #   self.current_frame = imgdata
-    # else:
-    #   if data[0].endswith(b'connection.closed'):
-    #     self.state.status = "finished"
-    #     self.state.reason = "Connection Disconnected"
-    
-      
   def flush_camera_frame(self):
     try:
       if not self.current_frame:
-        print("NO FRAME TO FLUSH", flush=True)
         return
       imgname = f'{datetime.datetime.now().strftime("%Y%m%d%H%M%S")}-{self.current_frame_num:06}.jpg'
       # frame = pickle.loads(self.current_frame)
@@ -196,12 +187,13 @@ class CameraRecordTask(AncillaTask):
     # self.device = device
     try:
       # print(f"CONTENT = {content}", flush=True)
+      
       self.timelapse = int(self.task_settings.get("timelapse") or 2) * 1000
       self.settings = self.task_settings.get("settings") or {"size": [640, 480]}
       width, height = self.settings.get("size") or [640, 480]
       self.video_size = (width, height)
-      self.video_settings = self.task_settings.get("videoSettings") or {"format": "mp4v"}
-      self.video_format = self.video_settings.get("format") or "mp4v"      
+      self.video_settings = self.task_settings.get("videoSettings") or {"format": "H264"}
+      self.video_format = self.video_settings.get("format") or "H264"
       self.video_fps = int(self.video_settings.get("fps") or 10)
       # print(f"self.video_Fps {self.video_fps}  vsize: {self.video_size}, vformat: {self.video_format}", flush=True)
       self.video_writer = cv2.VideoWriter(self.video_path + "/output.mp4", cv2.VideoWriter_fourcc(*self.video_format), self.video_fps, self.video_size)
@@ -222,6 +214,8 @@ class CameraRecordTask(AncillaTask):
       self.state.id = self.recording.id
       
       self.service.fire_event(Camera.recording.started, self.state)
+      if self.timelapse == 0:
+        self.timelapse = 20
       self.flush_callback = PeriodicCallback(self.flush_camera_frame, self.timelapse)
       self.flush_callback.start()
       # num_commands = file_len(sf.path)

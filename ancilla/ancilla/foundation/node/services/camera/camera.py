@@ -1,3 +1,12 @@
+'''
+ camera.py
+ ancilla
+
+ Created by Kevin Musselman (kevin@frenzylabs.com) on 01/08/20
+ Copyright 2019 FrenzyLabs, LLC.
+'''
+
+
 import logging
 import socket
 import sys
@@ -129,7 +138,8 @@ class Camera(BaseService):
         print(f'Exception Open Conn: {str(e)}')
         self.state.connected = False
         self.fire_event(CameraEvent.connection.failed, {"error": str(e)})
-        return {"error": str(e), "status": "failed"}
+        raise AncillaError(400, {"error": str(e)})
+        # return {"error": str(e), "status": "failed"}
         # self.pusher.send_multipart([self.identity, b'error', str(e).encode('ascii')])
 
     def stop(self, *args):
