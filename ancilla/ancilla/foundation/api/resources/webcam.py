@@ -27,6 +27,7 @@ import time
 import numpy as np
 import random
 import string
+import gc
 
 numbers = re.compile(r'(\d+)')
 def numericalSort(value):
@@ -50,7 +51,7 @@ class ZMQCameraPubSub(object):
         self.subscriber = self.context.socket(zmq.SUB)
         self.subscriber.connect(stream)
         self.subscriber = ZMQStream(self.subscriber)
-        self.subscriber.on_recv(self.callback)
+        self.subscriber.on_recv(self.callback, copy=False)
         
         self.subscriber.setsockopt( zmq.LINGER, 0 )
         # self.request.linger = 0
@@ -101,6 +102,12 @@ class WebcamHandler(RequestHandler):
       if not self.ready or not self.running:
         return
 
+      if len(data) != 3:
+        print("webcam data != 3")
+        self.ready = False
+        self.running = False
+        return
+
       topic, framenum, img = data
       # fnum = int(framenum.decode('utf-8'))
       self.ready = False
@@ -111,7 +118,7 @@ class WebcamHandler(RequestHandler):
       self.write(b'Content-Type: image/jpeg\r\n')
       self.write(f"Content-Length: {framesize} \r\n".encode('ascii'))
       self.write(b'\r\n')
-      self.write(img)
+      self.write(img.bytes)
       self.write(b'\r\n')
       
       IOLoop.current().add_callback(self.flushit)
@@ -122,6 +129,7 @@ class WebcamHandler(RequestHandler):
       try:
         await self.flush()
         self.ready = True
+        gc.collect()
       except Exception as e:
         print(f"EXCEPTION {str(e)}")
         self.ready = False

@@ -96,7 +96,7 @@ class CameraConnector(object):
             i += 1
             
           # publisher.send_multipart([self.identity, frame])
-            device_collector.send_multipart([self.identity + b'.data_received', f'{i}'.encode('ascii'), pickle.dumps(frame, -1)], copy=False)
+            device_collector.send_multipart([self.identity + b'.data_received', f'{i}'.encode('ascii'), pickle.dumps(frame, -1)])
             # device_collector.send(self.identity + b'.data_received', zmq.SNDMORE)
             # device_collector.send(f'{i}'.encode('ascii'), zmq.SNDMORE)
             # device_collector.send_pyobj(frame)
@@ -111,6 +111,8 @@ class CameraConnector(object):
           # device_collector.send_multipart([self.identity, b'error', str(e).encode('ascii')])
           self.alive = False
           break
+      device_collector.close()
+      device_collector = None
       self.alive = False
 
     def open(self):

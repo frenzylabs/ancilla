@@ -70,15 +70,20 @@ class CameraProcessVideoTask(AncillaTask):
     # self.flush_callback = PeriodicCallback(self.flush_camera_frame, 20)
     # self.flush_callback.start()
     
-  def on_data(self, data):
+  def on_data(self, msg):
     # identity, identifier, frm_num, frame = data
-    if len(data) != 4:
-        if data[0].endswith(b'connection.closed'):
-          self.running = False
-          self.state.status = "closed"
+    if len(msg) != 4:
+        print(f"DATA = {msg[0]}", flush=True)
+        # if 'bytes' in msg[0]:
+        if msg[0].bytes.endswith(b'connection.closed'):
+            self.running = False
+            self.state.status = "closed"
+        # if data[0].endswith(b'connection.closed'):
+        #   self.running = False
+        #   self.state.status = "closed"
         return
     else:
-      topic, identifier, framenum, imgdata = data
+      topic, identifier, framenum, imgdata = msg
     # print("CR Task, ON DATA", flush=True)
       # if self.ready:      
       self.current_frame = [topic, framenum, imgdata]
@@ -184,10 +189,16 @@ class CameraProcessVideoTask(AncillaTask):
       except Exception as e:
         print(f'Exception with Camera: {str(e)}', flush=True)
         if self.publish_data:
-          self.publish_data.send_multipart([self.service.identity + b'.data', b'error', str(e).encode('ascii')], copy=False)
+          self.publish_data.send_multipart([self.service.identity + b'.error', b'error', str(e).encode('ascii')], copy=False)
         # device_collector.send_multipart([self.identity, b'error', str(e).encode('ascii')])
         self.alive = False
         break
+    if self.publish_data and self.state.status == "closed":
+      try:
+        self.publish_data.send_multipart([self.service.identity + b'.connection.closed', b"Connection Closed"], copy=False)
+      except:
+        pass
+
     self.alive = False
     self.publish_data.close()
     self.publish_data = None

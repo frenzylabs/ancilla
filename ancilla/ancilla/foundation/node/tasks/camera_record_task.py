@@ -80,6 +80,7 @@ class CameraRecordTask(AncillaTask):
 
     
     self.retry = 5
+    self.missed_frames = 0
     # ["wessender", "start_print", {"name": "printit", "file_id": 1}]
 
   # return [b'events.camera.data_received', identifier, frm_num, frame]
@@ -91,14 +92,21 @@ class CameraRecordTask(AncillaTask):
       gc.collect()
       self.current_frame = imgdata
     else:
-      if data[0].endswith(b'connection.closed'):
+      print("Recording CONNECTINO CLOSED")
+      if data[0].bytes.endswith(b'connection.closed'):
         self.state.status = "finished"
         self.state.reason = "Connection Disconnected"
 
   def flush_camera_frame(self):
     try:
       if not self.current_frame:
+        if self.missed_frames > 10:
+          self.state.status = "failed"
+          self.state.reason = "Too many missed frames"
+          self.state.recording = False
+        self.missed_frames += 1  
         return
+      self.missed_frames = 0
       imgname = f'{datetime.datetime.now().strftime("%Y%m%d%H%M%S")}-{self.current_frame_num:06}.jpg'
       # frame = pickle.loads(self.current_frame)
       # frame = cv2.flip(frame, 1)
