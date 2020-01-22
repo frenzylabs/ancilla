@@ -101,7 +101,8 @@ class CameraConnector(object):
           # publisher.send_multipart([self.identity, frame])
             device_collector.send_multipart([self.identity + b'.data_received', f'{i}'.encode('ascii'), pickle.dumps(frame, -1)])
           else:
-            print(f"REs = {res}", flush=True)
+            raise Exception("Camera Disconnected")
+            
             # device_collector.send(self.identity + b'.data_received', zmq.SNDMORE)
             # device_collector.send(f'{i}'.encode('ascii'), zmq.SNDMORE)
             # device_collector.send_pyobj(frame)

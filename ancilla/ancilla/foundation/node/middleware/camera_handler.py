@@ -19,7 +19,7 @@ class CameraHandler(DataHandler):
       else:
         eventkind = b'data_received'
 
-      if eventkind == b'connection.closed':
+      if eventkind == b'connection.closed' or frm_num == b'error':
         self.service.state.connected = False
         self.service.fire_event(Camera.connection.closed, self.service.state)
 
