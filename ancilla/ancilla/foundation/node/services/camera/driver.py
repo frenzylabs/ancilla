@@ -89,14 +89,19 @@ class CameraConnector(object):
       while self.alive:
         try:
           
-          ret, frame = self.video.read()
+          res = self.video.read()
+          if not res:            
+            raise "Camera Disconnected"
+          ret, frame = res
           # frame = video.read()
-          # print("HI", ret)
+          
           if ret:
             i += 1
             
           # publisher.send_multipart([self.identity, frame])
             device_collector.send_multipart([self.identity + b'.data_received', f'{i}'.encode('ascii'), pickle.dumps(frame, -1)])
+          else:
+            print(f"REs = {res}", flush=True)
             # device_collector.send(self.identity + b'.data_received', zmq.SNDMORE)
             # device_collector.send(f'{i}'.encode('ascii'), zmq.SNDMORE)
             # device_collector.send_pyobj(frame)
@@ -106,7 +111,7 @@ class CameraConnector(object):
             # time.sleep(2)
             # print('Sent frame {}'.format(i))
         except Exception as e:
-          print(f'Exception with Camera: {str(e)}', flush=True)
+          print(f'Exception with Camera Driver: {str(e)}', flush=True)
           device_collector.send_multipart([self.identity + b'.data_received', b'error', str(e).encode('ascii')])
           # device_collector.send_multipart([self.identity, b'error', str(e).encode('ascii')])
           self.alive = False

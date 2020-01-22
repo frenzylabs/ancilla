@@ -78,7 +78,7 @@ class CameraProcessVideoTask(AncillaTask):
         # if msg[0].bytes.endswith(b'connection.closed'):
         #     self.running = False
         #     self.state.status = "closed"
-        if data[0].endswith(b'connection.closed'):
+        if msg[0].endswith(b'connection.closed'):
           self.running = False
           self.state.status = "closed"
         return
@@ -187,7 +187,7 @@ class CameraProcessVideoTask(AncillaTask):
           # time.sleep(2)
           # print('Sent frame {}'.format(i))
       except Exception as e:
-        print(f'Exception with Camera: {str(e)}', flush=True)
+        print(f'Exception with Camera Process: {str(e)}', flush=True)
         if self.publish_data:
           self.publish_data.send_multipart([self.service.identity + b'.error', b'error', str(e).encode('ascii')], copy=True)
         # device_collector.send_multipart([self.identity, b'error', str(e).encode('ascii')])
@@ -318,9 +318,13 @@ class CameraProcessVideoTask(AncillaTask):
         pass
           
 
-  def close(self, *args):
-    self.state.status = "closed"    
+  def stop(self, *args):
+    self.running = False
+    self.close()
 
+  def close(self, *args):    
+    self.state.status = "closed"    
+  
   def cancel(self):
     self.state.status = "cancelled"
   

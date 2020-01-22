@@ -74,7 +74,7 @@ class CameraRecordTask(AncillaTask):
 
     self.event_stream = ZMQStream(event_socket)
     self.event_stream.linger = 0
-    self.event_stream.on_recv(self.on_data, copy=False)
+    self.event_stream.on_recv(self.on_data, copy=True)
     event_socket.setsockopt(zmq.SUBSCRIBE, self.name.encode('ascii'))
     event_socket.setsockopt(zmq.SUBSCRIBE, b'')
 
@@ -89,7 +89,7 @@ class CameraRecordTask(AncillaTask):
     if len(data) == 3:
       topic, framenum, imgdata = data
     # print("CR Task, ON DATA", flush=True)
-      gc.collect()
+      # gc.collect()
       self.current_frame = imgdata
     else:
       print("CONNECTINO CLOSED")
@@ -99,6 +99,7 @@ class CameraRecordTask(AncillaTask):
 
   def flush_camera_frame(self):
     try:
+      curtime = time.time()
       if not self.current_frame:
         if self.missed_frames > 10:
           self.state.status = "failed"
@@ -107,10 +108,13 @@ class CameraRecordTask(AncillaTask):
         self.missed_frames += 1  
         return
       self.missed_frames = 0
-      imgname = f'{datetime.datetime.now().strftime("%Y%m%d%H%M%S")}-{self.current_frame_num:06}.jpg'
+      # imgname = f'{datetime.datetime.now().strftime("%Y%m%d%H%M%S")}-{self.current_frame_num:06}.jpg'
       # frame = pickle.loads(self.current_frame)
       # frame = cv2.flip(frame, 1)
-      nparr = np.fromstring(self.current_frame, np.uint8)
+      # nparr = np.fromstring(self.current_frame, np.uint8)
+      # x = self.current_frame.bytes
+      # x = cv2.imdecode(self.current_frame, cv2.IMREAD_COLOR)
+      nparr = np.frombuffer(self.current_frame, np.uint8)
       x = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
       # x = cv2.resize(frame, dsize=self.video_size, interpolation=cv2.INTER_CUBIC)
       # print(x.shape)
@@ -123,6 +127,8 @@ class CameraRecordTask(AncillaTask):
         self.video_writer.write(x)
       self.current_frame_num += 1
       self.current_frame = None
+      res = time.time() - curtime
+      # print(f"cam recording flush tooke {res}", flush=True)
     except Exception as e:
       print(f"ERror saving camera frame {str(e)}", flush=True)
       if self.retry > 0:
@@ -252,6 +258,9 @@ class CameraRecordTask(AncillaTask):
       self.video_writer.release()
     return {"state": self.state}
 
+  def stop(self, *args):
+    self.finished()
+    
   def cancel(self):
     self.state.status = "cancelled"
   

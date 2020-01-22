@@ -113,7 +113,11 @@ class Camera(BaseService):
       if self.connector:
         self.connector.close()
       if self.video_processor:
+        print(f"Close video processor")
         self.video_processor.close()
+      for k, v in self.current_task.items():
+        if hasattr(v, "stop"):
+            v.stop()
       super().cleanup()
 
 
