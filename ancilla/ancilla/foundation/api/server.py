@@ -34,6 +34,7 @@ from .resources import (
   ServiceAttachmentResource,
   LayerkeepResource,
   WifiResource,
+  SystemResource,
   StaticResource
 )
 
@@ -417,7 +418,8 @@ class APIServer(object):
       'static_path' : STATIC_FOLDER      
     }
 
-    _app = Application([
+    _app = Application([      
+      (r"/api/system(.*)",  SystemResource, dict(node=self.node_server)),
       (r"/api/document",  DocumentResource, dict(document=self.document_store)),
       (r"/api/wifi(.*)",  WifiResource, dict(node=self.node_server)),
       (r"/api/files",     FileResource, dict(node=self.node_server)),

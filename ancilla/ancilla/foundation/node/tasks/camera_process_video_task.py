@@ -61,7 +61,7 @@ class CameraProcessVideoTask(AncillaTask):
 
     self.image_collector = ZMQStream(image_collector)
     self.image_collector.linger = 0
-    self.image_collector.on_recv(self.on_data, copy=False)
+    self.image_collector.on_recv(self.on_data, copy=True)
 
     image_collector.setsockopt(zmq.SUBSCRIBE, self.service.identity + b'.events.camera.data_received')
     image_collector.setsockopt(zmq.SUBSCRIBE, self.service.identity + b'.events.camera.connection.closed')
@@ -75,12 +75,12 @@ class CameraProcessVideoTask(AncillaTask):
     if len(msg) != 4:
         print(f"DATA = {msg[0]}", flush=True)
         # if 'bytes' in msg[0]:
-        if msg[0].bytes.endswith(b'connection.closed'):
-            self.running = False
-            self.state.status = "closed"
-        # if data[0].endswith(b'connection.closed'):
-        #   self.running = False
-        #   self.state.status = "closed"
+        # if msg[0].bytes.endswith(b'connection.closed'):
+        #     self.running = False
+        #     self.state.status = "closed"
+        if data[0].endswith(b'connection.closed'):
+          self.running = False
+          self.state.status = "closed"
         return
     else:
       topic, identifier, framenum, imgdata = msg
@@ -189,13 +189,13 @@ class CameraProcessVideoTask(AncillaTask):
       except Exception as e:
         print(f'Exception with Camera: {str(e)}', flush=True)
         if self.publish_data:
-          self.publish_data.send_multipart([self.service.identity + b'.error', b'error', str(e).encode('ascii')], copy=False)
+          self.publish_data.send_multipart([self.service.identity + b'.error', b'error', str(e).encode('ascii')], copy=True)
         # device_collector.send_multipart([self.identity, b'error', str(e).encode('ascii')])
         self.alive = False
         break
     if self.publish_data and self.state.status == "closed":
       try:
-        self.publish_data.send_multipart([self.service.identity + b'.connection.closed', b"Connection Closed"], copy=False)
+        self.publish_data.send_multipart([self.service.identity + b'.connection.closed', b"Connection Closed"], copy=True)
       except:
         pass
 

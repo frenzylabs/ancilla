@@ -1,6 +1,6 @@
 #!/bin/bash
 
-ANCILLA_HOME="$HOME" #/.ancilla"
+ANCILLA_HOME="$HOME/.ancilla"
 
 WIFI_CONFIG_FILE=$ANCILLA_HOME/wificfg.json
 CONFIG_FILE=$ANCILLA_HOME/config.json
@@ -10,7 +10,7 @@ CONFIG_FILE=$ANCILLA_HOME/config.json
 CONFIG=`jq '.' $CONFIG_FILE`
 WIFI_CONFIG=`jq '.' $WIFI_CONFIG_FILE`
 
-
+SYSTEM=$(jq '.system' <<< $CONFIG)
 NODE=$(jq '.node' <<< $CONFIG)
 WIFI=$(jq '.wifi' <<< $CONFIG)
 
@@ -20,6 +20,7 @@ load_config_vars() {
   NEW_WIFI_CONFIG=`jq '.' $WIFI_CONFIG_FILE`
   NEWNODE=$(jq '.node' <<< $NEW_CONFIG)
   NEWWIFI=$(jq '.wifi' <<< $NEW_CONFIG)
+  NEWSYSTEM=$(jq '.system' <<< $NEW_CONFIG)
 }
 
 load_config_vars
@@ -249,6 +250,26 @@ handle_wifi_container() {
   fi
 }
 
+
+run_system() {
+  REBOOT_TIME=$(jq '.reboot' <<< $SYSTEM)
+  NEW_REBOOT_TIME=$(jq '.reboot' <<< $NEWSYSTEM)
+  if [ "$REBOOT_TIME" != "$NEW_REBOOT_TIME" ]
+  then
+    echo "rebooting system"
+    sudo reboot
+  fi
+
+  RESTART_TIME=$(jq '.restart_ancilla' <<< $SYSTEM)
+  NEW_RESTART_TIME=$(jq '.restart_ancilla' <<< $NEWSYSTEM)
+  if [ "$RESTART_TIME" != "$NEW_RESTART_TIME" ]
+  then
+    echo "restart ancilla"
+    SYSTEM=$NEWSYSTEM
+    docker restart ancilla
+  fi
+}
+
 run_wifi
 run_ancilla
 
@@ -264,6 +285,11 @@ do
   if [ "$ACONFIGTIME" != "$LCONFIGTIME" ] || [ "$AWIFITIME" != "$LWIFITIME" ]
   then    
     load_config_vars
+    if [ "$NEWSYSTEM" != "$SYSTEM" ]
+    then
+      run_system
+    fi
+
     if [ "$NEWWIFI" != "$WIFI" ] || [ "$NEW_WIFI_CONFIG" != "$WIFI_CONFIG" ]
     then
       run_wifi

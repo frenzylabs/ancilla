@@ -92,8 +92,8 @@ class CameraRecordTask(AncillaTask):
       gc.collect()
       self.current_frame = imgdata
     else:
-      print("Recording CONNECTINO CLOSED")
-      if data[0].bytes.endswith(b'connection.closed'):
+      print("CONNECTINO CLOSED")
+      if data[0].endswith(b'connection.closed'):
         self.state.status = "finished"
         self.state.reason = "Connection Disconnected"
 
@@ -110,7 +110,7 @@ class CameraRecordTask(AncillaTask):
       imgname = f'{datetime.datetime.now().strftime("%Y%m%d%H%M%S")}-{self.current_frame_num:06}.jpg'
       # frame = pickle.loads(self.current_frame)
       # frame = cv2.flip(frame, 1)
-      nparr = np.fromstring(self.current_frame , np.uint8)
+      nparr = np.fromstring(self.current_frame, np.uint8)
       x = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
       # x = cv2.resize(frame, dsize=self.video_size, interpolation=cv2.INTER_CUBIC)
       # print(x.shape)

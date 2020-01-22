@@ -51,7 +51,7 @@ class ZMQCameraPubSub(object):
         self.subscriber = self.context.socket(zmq.SUB)
         self.subscriber.connect(stream)
         self.subscriber = ZMQStream(self.subscriber)
-        self.subscriber.on_recv(self.callback, copy=False)
+        self.subscriber.on_recv(self.callback, copy=True)
         
         self.subscriber.setsockopt( zmq.LINGER, 0 )
         # self.request.linger = 0
@@ -118,7 +118,7 @@ class WebcamHandler(RequestHandler):
       self.write(b'Content-Type: image/jpeg\r\n')
       self.write(f"Content-Length: {framesize} \r\n".encode('ascii'))
       self.write(b'\r\n')
-      self.write(img.bytes)
+      self.write(img)
       self.write(b'\r\n')
       
       IOLoop.current().add_callback(self.flushit)

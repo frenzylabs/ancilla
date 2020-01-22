@@ -12,5 +12,9 @@
     "latest_image_digest": "",
     "current_image_digest": "",
     "auto_update": true
+  },
+  "system": {
+    "reboot": 0,
+    "restart_ancilla": 0
   }
 }

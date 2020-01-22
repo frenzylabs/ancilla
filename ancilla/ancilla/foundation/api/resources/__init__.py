@@ -21,3 +21,4 @@ from .layerkeep    import LayerkeepResource
 from .static  import StaticResource
 
 from .wifi  import WifiResource
+from .system  import SystemResource
