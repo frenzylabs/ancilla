@@ -11,11 +11,124 @@ from tornado.ioloop import IOLoop
 from zmq.eventloop.ioloop import PeriodicCallback
 
 import functools
+from functools import partial
 from tornado.gen        import sleep
 
 from .ancilla_task import AncillaTask
 from ..events.printer import Printer
-from ...data.models import Print, PrintSlice
+from ...data.models import Print, PrintSlice, PrinterCommand
+
+
+
+from multiprocessing import Process, Queue, Lock
+from queue import Empty as QueueEmpty
+import multiprocessing as mp
+import pickle
+
+def pr(l, log):
+  l.acquire()
+  try:
+    print(log, flush=True)
+  finally:
+      l.release()
+
+
+def run_command(task_id, current_print, cmd_queue, resp_queue):
+    
+    from ...env import Env
+    from ...data.db import Database
+    from playhouse.sqlite_ext import SqliteExtDatabase
+    Env.setup()
+    conn = SqliteExtDatabase(Database.path, {'foreign_keys' : 1, 'threadlocals': True})
+    conn.connect()
+    # Database.connect()
+    # pr(lock, f'conn = {conn}')
+    from ...data.models import Print, PrintSlice, PrinterCommand
+    PrinterCommand._meta.database = conn
+
+
+
+    sf = current_print.print_slice
+    try:
+      with open(sf.path, "r") as fp:
+        cnt = 1
+        fp.seek(0, os.SEEK_END)
+        endfp = fp.tell()
+        # print("End File POS: ", endfp)
+        current_print.state["end_pos"] = endfp
+        current_pos = current_print.state.get("pos", 0)
+        fp.seek(current_pos)
+        line = fp.readline()
+        respcommand = None
+        while True:
+        # while self.state.status == "running":
+          # for line in fp:
+          cmd_start_time = time.time()
+
+          pos = fp.tell()
+          
+          # print(f"File POS: {pos}")
+          if pos == endfp:
+            # self.state.status = "finished"
+            current_print.status = "finished"
+            current_print.save()
+            if respcommand:
+              respcommand.save()
+            cmd_queue.put(("state", {"status": "done"}))
+            break
+
+          if not line.strip():
+            line = fp.readline()
+            continue
+
+          # print("Line {}, POS: {} : {}".format(cnt, pos, line))    
+
+          is_comment = line.startswith(";")
+          # print(f'pc here = {task_id}, line= {line} id={current_print.id} printer_id:{current_print.printer_id}', flush=True)
+          pc = PrinterCommand(parent_id=task_id, sequence=cnt, command=line, printer_id=current_print.printer_id, nowait=is_comment, print_id=current_print.id)
+          # print(f'pc here = {pc.parent_id}, line= {pc.command} id={pc.id} printer_id:{pc.printer_id} printid: {pc.print_id}', flush=True)
+          # pc.save()
+          # print(f'CURRENT OS = {os.getppid()}')
+          # print(f'pc jsonhere = {pc.json}')
+          # print(f'pc jsonhere = {pickle.dumps(pc)}')
+          # cmd_queue.put(("cmd", pickle.dumps(pc)))
+          cmd_queue.put(("cmd", pc))
+          # cmd_queue.put(["cmd", pc.json])
+          # print("PUT ON QUEUE")
+          if respcommand:
+            respcommand.save()
+
+          try:
+            payload = resp_queue.get()
+            if payload:
+              (key, respcommand) = payload
+              # print(f"PCB = {pcb}")
+              # respcommand = pickle.loads(pcb)
+              if respcommand:
+                # print(f"has resp command {respcommand}")
+                if respcommand.status == "error":
+                  respcommand.save()
+                  break
+
+                if respcommand.status == "finished":
+                  current_print.state["pos"] = pos
+                  current_print.save()
+                  line = fp.readline()
+                  cnt += 1                  
+                  cmd_end_time = time.time()
+          except Exception as e:
+            print(f"RES READ EXCEPTION {str(e)}", flush=True)
+            cmd_queue.put(("state", {"status": "error", "reason": str(e)}))
+          
+        
+    except Exception as e:
+      current_print.status = "failed"
+      # device.current_print.save()
+      # self.state.status = "failed"
+      # self.state.reason = str(e)
+      print(f"Print Exception: {str(e)}", flush=True)
+      cmd_queue.put(("state", {"status": "failed", "reason": str(e)}))
+
 
 
 class PrintTask(AncillaTask):
@@ -30,10 +143,127 @@ class PrintTask(AncillaTask):
 
     # ["wessender", "start_print", {"name": "printit", "file_id": 1}]
 
-
   async def run(self, device):
-    self.state_callback = PeriodicCallback(self.get_state, 3000)
-    self.state_callback.start()
+    if not self.service.current_print:
+      return {"error": "No Print to send to Printer"}
+      
+    sf = self.service.current_print.print_slice
+    num_commands = -1
+    try:
+
+      self.service.state.printing = True
+      self.service.current_print.status = "running"
+      self.service.current_print.save()
+      # self.service.fire_event(Printer.state.changed, self.service.state)
+
+      self.state.status = "running"
+      self.state.model = self.service.current_print.json
+      self.state.id = self.service.current_print.id
+      
+      self.service.fire_event(Printer.print.started, self.state)
+      # num_commands = file_len(sf.path)
+    except Exception as e:
+      print(f"Cant get file to print {str(e)}", flush=True)
+      self.service.fire_event(Printer.print.failed, {"status": "failed", "reason": str(e)})
+      # request.status = "failed"
+      # request.save()
+      # self.publish_request(request)
+      return
+
+    
+    # mp.set_start_method('spawn')
+    # ctx = mp.get_context('fork')
+    ctx = mp.get_context('spawn')
+    cmd_queue = ctx.Queue()
+    resp_queue = ctx.Queue()
+    
+    self.p = ctx.Process(target=run_command, args=(self.task_id, self.service.current_print, cmd_queue, resp_queue,))
+
+    self.p.daemon = True
+    self.p.start()
+
+    while self.state.status == "running":
+      current_command = None
+      try:
+        # print(f'Parent CURRENT OS = {os.getppid()}')
+        payload = cmd_queue.get_nowait()        
+        # print(f"PCbefore = {payload}")
+        if payload:
+          (key, pc) = payload
+          if key == "state":
+            self.state.status = pc.get("status")
+            self.state.reason = pc.get("reason") or ""
+          elif key == "cmd":
+            current_command = pc
+            self.service.command_queue.add(pc)
+            IOLoop.current().add_callback(self.service.process_commands)
+            # if pc.nowait:
+            #   # self.service.connector.write(pc.command.encode('ascii'))
+            #   # pc.status = "finished"
+            #   self.service.command_queue.add(pc)
+            #   IOLoop.current().add_callback(self.service.process_commands)
+            # else:
+            #   self.service.command_queue.add(pc)
+            #   IOLoop.current().add_callback(self.service.process_commands)
+            
+            while (pc.status == "pending" or 
+                      pc.status == "running" or 
+                      pc.status == "busy"):
+
+                await sleep(0.01)
+                if self.state.status != "running":
+                  pc.status = self.state.status
+                  break
+            if pc.status == "error":
+                pc.status = "failed"
+                self.state.status = "failed"
+                self.state.reason = "Could Not Execute Command: " + pc.command
+            
+            # print(f"RespPC = {pc}")
+            # resp_queue.put(("cmd", pickle.dumps(pc)))
+            resp_queue.put(("cmd", pc))
+        else:
+          await sleep(0.01)
+      except QueueEmpty:
+        await sleep(0.01)
+      except Exception as e:
+        print(f"Exception {type(e).__name__} {str(e)}")
+        
+
+
+    # print     # prints "[42, None, 'hello']"
+    return self.cleanup()
+
+
+  
+  def cleanup(self):
+    self.p.join(timeout=1)
+    self.service.current_print.status = self.state.status
+    self.service.current_print.save()
+    self.state.model = self.service.current_print.json
+    if self.state.status == "failed":
+      self.service.fire_event(Printer.print.failed, self.state)  
+    elif self.state.status == "finished":
+      self.service.fire_event(Printer.print.finished, self.state)  
+    elif self.state.status == "cancelled":
+      self.service.fire_event(Printer.print.cancelled, self.state)  
+    elif self.state.status == "paused":
+      self.service.fire_event(Printer.print.paused, self.state)  
+
+    
+    self.service.print_queued = False
+    if self.service.current_print.status != "paused":
+      self.service.current_print = None
+    # self.state_callback.stop()
+    self.service.fire_event(Printer.print.state.changed, self.state)
+    self.service.state.printing = False
+    self.service.fire_event(Printer.state.changed, self.service.state)
+    print(f"FINISHED PRINT {self.state}", flush=True)
+    return {"state": self.state}
+
+  async def run2(self, device):
+    # self.state_callback = PeriodicCallback(self.get_state, 3000)
+    # self.state_callback.start()
     
     # request = DeviceRequest.get_by_id(self.request_id)
     # self.device = device
@@ -82,6 +312,7 @@ class PrintTask(AncillaTask):
         line = fp.readline()
         while self.state.status == "running":
           # for line in fp:
+          cmd_start_time = time.time()
           pos = fp.tell()
           
           # print("File POS: ", pos)
@@ -110,7 +341,10 @@ class PrintTask(AncillaTask):
             if self.state.status != "running":
               self.current_command.status = self.state.status
               break
-
+          
+          print(f"COMMAND {self.current_command.command} FINISHED {time.time() - cmd_start_time}", flush=True)
+          IOLoop().current().add_callback(functools.partial(self.save_command, self.current_command))
+          
           # print(f'InsidePrintTask curcmd= {self.current_command}', flush=True)
           if self.current_command.status == "error":
             self.service.current_print.status = "failed"
@@ -120,9 +354,10 @@ class PrintTask(AncillaTask):
 
           if self.current_command.status == "finished":
             self.service.current_print.state["pos"] = pos
-            self.service.current_print.save()
+            # self.service.current_print.save()
             line = fp.readline()
             cnt += 1                  
+            cmd_end_time = time.time()
 
         
     except Exception as e:
@@ -144,15 +379,20 @@ class PrintTask(AncillaTask):
     elif self.state.status == "paused":
       self.service.fire_event(Printer.print.paused, self.state)  
 
-    print(f"FINISHED PRINT {self.state}", flush=True)
+    
     self.service.print_queued = False
     if self.service.current_print.status != "paused":
       self.service.current_print = None
-    self.state_callback.stop()
+    # self.state_callback.stop()
     self.service.fire_event(Printer.print.state.changed, self.state)
     self.service.state.printing = False
     self.service.fire_event(Printer.state.changed, self.service.state)
+    print(f"FINISHED PRINT {self.state}", flush=True)
     return {"state": self.state}
+
+  def save_command(self, command, *args):
+    print(f"Save Command {command.command}")
+    command.save()
 
   def cancel(self, *args):
     self.state.status = "cancelled"
@@ -167,7 +407,8 @@ class PrintTask(AncillaTask):
     self.state.model = self.service.current_print.json
     if st != self.state.to_json():
       self.service.fire_event(Printer.print.state.changed, self.state)
-    
+
+
     # self.publish_request(request)
   
 
