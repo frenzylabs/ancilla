@@ -17,7 +17,7 @@ DEFAULT_MIGRATE_DIR = os.path.join(os.path.abspath(os.path.dirname(__file__)), '
 
 class Database(object):
   path = "/".join([Env.ancilla, ".a_store"])
-  conn = SqliteExtDatabase(path, {'foreign_keys' : 1})
+  conn = SqliteExtDatabase(path, {'foreign_keys' : 1, 'threadlocals': True})
   # conn = None
   router = None
   

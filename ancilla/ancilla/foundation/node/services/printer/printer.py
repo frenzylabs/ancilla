@@ -55,7 +55,7 @@ class CommandQueue(object):
       # print("FINISH Cmd", flush=True)
       if self.current_command:
         self.current_command.status = status
-        self.current_command.save()
+        # self.current_command.save()
       self.current_command = None
       self.current_expiry = None
 
@@ -172,7 +172,7 @@ class Printer(BaseService):
       print("Printer Stop", flush=True)
       res = self.connector.close()
       self.connector = None
-      self.command_queue.clear()      
+      self.command_queue.clear()
       self.state.connected = False
       self.fire_event(PrinterEvent.connection.closed, res)
       return res
@@ -200,8 +200,8 @@ class Printer(BaseService):
           self.command_queue.finish_command(status="error")
         elif cmd.nowait:
           self.command_queue.finish_command()
-        else:
-          cmd.save()
+        # else:
+        #   cmd.save()
       elif cmd.status != "running":
         self.command_queue.finish_command(status=cmd.status)     
       else:
@@ -214,7 +214,7 @@ class Printer(BaseService):
       if type(data) == bytes:
         data = data.decode('utf-8')
       pc = PrinterCommand(parent_id=parent_id, sequence=num, command=data, printer_id=self.printer.id, nowait=nowait, print_id=print_id)
-      pc.save(force_insert=True)
+      # pc.save(force_insert=True)
 
       # if data == "RUN SETUP":
       #   ct = CommandTask(pc)        
@@ -277,23 +277,23 @@ class Printer(BaseService):
       # request.save()
       return {"status": status, "reason": reason}
 
-    def command(self, msg):
-      cmd = msg.get("data")
-      # print("CONNECT WRITE", data)
-      # request = DeviceRequest.get_by_id(request_id)
-      status = "success"
-      reason = ""
-      if not cmd.endswith('\n'):
-        cmd = cmd + '\n'
-      if self.connector.alive:
-        self.add_command(0, 1, cmd)
-      else:
-        status = "failed"
-        reason = "Not Connected"
+    # def command(self, msg):
+    #   cmd = msg.get("data")
+    #   # print("CONNECT WRITE", data)
+    #   # request = DeviceRequest.get_by_id(request_id)
+    #   status = "success"
+    #   reason = ""
+    #   if not cmd.endswith('\n'):
+    #     cmd = cmd + '\n'
+    #   if self.connector.alive:
+    #     self.add_command(0, 1, cmd)
+    #   else:
+    #     status = "failed"
+    #     reason = "Not Connected"
 
-      # request.state = status
-      # request.save()
-      return {"status": status, "reason": reason}
+    #   # request.state = status
+    #   # request.save()
+    #   return {"status": status, "reason": reason}
 
 
     def cancel_print(self, msg):
@@ -376,6 +376,7 @@ class Printer(BaseService):
         # res = data.decode('utf-8')
         # payload = json.loads(res)
         # name = payload.get("name") or "PrintTask"
+
         if not self.state.connected:
           raise Exception("Printer Not Connected")
 
@@ -383,6 +384,8 @@ class Printer(BaseService):
           raise AncillaError(404, {"error": "There is already a print"})
           # return {"status": "error", "error": "There is already a print"}
         
+        print(f'Data = {data}')
+        print(f'CurrentPrint= {self.current_print}')
 
         name = "print"
         print_id = data.get("print_id")

@@ -72,7 +72,7 @@ class PeriodicTask(AncillaTask):
       print(f"CMD {cmd}", flush=True)
       self.current_command = device.add_command(self.task_id, cnt, cmd.encode('ascii'))
       while self.command_active():
-        await sleep(0.1)
+        await sleep(0.01)
         # if self.current_command == "pending":
         IOLoop.current().add_callback(device.process_commands)
 
