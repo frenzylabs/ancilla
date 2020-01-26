@@ -1,14 +1,18 @@
 #!/bin/bash
 
+# ANCILLA_HOME="$HOME/.ancilla"
+HOME=/home/pi
 ANCILLA_HOME="$HOME/.ancilla"
 
 WIFI_CONFIG_FILE=$ANCILLA_HOME/wificfg.json
 CONFIG_FILE=$ANCILLA_HOME/config.json
 
-# docker run -it --name=ancilla --privileged --net host -v "$HOME/.ancilla":"$HOME/.ancilla" layerkeep/ancilla:staging-latest /bin/bash
+# docker run -it --name=ancilla2 --privileged --net host -v "$HOME/.ancilla":"$HOME/.ancilla" layerkeep/ancilla:staging-latest /bin/bash
 
 CONFIG=`jq '.' $CONFIG_FILE`
 WIFI_CONFIG=`jq '.' $WIFI_CONFIG_FILE`
+
+echo "WifiConfig = $WIFI_CONFIG"
 
 SYSTEM=$(jq '.system' <<< $CONFIG)
 NODE=$(jq '.node' <<< $CONFIG)

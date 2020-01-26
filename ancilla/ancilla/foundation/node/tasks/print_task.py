@@ -12,7 +12,7 @@ from zmq.eventloop.ioloop import PeriodicCallback
 
 import functools
 from functools import partial
-from tornado.gen        import sleep
+from asyncio       import sleep
 
 from .ancilla_task import AncillaTask
 from ..events.printer import Printer
@@ -20,7 +20,7 @@ from ...data.models import Print, PrintSlice, PrinterCommand
 
 
 
-from multiprocessing import Process, Queue, Lock
+from multiprocessing import Process, Queue, Lock, Pipe
 from queue import Empty as QueueEmpty
 import multiprocessing as mp
 import pickle
@@ -32,102 +32,88 @@ def pr(l, log):
   finally:
       l.release()
 
+def run_save_command(task_id, current_print, cmd_queue):
+  from ...env import Env
+  from ...data.db import Database
+  from playhouse.sqlite_ext import SqliteExtDatabase
+  import zmq
+  Env.setup()
+  conn = SqliteExtDatabase(Database.path, pragmas=(
+    # ('cache_size', -1024 * 64),  # 64MB page-cache.
+    ('journal_mode', 'wal'),  # Use WAL-mode (you should always use this!).
+    ('foreign_keys', 1),
+    ('threadlocals', True)))
+    # {'foreign_keys' : 1, 'threadlocals': True})
+  conn.connect()
+  # Database.connect()
+  # pr(lock, f'conn = {conn}')
+  from ...data.models import Print, PrintSlice, PrinterCommand
+  PrinterCommand._meta.database = conn
 
-def run_command(task_id, current_print, cmd_queue, resp_queue):
-    
-    from ...env import Env
-    from ...data.db import Database
-    from playhouse.sqlite_ext import SqliteExtDatabase
-    Env.setup()
-    conn = SqliteExtDatabase(Database.path, {'foreign_keys' : 1, 'threadlocals': True})
-    conn.connect()
-    # Database.connect()
-    # pr(lock, f'conn = {conn}')
-    from ...data.models import Print, PrintSlice, PrinterCommand
-    PrinterCommand._meta.database = conn
+  # context = zmq.Context()
+  # cmd_queue = context.socket(zmq.PULL)
+  # cmd_queue.connect("tcp://127.0.0.1:5557")
 
+  start_time = time.time()
+  cnt = 1
+  running = True
+  while running:
+    # if cnt == 1:
+    #   start_time = time.time()
+    if cnt % 100 == 0:
+      print(f"PROCESS COMMANDS {cnt} DONE {time.time() - start_time}")
+      # running = False
+      # break
 
-
-    sf = current_print.print_slice
     try:
-      with open(sf.path, "r") as fp:
-        cnt = 1
-        fp.seek(0, os.SEEK_END)
-        endfp = fp.tell()
-        # print("End File POS: ", endfp)
-        current_print.state["end_pos"] = endfp
-        current_pos = current_print.state.get("pos", 0)
-        fp.seek(current_pos)
-        line = fp.readline()
-        respcommand = None
-        while True:
-        # while self.state.status == "running":
-          # for line in fp:
-          cmd_start_time = time.time()
+      # payload = resp_queue.get()
+      payload = None
+      polltimeout = 0.0001
+      respcommand = None
+      # if queuesize >= maxqueuesize:
+      #   polltimeout = 10
 
-          pos = fp.tell()
-          
-          # print(f"File POS: {pos}")
-          if pos == endfp:
-            # self.state.status = "finished"
-            current_print.status = "finished"
-            current_print.save()
-            if respcommand:
-              respcommand.save()
-            cmd_queue.put(("state", {"status": "done"}))
-            break
+      # res = cmd_queue.poll(polltimeout)
+      # if res:
+      payload = cmd_queue.recv()
+      # payload = cmd_queue.recv_multipart()
+      # queuesize -= 1
 
-          if not line.strip():
-            line = fp.readline()
-            continue
-
-          # print("Line {}, POS: {} : {}".format(cnt, pos, line))    
-
-          is_comment = line.startswith(";")
-          # print(f'pc here = {task_id}, line= {line} id={current_print.id} printer_id:{current_print.printer_id}', flush=True)
-          pc = PrinterCommand(parent_id=task_id, sequence=cnt, command=line, printer_id=current_print.printer_id, nowait=is_comment, print_id=current_print.id)
-          # print(f'pc here = {pc.parent_id}, line= {pc.command} id={pc.id} printer_id:{pc.printer_id} printid: {pc.print_id}', flush=True)
-          # pc.save()
-          # print(f'CURRENT OS = {os.getppid()}')
-          # print(f'pc jsonhere = {pc.json}')
-          # print(f'pc jsonhere = {pickle.dumps(pc)}')
-          # cmd_queue.put(("cmd", pickle.dumps(pc)))
-          cmd_queue.put(("cmd", pc))
-          # cmd_queue.put(["cmd", pc.json])
-          # print("PUT ON QUEUE")
+      if payload:
+        (key, prnt, respcommand) = payload
+        # print(f"JSONCMD = {jsoncmd}")
+        # respcommand = pickle.loads(pcb)
+        # respcommand = PrinterCommand(**jsoncmd)
+        if key == "cmd":
+          cnt += 1
+          # respcommand = json.loads(resp.decode('utf-8'))
+          # if cnt % 20 == 0:
+          #   print(f"Save command cnt: {cnt} {time.time()}")
           if respcommand:
-            respcommand.save()
+            # print(f"has resp command {respcommand._meta.database.__dict__}")
+            if respcommand.status == "error":
+            # if respcommand["status"] == "error":
+              respcommand.save()
+              
+              break
 
-          try:
-            payload = resp_queue.get()
-            if payload:
-              (key, respcommand) = payload
-              # print(f"PCB = {pcb}")
-              # respcommand = pickle.loads(pcb)
-              if respcommand:
-                # print(f"has resp command {respcommand}")
-                if respcommand.status == "error":
-                  respcommand.save()
-                  break
-
-                if respcommand.status == "finished":
-                  current_print.state["pos"] = pos
-                  current_print.save()
-                  line = fp.readline()
-                  cnt += 1                  
-                  cmd_end_time = time.time()
-          except Exception as e:
-            print(f"RES READ EXCEPTION {str(e)}", flush=True)
-            cmd_queue.put(("state", {"status": "error", "reason": str(e)}))
-          
-        
+            # if respcommand["status"] == "finished":
+            if respcommand.status == "finished":
+              # current_print.state["pos"] = pos
+              # current_print.save()
+              prnt.save()
+              respcommand.save()
+              # cmd_queue.send(('done', respcommand.id))
+        elif key == "close":
+          running = False
+            # current_print.save()
+            # line = fp.readline()
+            # cnt += 1                  
+            # cmd_end_time = time.time()
     except Exception as e:
-      current_print.status = "failed"
-      # device.current_print.save()
-      # self.state.status = "failed"
-      # self.state.reason = str(e)
-      print(f"Print Exception: {str(e)}", flush=True)
-      cmd_queue.put(("state", {"status": "failed", "reason": str(e)}))
+      print(f"RES READ EXCEPTION {type(e).__name__}, {str(e)}", flush=True)
+      # cmd_queue.put(("state", {"status": "error", "reason": str(e)}))
+      cmd_queue.send(("state", {"status": "error", "reason": str(e)}))
 
 
 
@@ -138,6 +124,22 @@ class PrintTask(AncillaTask):
     self.service = service
     self.payload = payload
     self.state.update({"name": name, "status": "pending", "model": {}})
+
+    
+    # image_collector = self.service.ctx.socket(zmq.SUB)
+    # image_collector.bind(f"ipc://printcommand{self.task_id}.ipc")
+
+    # self.image_collector = ZMQStream(image_collector)
+    # self.image_collector.linger = 0
+    # self.image_collector.on_recv(self.on_data, copy=True)
+
+    # command_url = f"tcp://printcommand{self.task_id}.ipc"
+    # a = self.service.ctx.socket(zmq.PAIR)
+    # b = self.service.ctx.socket(zmq.PAIR)
+    # url = "inproc://%s" % uuid.uuid1()
+    # a.bind(command_url)
+    # b.connect(command_url)
+    # return a, b
     # self.state._add_change_listener(
     #         functools.partial(self.trigger_hook, 'state'))
 
@@ -174,60 +176,160 @@ class PrintTask(AncillaTask):
     # mp.set_start_method('spawn')
     # ctx = mp.get_context('fork')
     ctx = mp.get_context('spawn')
-    cmd_queue = ctx.Queue()
-    resp_queue = ctx.Queue()
-    
-    self.p = ctx.Process(target=run_command, args=(self.task_id, self.service.current_print, cmd_queue, resp_queue,))
-
+    # cmd_queue = ctx.Queue()
+    # resp_queue = ctx.Queue()
+    self.parent_conn, child_conn = ctx.Pipe()
+    self.p = ctx.Process(target=run_save_command, args=(self.task_id, self.service.current_print, child_conn,))
     self.p.daemon = True
     self.p.start()
 
-    while self.state.status == "running":
-      current_command = None
-      try:
-        # print(f'Parent CURRENT OS = {os.getppid()}')
-        payload = cmd_queue.get_nowait()        
-        # print(f"PCbefore = {payload}")
-        if payload:
-          (key, pc) = payload
-          if key == "state":
-            self.state.status = pc.get("status")
-            self.state.reason = pc.get("reason") or ""
-          elif key == "cmd":
-            current_command = pc
-            self.service.command_queue.add(pc)
-            IOLoop.current().add_callback(self.service.process_commands)
-            # if pc.nowait:
-            #   # self.service.connector.write(pc.command.encode('ascii'))
-            #   # pc.status = "finished"
-            #   self.service.command_queue.add(pc)
-            #   IOLoop.current().add_callback(self.service.process_commands)
-            # else:
-            #   self.service.command_queue.add(pc)
-            #   IOLoop.current().add_callback(self.service.process_commands)
-            
-            while (pc.status == "pending" or 
-                      pc.status == "running" or 
-                      pc.status == "busy"):
+    # self.parent_conn = self.service.ctx.socket(zmq.PUSH)
+    # self.parent_conn.bind("tcp://127.0.0.1:5557")
+    # self.p = ctx.Process(target=run_save_command, args=(self.task_id, self.service.current_print,))
+    # self.p.daemon = True
+    # self.p.start()
 
-                await sleep(0.01)
-                if self.state.status != "running":
-                  pc.status = self.state.status
-                  break
-            if pc.status == "error":
-                pc.status = "failed"
-                self.state.status = "failed"
-                self.state.reason = "Could Not Execute Command: " + pc.command
+    try:
+      with open(sf.path, "r") as fp:
+        cnt = 1
+        fp.seek(0, os.SEEK_END)
+        endfp = fp.tell()
+        # print("End File POS: ", endfp)
+        self.service.current_print.state["end_pos"] = endfp
+        current_pos = self.service.current_print.state.get("pos", 0)
+        fp.seek(current_pos)
+        line = fp.readline()
+        start_time = time.time()
+        while self.state.status == "running":
+          if cnt % 100 == 0:
+            print(f"{cnt} COMMANDS FINISHED AFTER {time.time() - start_time}")
+            # self.state.status = "paused"
+            # break
+          # for line in fp:
+          cmd_start_time = time.time()
+          pos = fp.tell()
+          
+          # print("File POS: ", pos)
+          if pos == endfp:
+            self.state.status = "finished"
+            self.service.current_print.status = "finished"
+            self.service.current_print.save()
+            break
+
+          if not line.strip():
+            line = fp.readline()
+            continue
+
+          # print("Line {}, POS: {} : {}".format(cnt, pos, line))    
+
+          is_comment = line.startswith(";")
+          self.current_command = self.service.add_command(self.task_id, cnt, line, is_comment, print_id=self.service.current_print.id)
+          # cmd_data = self.current_command.__data__
+          # print(f"CurCmd: {self.current_command.command}", flush=True)
+          
+          while (self.current_command.status == "pending" or 
+                self.current_command.status == "running" or 
+                self.current_command.status == "busy"):
+
+            await sleep(0.005)
+            if self.state.status != "running":
+              self.current_command.status = self.state.status
+              break
+          
+          # cmd_data["status"] = self.current_command.status
+          # cmd_data["response"] = self.current_command.response
+          # self.parent_conn.send_multipart([b'cmd', f'{pos}'.encode('ascii'),  json.dumps(cmd_data).encode('ascii')], copy=False)
+          # self.parent_conn.send_pyobj(("cmd", pos, self.current_command))
+
+          # r = self.parent_conn.recv()          
+          # print(f"COMMAND cnt: {cnt} {time.time()} {self.current_command.command} FINISHED {time.time() - cmd_start_time}")
+          # IOLoop().current().add_callback(functools.partial(self.save_command, self.current_command))
+          
+          # print(f'InsidePrintTask curcmd= {self.current_command}', flush=True)
+          if self.current_command.status == "error":
+            self.service.current_print.status = "failed"
+            self.state.status = "failed"
+            self.state.reason = "Could Not Execute Command: " + self.current_command.command
+            self.parent_conn.send(("cmd", self.service.current_print, self.current_command))
+            break
+
+          if self.current_command.status == "finished":
+            self.service.current_print.state["pos"] = pos
+            # self.service.current_print.save()
+            line = fp.readline()
+            cnt += 1
+            cmd_end_time = time.time()
+
+          self.parent_conn.send(("cmd", self.service.current_print, self.current_command))
+
+        
+    except Exception as e:
+      self.service.current_print.status = "failed"
+      # device.current_print.save()
+      self.state.status = "failed"
+      self.state.reason = str(e)
+      print(f"Print Exception: {str(e)}", flush=True)
+
+    # def cmd_callback(cmd, *args):
+    #   # print(f'Iniside Command Callback {cmd}, {args}')      
+    #   parent_conn.send(("cmd", cmd))
+    #   return True
+
+    # while self.state.status == "running":
+    #   current_command = None
+    #   try:
+    #     # print(f'Parent CURRENT OS = {os.getppid()}')
+    #     payload = None
+    #     res = parent_conn.poll(0.0001)
+        
+    #     if res:
+    #       payload = parent_conn.recv()
+    #     else:
+    #       await sleep(0.001)
+    #       continue
+    #     # payload = cmd_queue.get_nowait()        
+    #     # print(f"PCbefore = {payload}")
+    #     if payload:
+    #       (key, pc) = payload
+    #       if key == "state":
+    #         self.state.status = pc.get("status")
+    #         self.state.reason = pc.get("reason") or ""
+    #       elif key == "cmd":
+    #         current_command = pc
+    #         self.service.command_queue.add(current_command, cmd_callback )
+    #         IOLoop.current().add_callback(self.service.process_commands)
+    #         # if pc.nowait:
+    #         #   # self.service.connector.write(pc.command.encode('ascii'))
+    #         #   # pc.status = "finished"
+    #         #   self.service.command_queue.add(pc)
+    #         #   IOLoop.current().add_callback(self.service.process_commands)
+    #         # else:
+    #         #   self.service.command_queue.add(pc)
+    #         #   IOLoop.current().add_callback(self.service.process_commands)
             
-            # print(f"RespPC = {pc}")
-            # resp_queue.put(("cmd", pickle.dumps(pc)))
-            resp_queue.put(("cmd", pc))
-        else:
-          await sleep(0.01)
-      except QueueEmpty:
-        await sleep(0.01)
-      except Exception as e:
-        print(f"Exception {type(e).__name__} {str(e)}")
+    #         # while (current_command.status == "pending" or 
+    #         #           current_command.status == "running" or 
+    #         #           current_command.status == "busy"):
+
+    #         #     await sleep(0.001)
+    #         #     if self.state.status != "running":
+    #         #       current_command.status = self.state.status
+    #         #       break
+    #         # if current_command.status == "error":
+    #         #     current_command.status = "failed"
+    #         #     self.state.status = "failed"
+    #         #     self.state.reason = "Could Not Execute Command: " + current_command.command
+            
+    #         # # print(f"RespPC = {pc}")
+    #         # # resp_queue.put(("cmd", pickle.dumps(pc)))
+    #         # # resp_queue.put(("cmd", current_command))
+    #         # parent_conn.send(("cmd", current_command))
+    #     else:
+    #       await sleep(0.001)
+    #   except QueueEmpty:
+    #     await sleep(0.001)
+    #   except Exception as e:
+    #     print(f"Exception {type(e).__name__} {str(e)}")
         
 
 
@@ -237,7 +339,8 @@ class PrintTask(AncillaTask):
 
   
   def cleanup(self):
-    self.p.join(timeout=1)
+    self.parent_conn.send(("close", '', ''))
+    self.p.join(timeout=5)
     self.service.current_print.status = self.state.status
     self.service.current_print.save()
     self.state.model = self.service.current_print.json
@@ -391,7 +494,7 @@ class PrintTask(AncillaTask):
     return {"state": self.state}
 
   def save_command(self, command, *args):
-    print(f"Save Command {command.command}")
+    # print(f"Save Command {command.command}")
     command.save()
 
   def cancel(self, *args):
@@ -407,174 +510,3 @@ class PrintTask(AncillaTask):
     self.state.model = self.service.current_print.json
     if st != self.state.to_json():
       self.service.fire_event(Printer.print.state.changed, self.state)
-
-
-    # self.publish_request(request)
-  
-
-# class PeriodicTask(DeviceTask):
-#   def __init__(self, name, request_id, *args, **kwargs):
-#     super().__init__(name, *args)  
-#     self.interval = kwargs.get("interval") or 2000
-#     self.io_loop = IOLoop.current()    
-#     self.state = "initialized"
-#     self.run_count = 0
-#     self.run_timeout = None
-
-#   async def run(self):
-#     print(f"RUN PERIODIC TASK {self.name}", flush=True)
-#     if self.state == "initialized":
-#       self._next_timeout = time.time() + self.interval / 1000.0
-#       self.run_timeout = self.io_loop.add_timeout(self._next_timeout, self.run)
-#       self.state = "pending"
-#     elif self.state == "running":
-#       print("still running")
-#       pass
-#     elif self.state == "pending":
-      
-#       self.state = "running"
-#       print("is running now", flush=True)
-#       time.sleep(2)
-#       self.state = "pending"
-#       self._next_timeout = time.time() + self.interval / 1000.0
-#       self.run_timeout = self.io_loop.add_timeout(self._next_timeout, self.run)
-#     else:
-#       self.run_timeout.cancel()
-#     return "task"
-
-#   def stop(self):
-#     self.state = "finished"
-#     if self.run_timeout:
-#       self.run_timeout.cancel()
-#     # if self.state == ""
-
-
-
-
-
-# # class CommandQueue(object):
-# #     current_command = None
-# #     current_expiry = None
-
-# #     def __init__(self):
-# #         self.queue = OrderedDict()
-
-# #     def add(self, cmd):
-# #         self.queue.pop(cmd.identifier(), None)
-# #         self.queue[cmd.identifier()] = cmd
-
-# #     def get_command(self):
-# #       if not self.current_command:
-# #         cid, cmd = self.queue.popitem(False)
-# #         self.current_command = cmd
-# #         self.current_expiry = time.time() + 5000
-# #       return self.current_command 
-
-# #     def finish_command(self, status="finished"):
-# #       if self.current_command:
-# #         self.current_command.status = status
-# #         self.current_command.save()
-# #       self.current_command = None
-# #       self.current_expiry = None
-
-# #     def update_expiry(self):
-# #         self.current_expiry = time.time() + 5000
-
-# #     def __next__(self):
-# #         address, worker = self.queue.popitem(False)
-# #         return address
-        
-# # class Device(object):
-# #     endpoint = None         # Server identity/endpoint
-# #     identity = None
-# #     alive = True            # 1 if known to be alive
-# #     ping_at = 0             # Next ping at this time
-# #     expires = 0             # Expires at this time
-# #     workers = []
-# #     data_handlers = []
-# #     request_handlers = []
-# #     interceptors = []
-# #     data_stream = None
-# #     input_stream = None
-# #     pusher = None
-
-# #     def __init__(self, ctx, name, **kwargs):    
-# #         print(f'DEVICE NAME = {name}', flush=True)  
-# #         self.identity = name
-# #         # self.ping_at = time.time() + 1e-3*PING_INTERVAL
-# #         # self.expires = time.time() + 1e-3*SERVER_TTL
-
-# #         self.ctx = ctx #zmq.Context()
-
-# #         self.pusher = self.ctx.socket(zmq.PUSH)
-# #         self.pusher.connect(f"ipc://collector")
-
-# #         # self.ctx = zmq.Context()
-# #         deid = f"inproc://{self.identity}_collector"
-# #         self.data_stream = self.ctx.socket(zmq.PULL)
-# #         # print(f'BEFORE CONNECT COLLECTOR NAME = {deid}', flush=True)  
-# #         self.data_stream.bind(deid)
-# #         time.sleep(0.1)        
-# #         self.data_stream = ZMQStream(self.data_stream)
-# #         # self.data_stream.stop_on_recv()
-
-# #         self.input_stream = self.ctx.socket(zmq.ROUTER)
-# #         # print(f"ipc://{self.identity.decode('utf-8')}_taskrouter", flush=True)
-# #         input_url = f"ipc://{self.identity.decode('utf-8')}_taskrouter"
-# #         # input_url = f"tcp://*:5558"
-# #         self.input_stream.identity = f"{self.identity.decode('utf-8')}_input".encode('ascii')  #self.identity #b"printer"
-# #         self.input_stream.bind(input_url)
-# #         time.sleep(0.1)
-
-# #         self.input_stream = ZMQStream(self.input_stream)
-# #         # self.input_stream.on_recv(self.on_message)
-# #         # self.input_stream.on_send(self.input_sent)
-# #         IOLoop.current().add_callback(self.start_receiving)
-# #         # sys.stderr.flush()
-
-
-# #     def start_receiving(self):
-# #       # print("Start receiving", flush=True)
-# #       self.data_stream.on_recv(self.on_data)
-# #       # self.input_stream.on_recv(self.on_message)
-
-# #     def register_data_handlers(self, obj):
-# #       data_handlers.append(obj)
-
-# #     def input_sent(self, msg, status):
-# #       print("INPUT SENT", msg)
-
-# #     def on_message(self, msg):
-# #       print("ON MESSGE", msg)
-
-# #     def on_tada(self, *args):
-# #       print("ON TADA", flush=True)
-
-# #     def on_data(self, data):
-# #       # print("ON DATA", data)
-# #       self.pusher.send_multipart(data)
-
-# #     def stop(self):
-# #       print("stop")
-    
-# #     def start(self):
-# #       print("RUN SERVER", flush=True)
-
-# #     def send(self, msg):
-# #       print("DEvice Send", flush=True)
-# #       print(msg)
-# #       # self.pipe.send_multipart([b"COMMAND", msg])
-
-
-# #     # def ping(self, socket):
-# #     #     if time.time() > self.ping_at:
-# #     #         print("SEND PING FOR %s", self.identity)
-# #     #         socket.send_multipart([self.identity, b'PING', b'/'])
-# #     #         self.ping_at = time.time() + 1e-3*PING_INTERVAL
-# #     #     else:
-# #     #       print("NO PING: %s  ,  %s ", time.time(), self.ping_at)
-
-# #     # def tickless(self, tickless):
-# #     #     if tickless > self.ping_at:
-# #     #         tickless = self.ping_at
-# #     #     return tickless
