@@ -39,10 +39,12 @@ class CommandQueue(object):
         self.queue = OrderedDict()
         self.current_command = None
         self.current_expiry = None
+        self.callbacks = OrderedDict()
 
-    def add(self, cmd):
+    def add(self, cmd, cb = None):
         self.queue.pop(cmd.identifier(), None)
         self.queue[cmd.identifier()] = cmd
+        self.callbacks[cmd.identifier()] = cb
 
     def get_command(self):
       if not self.current_command and len(self.queue) > 0:
@@ -55,6 +57,11 @@ class CommandQueue(object):
       # print("FINISH Cmd", flush=True)
       if self.current_command:
         self.current_command.status = status
+        # cb = self.callbacks[self.current_command.identifier()]
+        cb = self.callbacks.pop(self.current_command.identifier(), None)
+        if cb:
+          res = cb(self.current_command.__data__)
+          
         # self.current_command.save()
       self.current_command = None
       self.current_expiry = None
