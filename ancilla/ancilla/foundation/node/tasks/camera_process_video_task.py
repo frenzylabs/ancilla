@@ -57,14 +57,20 @@ class CameraProcessVideoTask(AncillaTask):
     self.current_frame = None
 
     image_collector = self.service.ctx.socket(zmq.SUB)
-    image_collector.connect(f"ipc://publisher")
+    # image_collector.connect(f"ipc://publisher")
+    print(f'PUBSUB ADDRESS {self.service.pubsub_address}', flush=True)
+    image_collector.connect(self.service.pubsub_address)
+    
+    
 
     self.image_collector = ZMQStream(image_collector)
     self.image_collector.linger = 0
     self.image_collector.on_recv(self.on_data, copy=True)
 
-    image_collector.setsockopt(zmq.SUBSCRIBE, self.service.identity + b'.events.camera.data_received')
-    image_collector.setsockopt(zmq.SUBSCRIBE, self.service.identity + b'.events.camera.connection.closed')
+    image_collector.setsockopt(zmq.SUBSCRIBE, b'events.camera.data_received')
+    image_collector.setsockopt(zmq.SUBSCRIBE, b'events.camera.connection.closed')
+    # image_collector.setsockopt(zmq.SUBSCRIBE, self.service.identity + b'.events.camera.data_received')
+    # image_collector.setsockopt(zmq.SUBSCRIBE, self.service.identity + b'.events.camera.connection.closed')
 
     self.ready = True
     # self.flush_callback = PeriodicCallback(self.flush_camera_frame, 20)
@@ -153,8 +159,9 @@ class CameraProcessVideoTask(AncillaTask):
             break           # Interrupted4
 
         if self.current_frame:
+          # print("PROCESS IMAGE FRAME")
           self.process_img(self.current_frame)
-          gc.collect()
+          # gc.collect()
 
         # if image_collector in items:
         #     # print("INSIDE AGENT PIPE", flush=True)          

@@ -416,7 +416,28 @@ class NodeService(App):
         if action in target.list_actions():
           method = getattr(target, action)
           res = method(payload)
-          return res
+          if yields(res):
+            future = asyncio.run_coroutine_threadsafe(res, asyncio.get_running_loop())
+            # while not future.done():
+            #   time.sleep(0.01)
+            return future.result(4)
+
+            # print("FUTURE = ", future)
+            # zmqrouter = self.zmq_router
+            # def onfinish(fut):
+            #   newres = fut.result(1)
+            #   status = b'success'
+            #   if "error" in newres:
+            #     status = b'error'
+            #   zmqrouter.send_multipart([replyto, status, json.dumps(newres).encode('ascii')])
+
+            # future.add_done_callback(onfinish)
+
+          else:
+            print(f"THE RESP here = {res}", flush=True)
+            return res  
+
+          
         else:
           return {"status": "error", "message": "Action Doesnt Exist"}
       except Exception as e:
@@ -442,10 +463,10 @@ class NodeService(App):
           res = curdevice.send([request_id, action, message])
 
     def router_message_sent(self, msg, status):
-      print("INSIDE ROUTE MESSageSEND", flush=True)
+      print("NODE INSIDE ROUTE MESSageSEND", flush=True)
 
     def router_message(self, msg):
-      print("Unpack here", flush=True)
+      print("NOde Unpack here", flush=True)
       print(f"Router Msg = {msg}", flush=True)
       
       replyto, method, path, *args = msg
