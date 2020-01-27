@@ -22,7 +22,7 @@ class Database(object):
     ('journal_mode', 'wal'),  # Use WAL-mode (you should always use this!).
     ('foreign_keys', 1),
     ('threadlocals', True)))
-  # conn = SqliteExtDatabase(path, {'foreign_keys' : 1, 'threadlocals': True})
+  # conn = SqliteExtDatabase(path, {'foreign_keys' : 1, 'threadlocals': True, 'journal_mode': 'wal'})
   # conn = None
   router = None
   

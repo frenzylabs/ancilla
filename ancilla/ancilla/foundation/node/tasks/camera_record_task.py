@@ -31,6 +31,7 @@ class CameraRecordTask(AncillaTask):
     super().__init__(name, *args)
     # self.request_id = request_id
     self.payload = payload
+    self.camera_model = payload.get('camera_model', None)
     self.task_settings = self.payload.get("settings") or {}
     self.service = service
     # self.state = Dotdict({"status": "pending", "model": {}})
@@ -47,8 +48,11 @@ class CameraRecordTask(AncillaTask):
       os.makedirs(self.video_path)
     
     
-    self.recording = CameraRecording(task_name=name, image_path=self.image_path, video_path=self.video_path, settings=self.task_settings, status="pending", camera_snapshot=self.service.camera_model.to_json())
-    self.recording.camera = self.service.camera_model
+    self.recording = CameraRecording(task_name=name, image_path=self.image_path, video_path=self.video_path, settings=self.task_settings, status="pending")
+
+    if self.camera_model:
+      self.recording.camera_snapshot = self.camera_model
+      self.recording.camera_id = self.camera_model["id"] #self.service.camera_model
 
     printmodel = self.payload.get("model")
     if printmodel:
@@ -69,7 +73,7 @@ class CameraRecordTask(AncillaTask):
     self.current_frame = None
 
     event_socket = self.service.ctx.socket(zmq.SUB)
-    event_socket.connect(processor.processed_stream)    
+    event_socket.connect(processor.get("stream"))    
     
 
     self.event_stream = ZMQStream(event_socket)
@@ -218,8 +222,8 @@ class CameraRecordTask(AncillaTask):
       
       
 
-      self.service.state.recording = True
-      self.service.fire_event(Camera.state.changed, self.service.state)
+      # self.service.state.recording = True
+      # self.service.fire_event(Camera.state.changed, self.service.state)
 
       self.state.status = "recording"
       self.recording.status = self.state.status
@@ -251,7 +255,7 @@ class CameraRecordTask(AncillaTask):
     self.recording.reason = self.state.reason or ""
     self.recording.save()
     self.service.fire_event(Camera.recording.state.changed, self.state)
-    self.service.state.recording = False    
+    # self.service.state.recording = False    
     self.flush_callback.stop()
     self.event_stream.close()
     if self.video_writer:

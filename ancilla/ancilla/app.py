@@ -86,6 +86,7 @@ class Application():
   def start_db(self):
     Database.connect()
     Database.run_migrations()
+    print(f'DATBASE conn = {Database.conn.__dict__}')
     # Database.create_tables([
     #   Printer,
     #   PrinterLog

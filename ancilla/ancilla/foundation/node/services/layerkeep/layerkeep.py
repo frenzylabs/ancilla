@@ -87,11 +87,11 @@ class Layerkeep(BaseService):
         self.session.headers.update({'Authorization': f'Bearer {access_token}'})          
 
     def settings_changed(self, event, oldval, key, newval):
-      print(f"INSIDE LK settings CHANGED HOOK EVENT: {event}, {oldval},  {key}, {newval}", flush=True)
+      # print(f"INSIDE LK settings CHANGED HOOK EVENT: {event}, {oldval},  {key}, {newval}", flush=True)
       if not key.startswith("auth"):
         super().settings_changed(event, oldval, key, newval)
       else:
-        print(f"AUTH CHANGED: {key}", flush=True)
+        # print(f"AUTH CHANGED: {key}", flush=True)
         if key == "auth.token.access_token":
           self.session.headers.update({'Authorization': f'Bearer {newval}'})
 

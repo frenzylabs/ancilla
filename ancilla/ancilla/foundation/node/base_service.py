@@ -132,10 +132,10 @@ class BaseService(App):
     def events_changed(self, event, oldval, key, newval):
       # print(f"INSIDE event_changed CHANGED HOOK EVENT: {event}, {oldval},  {key}, {newval}", flush=True)
       if not newval:
-        print(f"UNSUBSCRIBING from event {key}", flush=True)
+        # print(f"UNSUBSCRIBING from event {key}", flush=True)
         self.event_stream.setsockopt(zmq.UNSUBSCRIBE, key.encode('ascii'))
       else:
-        print(f"SUBSCRIBING TO event {key}", flush=True)
+        # print(f"SUBSCRIBING TO event {key}", flush=True)
         self.event_stream.setsockopt(zmq.SUBSCRIBE, key.encode('ascii'))
 
     def config_changed(self, event, oldval, key, newval):

@@ -74,13 +74,13 @@ class CameraApi(Api):
   def connect(self, *args):
     return self.service.connect()
   
-  def disconnect(self, *args):
-    if self.service.connector:
-        self.service.stop()
+  async def disconnect(self, *args):
+    # if self.service.connector:
+    await self.service.stop()
     return {"status": "disconnected"}
 
-  def record(self, request, *args):
-    return self.service.start_recording({"data": request.params})
+  async def record(self, request, *args):
+    return await self.service.start_recording({"data": request.params})
 
   def get_recording(self, request, recording_id, *args):
     rcd = CameraRecording.get_by_id(recording_id)
@@ -122,11 +122,13 @@ class CameraApi(Api):
 
 
   def get_video_processor(self, request, *args):
-    processer = self.service.get_or_create_video_processor()    
-    if not processer:
+    # return {"stream": "tcp://127.0.0.1:5557"}
+    processor = self.service.get_or_create_video_processor()    
+    if not processor:
       raise AncillaError(400, {"errors": "Video Could Not be Processed"})
     else:
-      return {"stream": processer.processed_stream}
+      return processor
+      # return {"stream": processer.processed_stream}
 
 
   def stream_video(self, request, fp):    
