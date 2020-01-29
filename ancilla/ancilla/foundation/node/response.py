@@ -6,6 +6,8 @@
  Copyright 2019 FrenzyLabs, LLC.
 '''
 
+import json
+from ..utils import fullpath
 from ..utils.dict import HeaderDict, HeaderProperty, _hkey, _hval
 
 STATUS_CODES = dict()
@@ -208,6 +210,27 @@ class AncillaResponse(BaseResponse, Exception):
     def __str__(self):
       return self.status_line
 
+
+    def encode(self, *args):
+      data = {
+          "body": self.body,
+          "status": self.status,
+          "headers": self.headerlist
+      }
+      return json.dumps({"__class__": fullpath(self), "data": data}).encode('ascii')
+
+    @classmethod
+    def decode(cls, data, *args):
+        try:
+            # content = json.loads(data)
+            # d = content.get("data")
+            resp = cls(**data)
+            # if d.get("exception"):
+            return resp
+        except Exception as e:
+            print("Could Not Decode Response")
+            return cls(400, exception=e)
+
 class AncillaError(AncillaResponse):
     default_status = 500
 
@@ -224,3 +247,27 @@ class AncillaError(AncillaResponse):
       if self.exception:
         return f'{self.status_line}: {str(self.exception)}' 
       return f'{self.status_line}'
+
+    def encode(self, *args):
+      data = {
+          "body": self.body,
+          "status": self.status,
+          "headers": self.headerlist
+      }
+      return json.dumps({"__class__": fullpath(self), "data": data}).encode('ascii')
+
+    @classmethod
+    def decode(cls, data, *args):
+        try:
+            # content = json.loads(data)
+            # print(f"ErrClass = {cls}")
+            # print(f"ErrClassData = {data}")
+            d = data #content.get("data")
+            # if d.get("headers", {})
+            er = cls(status=d.get("status"), body=d.get("body"), headers=d.get("headers", {}))
+            # if d.get("exception"):
+            return er
+        except Exception as e:
+            print("Could Not Decode Response")
+            return cls(400, exception=e)
+    

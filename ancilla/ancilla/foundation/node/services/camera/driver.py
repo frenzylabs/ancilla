@@ -97,7 +97,7 @@ class CameraConnector(object):
           
           if ret:
             i += 1
-            
+            # print(f'frame = {frame}')
           # publisher.send_multipart([self.identity, frame])
             device_collector.send_multipart([self.identity + b'.data_received', f'{i}'.encode('ascii'), pickle.dumps(frame, -1)])
           else:

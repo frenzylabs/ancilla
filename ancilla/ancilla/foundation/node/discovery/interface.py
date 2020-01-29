@@ -113,6 +113,7 @@ class Interface(object):
             self.agent.stop()
             self.agent = None
         print(f"Closed Agent", flush=True)
+        print(f"destroy interface self.ctx {self.ctx}", flush=True)
         if self.ctx:
             self.ctx.destroy()
         # self.ctx.term()
@@ -378,7 +379,7 @@ class InterfaceAgent(object):
             self.udp.send(packet)
             # self.udp.send(self.uuid)
         except Exception as e:
-            print(f'Exception = {str(e)}')
+            print(f'Ping Exception = {str(e)}')
             # self.loop.stop()
 
     def control_message(self, event):

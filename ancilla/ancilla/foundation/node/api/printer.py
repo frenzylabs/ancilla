@@ -5,7 +5,7 @@ from .api import Api
 from ..events.printer import Printer as PrinterEvent
 from ...data.models import Print, Printer, Service, PrinterCommand, CameraRecording
 from ..response import AncillaError
-from ..app import Request
+from ..request import Request
 
 import asyncio
 class PrinterApi(Api):
@@ -92,16 +92,18 @@ class PrinterApi(Api):
   def connect(self, *args):
     return self.service.connect()
   
-  def disconnect(self, *args):
-    if self.service.connector:
-        self.service.stop()
+  async def disconnect(self, *args):
+    await self.service.stop()
+    # if self.service.connector:
+    #     self.service.stop()
     return {"status": "disconnected"}
 
   async def print(self, request, layerkeep, *args):
-    data = self.service.start_print(request.params)
+    resp = await self.service.start_print(request.params)
+    data = resp.body
     prnt = data.get("print")
     if request.params.get('layerkeep_sync'):      
-      response = await layerkeep.create_print({"data": {"print": prnt.json, "params": request.params}})
+      response = await layerkeep.create_print({"data": {"print": prnt, "params": request.params}})
 
       if not response.success:
         raise response

@@ -27,19 +27,19 @@ import json
 
 
 # from ..zhelpers import zpipe, socket_set_hwm
-from ....data.models import Camera as CameraModel, CameraRecording
-from ...base_service import BaseService
-from ....utils.service_json_encoder import ServiceJsonEncoder
+from ..data.models import Camera as CameraModel, CameraRecording
+# from .base_service import BaseService
+from ..utils.service_json_encoder import ServiceJsonEncoder
 
 # from ...data.models import DeviceRequest
-from .driver import CameraConnector
+# from .driver import CameraConnector
 # from queue import Queue
 # import asyncio
 from functools import partial
 from tornado.queues     import Queue
-from tornado import gen
-from tornado.gen        import coroutine, sleep
-from collections import OrderedDict
+# from tornado import gen
+# from tornado.gen        import coroutine, sleep
+# from collections import OrderedDict
 import struct # for packing integers
 # from zmq.eventloop.ioloop import PeriodicCallback
 
@@ -52,28 +52,25 @@ import inspect
 import asyncio
 from types import CoroutineType
 
-from tornado.platform.asyncio import AnyThreadEventLoopPolicy
-
-import string, random
-
+# from tornado.platform.asyncio import AnyThreadEventLoopPolicy
 
 
 # from ..tasks.device_task import PeriodicTask
-from ...tasks.camera_record_task import CameraRecordTask
-from ...tasks.camera_process_video_task import CameraProcessVideoTask
+# from ...tasks.camera_record_task import CameraRecordTask
+# from ...tasks.camera_process_video_task import CameraProcessVideoTask
 
-from ...events import Event, EventPack, Service as EventService
-from ...events.camera import Camera as CameraEvent
-from ...events.event_pack import EventPack
-from ...middleware.camera_handler import CameraHandler
-from ...api.camera import CameraApi
-from ...response import AncillaResponse, AncillaError
-from ...request import Request
-from ...app import App, ConfigDict
+from .events import Event, EventPack #, Service as EventService
+# from ...events.camera import Camera as CameraEvent
+from .events.event_pack import EventPack
+# from ...middleware.camera_handler import CameraHandler
+# from ...api.camera import CameraApi
+from .response import AncillaResponse, AncillaError
+from .request import Request
+from .app import ConfigDict
 
-from multiprocessing import Process, Lock, Pipe, Value, Array
-import multiprocessing as mp
-from ctypes import c_char_p
+# from multiprocessing import Process, Lock, Pipe, Value, Array
+# import multiprocessing as mp
+
 
 def yields(value):
     return isinstance(value, asyncio.futures.Future) or inspect.isgenerator(value) or \
@@ -93,7 +90,7 @@ async def call_maybe_yield(func, *args, **kwargs):
     return rv
 
 
-class CameraProcess():
+class ServiceProcess():
     # connector = None
     # endpoint = None         # Server identity/endpoint
     # identity = None
@@ -111,99 +108,114 @@ class CameraProcess():
       "pause_recording",
       "print_state_change"
     ]
-    connector = None
-    video_processor = None
+    # connector = None
+    # video_processor = None
     # zmq_pub = None
     # zmq_router = None
 
-    def __init__(self, identity, **kwargs): 
+    def __init__(self, identity, child_conn, handler, **kwargs): 
         # ctx = mp.get_context('spawn')
         # ctx.set_start_method('spawn')
         # ctx.Process.__init__(self)
         # super().__init__(**kwargs)
         # self.service = service
         self.identity = identity
+        self.child_conn = child_conn
+        self.data_handlers = []      
+        self.handler = handler(self)
         
         self.loop = None
         print(f"PROCESS ID + {os.getpid()}", flush=True)
         # self.rpc, self.child_conn = Pipe()
         self.router_address = None
 
+        self.setup_event_loop()
+        self.setup()
+
+        self.ctx = zmq.Context.instance()
+        self.port = 5556
+        self.pub_port = 5557
+
+        self.setup_router()
+        self.zmq_router = ZMQStream(self.zrouter, self.loop)
+        self.zmq_router.on_recv(self.router_message)
+        # self.zmq_router.on_send(self.router_message_sent)
 
 
-        # self.parent_conn, child_conn = ctx.Pipe()
-        # self.p = ctx.Process(target=self.run, args=(self.child_conn,))
-        # self.p.daemon = True
-        
-        
-        # self.router_address = None
-        # asyncio.set_event_loop_policy(AnyThreadEventLoopPolicy())
-        
-        # self.ctx = zmq.Context.instance()
-        # self.port = 5556
-        
+        self.setup_publiser()
+        self.zmq_pub = ZMQStream(self.zpub, self.loop)
 
-        # self.zrouter = self.ctx.socket(zmq.DEALER)
-        # self.zrouter.identity = self.identity
-        # trybind = 30
-        # bound = False
-        # while not bound and trybind > 0:
-        #   try:
-        #     self.bind_address = f"tcp://*:{self.port}"
-        #     self.router_address = f"tcp://127.0.0.1:{self.port}"
-        #     self.zrouter.bind(self.bind_address)
-        #     print(f"Bound to {self.bind_address}")
-        #     bound = True
-        #   except zmq.error.ZMQError:
-        #     trybind -= 1
-        #     self.port += 1
-        
-        # if not bound:
-        #   raise Exception("Could Not Bind To Address")
-        
-        
-        
+        self.setup_data()
 
-        # self.camera_handler = CameraHandler(self)
-        # self.register_data_handlers(self.camera_handler)
-        # self.api = CameraApi(self)
-        # self.connector = None
-        # self.video_processor = None
-
-        # self.event_class = CameraEvent
-
-        # self.state.load_dict({
-        #   "status": "Idle",
-        #   "connected": False, 
-        #   "alive": False,
-        #   "recording": False
-        # })
-
-        # self.register_data_handlers(PrinterHandler(self))
-
-    # def actions(self):
-    #   return [
-    #     "record"
-    #   ]
 
     
     @classmethod
-    def start_process(cls, identity, child_conn):
-      inst = cls(identity)
-      inst.run(child_conn)
+    def start_process(cls, identity, child_conn, handler):
+      inst = cls(identity, child_conn, handler)
+      inst.run()
 
+    def setup(self):
+      print(f'SETUP PROCESS')
+      from ..env import Env
+      from ..data.db import Database
+      from playhouse.sqlite_ext import SqliteExtDatabase
+      import zmq
+      import cv2
+      Env.setup()
+      
+      conn = SqliteExtDatabase(Database.path, pragmas=(
+        # ('cache_size', -1024 * 64),  # 64MB page-cache.
+        ('journal_mode', 'wal'),  # Use WAL-mode (you should always use this!).
+        ('foreign_keys', 1),
+        ('threadlocals', True)))
+      Database.conn.close()
+      Database.conn = conn
+      Database.connect()
+        # {'foreign_keys' : 1, 'threadlocals': True})
+      # conn.connect()
+      # # Database.connect()
+      # # pr(lock, f'conn = {conn}')
+      # from ....data.models import Camera, CameraRecording, Print, PrintSlice, PrinterCommand
+      # # Camera._meta.database = conn
+      # CameraRecording._meta.database = conn
+      
+      # PrinterCommand._meta.database = conn
+
+      self.state = ConfigDict()._make_overlay()
+      self.state._add_change_listener(partial(self.state_changed, 'state'))
+      self.task_queue = Queue()
+      self.current_task = {}
+      self.video_processor = None
+
+    def setup_event_loop(self):
+      self.evtloop = asyncio.new_event_loop()
+      asyncio.set_event_loop(self.evtloop)
+
+      IOLoop.clear_current()
+      if hasattr(IOLoop, '_current'):
+        del IOLoop._current
+      
+      print(f"INSIDE PROCESS SERVICE RUN {IOLoop.current(instance=False)}", flush=True)
+
+      if self.loop is None:
+          if not IOLoop.current(instance=False):
+              self.loop = IOLoop.current() #IOLoop()
+          else:
+              self.loop = IOLoop.current()
+      print(f"PLOOP = {self.loop}", flush=True)
+
+    
+      
     def stop_process(self):
       print(f'INSIDE PROCESS stop_process here', flush=True)
       
-      if self.connector:
-        self.connector.close()
-      if self.video_processor:
-        print(f"Close video processor")
-        self.video_processor.close()
+      if self.handler:
+        self.handler.close()
+
       for k, v in self.current_task.items():
         if hasattr(v, "stop"):
             v.stop()
-      self.fire_event(CameraEvent.connection.closed, {"status": "success"})
+
       self.data_stream.close()
       self.zrouter.close()
       # self.zpub.close()
@@ -254,9 +266,9 @@ class CameraProcess():
       self.data_handlers.append(obj)
 
     def setup_data(self):
-        self.data_handlers = []        
-        self.camera_handler = CameraHandler(self)
-        self.register_data_handlers(self.camera_handler)
+          
+        # self.camera_handler = CameraHandler(self)
+        # self.register_data_handlers(self.camera_handler)
 
         print(f"INSIDE base service {self.identity}", flush=True)
         deid = f"inproc://{self.identity}_collector"
@@ -272,83 +284,52 @@ class CameraProcess():
       print("state changed")
 
       
-    def setup(self):
-      print(f'SETUP PROCESS')
-      from ....env import Env
-      from ....data.db import Database
-      from playhouse.sqlite_ext import SqliteExtDatabase
-      import zmq
-      import cv2
-      Env.setup()
+    
+
+    async def run_loop(self):
       
-      conn = SqliteExtDatabase(Database.path, pragmas=(
-        # ('cache_size', -1024 * 64),  # 64MB page-cache.
-        ('journal_mode', 'wal'),  # Use WAL-mode (you should always use this!).
-        ('foreign_keys', 1),
-        ('threadlocals', True)))
-      Database.conn.close()
-      Database.conn = conn
-      Database.connect()
-        # {'foreign_keys' : 1, 'threadlocals': True})
-      # conn.connect()
-      # # Database.connect()
-      # # pr(lock, f'conn = {conn}')
-      from ....data.models import Camera, CameraRecording, Print, PrintSlice, PrinterCommand
-      # Camera._meta.database = conn
-      CameraRecording._meta.database = conn
+      # IOLoop.clear_current()
+      # if hasattr(IOLoop, '_current'):
+      #   del IOLoop._current
       
-      # PrinterCommand._meta.database = conn
+      # print(f"INSIDE PROCESS SERVICE RUN {IOLoop.current(instance=False)}", flush=True)
 
-      self.state = ConfigDict()._make_overlay()
-      self.state._add_change_listener(partial(self.state_changed, 'state'))
-      self.task_queue = Queue()
-      self.current_task = {}
-      self.video_processor = None
+      # if self.loop is None:
+      #     if not IOLoop.current(instance=False):
+      #         self.loop = IOLoop.current() #IOLoop()
+      #     else:
+      #         self.loop = IOLoop.current()
 
-    async def run_loop(self, loop, child_conn):
-      
-      IOLoop.clear_current()
-      if hasattr(IOLoop, '_current'):
-        del IOLoop._current
-      
-      print(f"INSIDE PROCESS SERVICE RUN {IOLoop.current(instance=False)}", flush=True)
+      # print(f"PLOOP = {self.loop}", flush=True)
 
-      if self.loop is None:
-          if not IOLoop.current(instance=False):
-              self.loop = IOLoop.current() #IOLoop()
-          else:
-              self.loop = IOLoop.current()
+      # self.setup()
 
-      print(f"PLOOP = {self.loop}", flush=True)
+      # self.ctx = zmq.Context.instance()
+      # self.port = 5556
+      # self.pub_port = 5557
 
-      self.setup()
-
-      self.ctx = zmq.Context.instance()
-      self.port = 5556
-      self.pub_port = 5557
-
-      self.setup_router()
-      self.zmq_router = ZMQStream(self.zrouter, self.loop)
-      self.zmq_router.on_recv(self.router_message)
-      # self.zmq_router.on_send(self.router_message_sent)
+      # self.setup_router()
+      # self.zmq_router = ZMQStream(self.zrouter, self.loop)
+      # self.zmq_router.on_recv(self.router_message)
+      # # self.zmq_router.on_send(self.router_message_sent)
 
 
-      self.setup_publiser()
-      self.zmq_pub = ZMQStream(self.zpub, self.loop)
-      # self.zmq_pub.on_recv(self.pub_message)
+      # self.setup_publiser()
+      # self.zmq_pub = ZMQStream(self.zpub, self.loop)
+      # # self.zmq_pub.on_recv(self.pub_message)
       
 
-      self.setup_data()
+      # self.setup_data()
 
-      # self.heartbeat = PeriodicCallback(self.send_state, 6000)        
-      # self.heartbeat.start()
+      # # self.heartbeat = PeriodicCallback(self.send_state, 6000)        
+      # # self.heartbeat.start()
       
       print(f"INSIDE run loop {self.loop}")
       # self.loop.start()
       # self.loop.run_forever()
       # print("AFTER LOOP")
       # child_conn = self.child_conn
-      self.child_conn = child_conn
+      child_conn = self.child_conn
       while self.running:
         res = child_conn.poll(0.01)
         if res:
@@ -372,20 +353,20 @@ class CameraProcess():
         await asyncio.sleep(1)
 
 
-    def run(self, child_conn):
+    def run(self):
       # asyncio.set_event_loop_policy(AnyThreadEventLoopPolicy())
       self.running = True
       try:
           # loop = ZMQEventLoop()
         print("RUN CAM PROCESS")
-        evtloop = asyncio.new_event_loop()
-        asyncio.set_event_loop(evtloop)
+        # evtloop = asyncio.new_event_loop()
+        # asyncio.set_event_loop(evtloop)
         # self.run_loop(evtloop)
-        evtloop.run_until_complete(self.run_loop(evtloop, child_conn))
+        self.evtloop.run_until_complete(self.run_loop())
         print("RUN CAM PROCESS COMPLETE")
       except KeyboardInterrupt:
         self.stop_process()              
-        child_conn.send(("stop", "success"))
+        self.child_conn.send(("stop", "success"))
         self.running = False
         print('\nFinished (interrupted)')
     
@@ -433,8 +414,8 @@ class CameraProcess():
     
     def handle_route(self, replyto, seq, request):
       action = request["action"]
-      if hasattr(self, action):
-        method = getattr(self, action)
+      if hasattr(self.handler, action):
+        method = getattr(self.handler, action)
         if method:
             # out = call_maybe_yield(route.call, *[request], **args)
           res = b''
@@ -524,6 +505,11 @@ class CameraProcess():
       pstring = pstring.encode('ascii')
       self.zmq_pub.send_multipart([b'events.'+ evtname, self.identity, pstring])
 
+    def add_task(self, task):
+      self.task_queue.put(task)
+      loop = IOLoop().current()
+      loop.add_callback(partial(self._process_tasks))
+
     async def _process_tasks(self):
       # print("About to get queue", flush=True)
       async for dtask in self.task_queue:
@@ -536,132 +522,4 @@ class CameraProcess():
         # self.pusher.publish()
         del self.current_task[dtask.name]
         print(f"PROCESS TASK = {res}", flush=True)
-
-
-    def connect(self, data):
-      endpoint = data.get("endpoint")
-      print(f"Camera Connect {os.getpid()}", flush=True)
-      self.connector = CameraConnector(self.ctx, self.identity, endpoint)
-      self.connector.open()
-      
-      self.connector.run()
-      self.state.connected = True
-      print(f"Cam {os.getpid()} and {CameraRecording._meta.database.__dict__}")
-      # tcr = CameraRecording(task_name="bob", settings={}, status="pending")
-      # tcr.save()
-
-      self.fire_event(CameraEvent.connection.opened, {"status": "success"})
-      return {"status": "connected"}
-
-    # def stop(self, *args):
-    #   print("Camera Stop", flush=True)
-    #   if self.connector:
-    #     self.connector.close()
-    #   self.connector = None
-    #   # self.state.connected = False
-    #   self.fire_event(CameraEvent.connection.closed, {"status": "success"})
-
-    def get_or_create_video_processor(self, *args):
-      # if not self.state.connected:
-      #   raise AncillaError(400, {"error": "Camera Not Connected"})
-      
-      if self.video_processor:
-          for k, v in self.current_task.items():
-            if isinstance(v, CameraProcessVideoTask):    
-              return {"stream": v.processed_stream}
-              # return v
-
-      # print(f'tc = {tcr}', flush=True)
-      payload = {"settings": {}}
-      self.video_processor = CameraProcessVideoTask("process_video", self, payload)
-      self.task_queue.put(self.video_processor)
-      loop = IOLoop().current()
-      loop.add_callback(partial(self._process_tasks))
-      return {"stream": self.video_processor.processed_stream}
-
-
-    def get_recording_task(self, data):
-      try:
-
-        task_name = data.get("task_name")
-        cr = None
-        if data.get("recording_id"):
-          cr = CameraRecording.get_by_id(data.get("recording_id"))
-          task_name = cr.task_name
-
-        printmodel = data.get("model")
-      
-        for k, v in self.current_task.items():
-          print(f"TASKkey = {k} and v = {v}", flush=True)
-          if isinstance(v, CameraRecordTask):
-            if printmodel:
-              if v.recording.print_id == printmodel.get("id"):
-                return v
-            if task_name:
-              if k == task_name:
-                return v
-            else:
-              return v
-        return None #self.current_task.get(task_name)
-
-      except Exception as e:
-        print(f"Cant cancel recording task {str(e)}", flush=True)
-        return {"status": "error", "error": f"Could not cancel task {str(e)}"}
-
-    def stop_recording(self, msg):
-        payload = msg.get('data')
-        task = self.get_recording_task(payload)
-        if task:
-          task.cancel()
-          return {"status": "success"}
-        else:
-          return {"status": "error", "error": "Task Not Found"}
-
-    def pause_recording(self, msg):
-        payload = msg.get('data')
-        task = self.get_recording_task(payload)
-        if task:
-          task.pause()
-          return {"status": "success"}
-        else:
-          return {"status": "error", "error": "Task Not Found"}
-
-    def resume_recording(self, msg):
-      try:
-        payload = msg.get('data')
-        task = self.get_recording_task(payload)
-        if task:
-          task.resume()
-          return {"status": "success"}
-        else:
-          return {"status": "error", "error": "Task Not Found"}
-
-      except Exception as e:
-        print(f"Cant resume recording task {str(e)}", flush=True)
-        return {"status": "error", "error": f"Could not resume task {str(e)}"}
-
-    def start_recording(self, msg):
-      print(f"START RECORDING {msg}", flush=True)
-      # print(f"RECORDING MSG: {json.dumps(msg, cls=ServiceJsonEncoder)}", flush=True)
-      # return {"started": True}
-      try:
-        
-        
-        payload = msg.get('data')
-        name = "".join(random.choice(string.ascii_lowercase + string.digits) for x in range(6))
-
-        
-        pt = CameraRecordTask(name, self, payload)
-        self.task_queue.put(pt)
-        loop = IOLoop().current()
-        loop.add_callback(partial(self._process_tasks))
-        return {"status": "success", "task": name}
-
-      except Exception as e:
-        print(f"Cant record task {str(e)}", flush=True)
-        raise AncillaError(400, {"status": "error", "error": f"Could not record {str(e)}"}, exception=e)
-        # return {"status": "error", "error": f"Could not record {str(e)}"}
-
-
-
 

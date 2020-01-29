@@ -131,7 +131,7 @@ class WebcamHandler(RequestHandler):
         self.ready = True
         gc.collect()
       except Exception as e:
-        print(f"EXCEPTION {str(e)}")
+        print(f"Webcam EXCEPTION {str(e)}")
         self.ready = False
         self.running = False
         self.pubsub.close()
@@ -216,6 +216,7 @@ class WebcamHandler(RequestHandler):
           finally:
             self.pubsub.close()
 
+        print(f'Finished Webcam for {resp}', flush=True)
         self.running = False
         self.ready = False
 

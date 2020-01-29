@@ -93,7 +93,7 @@ class NodeApi(Api):
             nd.update(ns)
             nodes.append(nd)
     except Exception as e:
-      print(f"Exception = {str(e)}", flush=True)
+      print(f"Node Exception = {str(e)}", flush=True)
 
     ## The rest of ips not part of the bonjour services for some reason")
     for n in ips.values():

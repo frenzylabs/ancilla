@@ -175,7 +175,7 @@ class LayerkeepApi(Api):
       #   return {"status": 400, "error": "Could Not Sign In"}
       return response
     except Exception as e:
-      print(f"Exception = {str(e)}", flush=True)
+      print(f"LK Signin Exception = {str(e)}", flush=True)
       raise e
 
 

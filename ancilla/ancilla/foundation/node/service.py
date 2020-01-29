@@ -78,7 +78,7 @@ class NodeService(App):
         publisher = self.ctx.socket(zmq.PUB)
         publisher.setsockopt( zmq.LINGER, 0 )
         # publisher.setsockopt(zmq.DONTWAIT, True)
-        publisher.bind("ipc://publisher")
+        publisher.bind("ipc://publisher.ipc")
         self.publisher = ZMQStream(publisher)
         
 
@@ -88,7 +88,7 @@ class NodeService(App):
         # self.event_stream.on_recv(self.event_message)
 
         collector = self.ctx.socket(zmq.PULL)
-        collector.bind("ipc://collector")
+        collector.bind("ipc://collector.ipc")
         collector.setsockopt( zmq.LINGER, 1 )
         self.collector = ZMQStream(collector)
         self.collector.on_recv(self.handle_collect)
@@ -136,17 +136,20 @@ class NodeService(App):
         # self.data_stream.stop_on_recv()
 
     def cleanup(self):
+      for s in self._mounts:
+        s.cleanup()
+      self._mounts = []
+      print("CLEANUP MOUNTS")
       self.discovery.stop()
+      print('Cleaned Up Discovery')
       self.file_service = None
       self.layerkeep_service = None
       self.zmq_router.close()
       self.collector.close()
       self.publisher.close(linger=1)
-      for s in self._mounts:
-        s.cleanup()
+      
         
-      self._mounts = []
-      print("CLEANUP SELF.CTX")
+      print(f"CLEANUP SELF.CTX {self.ctx}")
       self.ctx.destroy()         
       
 
@@ -420,7 +423,7 @@ class NodeService(App):
             future = asyncio.run_coroutine_threadsafe(res, asyncio.get_running_loop())
             # while not future.done():
             #   time.sleep(0.01)
-            return future.result(4)
+            # return future.result(0.)
 
             # print("FUTURE = ", future)
             # zmqrouter = self.zmq_router
@@ -434,7 +437,7 @@ class NodeService(App):
             # future.add_done_callback(onfinish)
 
           else:
-            print(f"THE RESP here = {res}", flush=True)
+            print(f"Node THE RESP here = {res}", flush=True)
             return res  
 
           

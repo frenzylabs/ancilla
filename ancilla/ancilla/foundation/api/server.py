@@ -81,7 +81,7 @@ class ZMQNodePubSub(object):
         self.stream.on_recv(self.callback)
 
         self.subscriber = self.context.socket(zmq.SUB)
-        self.subscriber.connect('ipc://publisher')
+        self.subscriber.connect('ipc://publisher.ipc')
         # self.request.connect('tcp://127.0.0.1:5557')
         # self.request.connect('ipc://devicepublisher')
         self.subscriber = ZMQStream(self.subscriber)
@@ -333,9 +333,10 @@ class NodeSocket(WebSocketHandler):
 
             res = self.node_connector.make_request(target, action, content)
             print(f"MAKE REQUEST = {res}", flush=True)
-            self.write_message(json.dumps(res))
+            if res:
+              self.write_message(json.dumps(res))
         except Exception as err:
-          print("EXCEPTION", flush=True)
+          print("Server API EXCEPTION", flush=True)
           print(str(err), flush=True)
           self.write_message(json.dumps([to+".request", {"error": str(err)}]))
 
