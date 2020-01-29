@@ -2,6 +2,7 @@
 import time
 import sys
 import zmq
+import asyncio
 from zmq.eventloop.zmqstream import ZMQStream
 # import zmq.asyncio
 import functools
@@ -17,6 +18,7 @@ from ..data.models import Service
 from .app import App, ConfigDict
 
 from ..utils.service_json_encoder import ServiceJsonEncoder
+from ..utils import yields
 
 from playhouse.signals import Signal, post_save
 
@@ -70,7 +72,7 @@ class BaseService(App):
         # self.ctx = zmq.Context()
 
         self.pusher = self.ctx.socket(zmq.PUSH)
-        self.pusher.connect(f"ipc://collector")
+        self.pusher.connect(f"ipc://collector.ipc")
 
         # self.ctx = zmq.Context()
         print(f"INSIDE base service {self.identity}", flush=True)
@@ -85,7 +87,7 @@ class BaseService(App):
         # self.data_stream.stop_on_recv()
 
         event_stream = self.ctx.socket(zmq.SUB)
-        event_stream.connect("ipc://publisher")
+        event_stream.connect("ipc://publisher.ipc")
         self.event_stream = ZMQStream(event_stream)
         self.event_stream.linger = 0
         self.event_stream.on_recv(self.on_message)
@@ -236,8 +238,54 @@ class BaseService(App):
             action = action_item.get("action")
             if hasattr(self, action):
               method = getattr(self, action)
+              # if method:
+              #   method(epack)
+
               if method:
-                method(epack)
+              
+                res = b''
+                try:
+                  res = method(epack)
+                except AncillaResponse as ar:
+                  res = ar
+                except Exception as e:
+                  print(f"Handle Event Error  {str(e)}")
+                  return
+                  # res = AncillaError(404, {"error": str(e)})
+              # else:
+              #   # newres = b'{"error": "No Method"}'
+              #   res = AncillaError(404, {"error": "No Method"})
+                # self.zmq_router.send_multipart([replyto, seq, err.encode()])
+                # return
+
+                if yields(res):
+                  future = asyncio.run_coroutine_threadsafe(res, asyncio.get_running_loop())
+                  
+                  print("FUTURE = ", future)
+                  # zmqrouter = self.zmq_router
+                  def onfinish(fut):
+                    # res = b''
+                    try:
+                      newres = fut.result(1)
+                      # if isinstance(newres, AncillaResponse):
+                      #   res = newres.encode()
+                      # else:
+                      #   res = AncillaResponse(newres).encode()          
+                    except Exception as a:
+                      # res = ar.encode()
+                      print(f'Event Handle Error {str(e)}')
+
+                  future.add_done_callback(onfinish)
+
+                # else:
+                #   print(f"THE RESP here = {res}", flush=True)
+                #   if not res:
+                #     res = {"success": "ok"}
+                #   if isinstance(res, AncillaResponse):
+                #     res = res.encode()
+                #   else:
+                #     res = AncillaResponse(res).encode()
+                #   self.zmq_router.send_multipart([replyto, seq, res])  
 
 
     def on_data(self, data):

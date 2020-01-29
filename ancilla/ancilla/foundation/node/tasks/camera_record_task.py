@@ -37,7 +37,7 @@ class CameraRecordTask(AncillaTask):
     # self.state = Dotdict({"status": "pending", "model": {}})
     self.state.update({"name": name, "status": "pending", "model": {}})
     
-    self.root_path = "/".join([Env.ancilla, "services", service.name, "recordings", self.name])
+    self.root_path = "/".join([Env.ancilla, "services", service.identity.decode('utf-8'), "recordings", self.name])
     if not os.path.exists(self.root_path):
       os.makedirs(self.root_path)
     self.image_path = self.root_path + "/images"
@@ -65,7 +65,7 @@ class CameraRecordTask(AncillaTask):
     print(f"CR root path = {self.root_path}")
 
     
-    processor = self.service.get_or_create_video_processor()
+    processor = self.service.handler.get_or_create_video_processor()
     if not processor:
       return 
 
@@ -270,7 +270,6 @@ class CameraRecordTask(AncillaTask):
   
   def finished(self):
     self.state.status = "finished"
-    # self.device.add_command(request_id, 0, 'M0\n', True, True)
 
   def pause(self):
     self.flush_callback.stop()
@@ -281,7 +280,7 @@ class CameraRecordTask(AncillaTask):
 
   def get_state(self):
     print("get state", flush=True)
-    self.state.model = self.service.current_print.json
+    self.state.model = self.service.handler.current_print.json
     self.service.fire_event(Camera.recording.state.changed, self.state)
     
     # self.publish_request(request)

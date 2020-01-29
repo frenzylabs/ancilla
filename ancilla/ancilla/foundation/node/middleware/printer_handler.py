@@ -29,6 +29,9 @@ class PrinterHandler(DataHandler):
       if eventkind == b'connection.closed':
         self.device.state.connected = False
         self.device.fire_event(Printer.connection.closed, self.device.state)
+        eventkind = b'events.printer.' + eventkind
+      else:
+        eventkind = self.device.identity + b'.data.printer.' + eventkind
 
 
       # newmsg = msg
@@ -71,6 +74,6 @@ class PrinterHandler(DataHandler):
         payload = {"status": status.decode('utf-8'), "resp": newmsg}
 
       
-      return [b'events.printer.'+ eventkind, identifier, json.dumps(payload).encode('ascii')]
+      return [eventkind, identifier, json.dumps(payload).encode('ascii')]
       # super().on_data(data)
       # return data

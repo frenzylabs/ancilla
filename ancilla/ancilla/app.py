@@ -56,10 +56,11 @@ class Application():
   def stop(self):
     print(f"Stop Application ", flush=True)
     if self.running:
-      self.running = False
-      self.api_server.stop()
+      self.running = False      
       self.node_server.cleanup()
       print("CLEANUP node server")
+      self.api_server.stop()
+      print("API ServerStopped")
       IOLoop.current().stop()
       
 
