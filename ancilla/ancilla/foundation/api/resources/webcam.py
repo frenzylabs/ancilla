@@ -129,7 +129,7 @@ class WebcamHandler(RequestHandler):
       try:
         await self.flush()
         self.ready = True
-        gc.collect()
+        # gc.collect()
       except Exception as e:
         print(f"Webcam EXCEPTION {str(e)}")
         self.ready = False
@@ -153,7 +153,7 @@ class WebcamHandler(RequestHandler):
         # "events.camera')
         # IOLoop.current().add_callback(self.flushit)
         while self.running:
-          await asyncio.sleep(1.0)
+          await asyncio.sleep(0.5)
 
     def set_resp_headers(self, resp):
       [self.set_header(k, v) for (k, v) in resp.headers.items()]   

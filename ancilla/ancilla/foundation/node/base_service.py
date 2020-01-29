@@ -245,7 +245,7 @@ class BaseService(App):
               
                 res = b''
                 try:
-                  res = method(epack)
+                  res = method({"data": data})
                 except AncillaResponse as ar:
                   res = ar
                 except Exception as e:
@@ -266,11 +266,7 @@ class BaseService(App):
                   def onfinish(fut):
                     # res = b''
                     try:
-                      newres = fut.result(1)
-                      # if isinstance(newres, AncillaResponse):
-                      #   res = newres.encode()
-                      # else:
-                      #   res = AncillaResponse(newres).encode()          
+                      newres = fut.result(1)     
                     except Exception as a:
                       # res = ar.encode()
                       print(f'Event Handle Error {str(e)}')
