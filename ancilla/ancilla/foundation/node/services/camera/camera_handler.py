@@ -138,12 +138,15 @@ class CameraHandler():
     def connect(self, data):
       endpoint = data.get("endpoint")
       print(f"Camera Connect {os.getpid()}", flush=True)
+      if self.connector and self.connector.alive:
+        return {"status": "connected"}
+
       self.connector = CameraConnector(self.process.ctx, self.process.identity, endpoint)
       self.connector.open()
       
       self.connector.run()
       self.process.state.connected = True
-      print(f"Cam {os.getpid()} and {CameraRecording._meta.database.__dict__}")
+      print(f"Cam {os.getpid()} ")
       # tcr = CameraRecording(task_name="bob", settings={}, status="pending")
       # tcr.save()
 
@@ -243,8 +246,7 @@ class CameraHandler():
       # print(f"RECORDING MSG: {json.dumps(msg, cls=ServiceJsonEncoder)}", flush=True)
       # return {"started": True}
       try:
-        
-        
+
         payload = msg.get('data')
         name = "".join(random.choice(string.ascii_lowercase + string.digits) for x in range(6))
 

@@ -401,7 +401,7 @@ class Camera(BaseService):
         return {"status": "error", "error": f"Could not pause task {str(e)}"}
 
     async def stop_recording(self, msg):
-      # print(f"STOP RECORDING {msg}", flush=True)      
+      # print(f"STOP RECORDING {msg}", flush=True)
       # print(f"STOPRECORDING MSG: {json.dumps(msg, cls=ServiceJsonEncoder)}", flush=True)
       try:
         print("video process record", flush=True)
