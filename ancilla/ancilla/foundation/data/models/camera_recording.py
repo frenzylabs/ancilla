@@ -25,7 +25,7 @@ class CameraRecording(BaseModel):
   image_path      = CharField()
   video_path      = CharField(null=True)
   settings        = JSONField(default={})
-  camera          = ForeignKeyField(Camera, backref='recordings')
+  camera          = ForeignKeyField(Camera, on_delete="CASCADE", backref='recordings')
   camera_snapshot = JSONField(default={})
   print           = ForeignKeyField(Print, on_delete="SET NULL", related_name="recordings", null=True, default=None, backref='recordings')
   status          = CharField(null=True)

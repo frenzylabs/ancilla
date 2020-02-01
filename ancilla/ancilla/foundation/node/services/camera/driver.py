@@ -52,6 +52,7 @@ class CameraConnector(object):
     def create_camera(self):
       print("create camera", flush=True)
       self.video = VideoCapture(self.endpoint)
+      time.sleep(0.5)
       if not self.video.isOpened():
         self.video.release()
         self.video = None
@@ -86,21 +87,35 @@ class CameraConnector(object):
       # camera = CameraConn(self.identity, "ipc://collector", self.endpoint.decode("utf-8"), self.baudrate, pipe)
       i=0
       # topic = 'camera_frame'
+      retry = 0
+      max_retry_cnt = 10
       while self.alive:
         try:
           
           res = self.video.read()
-          if not res:            
-            raise "Camera Disconnected"
+          if not res:        
+            if retry < max_retry_cnt:
+              retry += 1
+              time.sleep(1)
+              continue
+            print(f'1 CAMEA DISCONNECTED retrycnt {retry}', flush=True)
+            raise Exception("1 Camera Disconnected")
           ret, frame = res
           # frame = video.read()
           
           if ret:
             i += 1
+            retry = 0
             # print(f'frame = {frame}')
           # publisher.send_multipart([self.identity, frame])
             device_collector.send_multipart([self.identity + b'.data_received', f'{i}'.encode('ascii'), pickle.dumps(frame, -1)])
           else:
+            if retry < max_retry_cnt:
+              retry += 1
+              time.sleep(1)
+              continue
+            
+            print(f'CAMEA DISCONNECTED retrycnt {retry}', flush=True)
             raise Exception("Camera Disconnected")
             
             # device_collector.send(self.identity + b'.data_received', zmq.SNDMORE)

@@ -19,14 +19,14 @@ from types import CoroutineType
 
 from zmq.eventloop.future import Context
 
-from playhouse.signals import Signal, post_save
+from playhouse.signals import Signal, post_save, post_delete
 import atexit
 
 from .app import App, yields, ConfigDict
 from ..data.models import Camera, Printer, Service, CameraRecording, Node
 from .events.camera import Camera as CameraEvent
 from .api import NodeApi
-
+from ..env import Env
 from .discovery.interface import Interface
 
 
@@ -67,7 +67,7 @@ class NodeService(App):
 
         zrouter = self.ctx.socket(zmq.ROUTER)
         zrouter.identity = self.identity
-        zrouter.bind("tcp://*:5556")
+        zrouter.bind(self.bind_address)
         self.zmq_router = ZMQStream(zrouter, IOLoop.current())
         self.zmq_router.on_recv(self.router_message)
         self.zmq_router.on_send(self.router_message_sent)
@@ -110,6 +110,8 @@ class NodeService(App):
 
         post_save.connect(self.post_save_handler, name=f'service_model', sender=Service)
         post_save.connect(self.post_save_node_handler, name=f'node_model', sender=Node)
+        post_delete.connect(self.post_delete_camera_handler, name=f'camera_model', sender=Camera)
+        post_delete.connect(self.post_delete_camera_recording_handler, name=f'camera_recording_model', sender=CameraRecording)
 
         # atexit.register(self.cleanup)
         # self.pipe, peer = zpipe(self.ctx)        
@@ -230,7 +232,7 @@ class NodeService(App):
 
 
     def post_save_handler(self, sender, instance, *args, **kwargs):
-      print(f"Post save Service handler {sender}", flush=True)
+      print(f"Post save Service handler {sender} {instance}", flush=True)
       model = None
       for idx, item in enumerate(self._services):
         if item.id == instance.id:
@@ -252,8 +254,7 @@ class NodeService(App):
           self.handle_service_name_change(oldname, instance.name)
           
         if srv:
-          srv.model = model
-          srv.name = model.name
+          srv.update_model(model)
 
           old_config = oldmodel.configuration          
           old_settings = srv.settings.to_json()
@@ -307,6 +308,19 @@ class NodeService(App):
             # print(f"OldListeners = {oldevt}", flush=True)
             # srv.settings.update(srv.model.settings)
       #     self.fire_event(self.event_class.settings_changed, self.settings)
+
+    def post_delete_camera_recording_handler(self, sender, instance, *args, **kwargs):
+      print(f"Post Delete of Camera Recording {sender} {instance}")
+      self.delete_recording(instance)
+
+    def post_delete_camera_handler(self, sender, instance, *args, **kwargs):
+      print(f"Post Delete of Camera {sender} {instance}")
+      print(f'recordings = {instance.recordings[:]}')
+      service_id = instance.service_id
+      cam_path = "/".join([Env.ancilla, "services", f"service{instance.service_id}"])
+      if os.path.exists(cam_path):
+          shutil.rmtree(cam_path)
+      
 
     def init_services(self):
       # Service.select().where(Service.settings['event_handlers']['y1'] == 'z1')

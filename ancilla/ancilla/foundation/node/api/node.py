@@ -113,7 +113,7 @@ class NodeApi(Api):
     model = smodel.model
     with Service._meta.database.atomic() as transaction:
       try:
-        if model:          
+        if model:
           # if request.params.get("layerkeep_sync") and request.params.get("layerkeep_sync") != "false":
           if layerkeep and smodel.kind == "printer" and model.layerkeep_id:
             response = await layerkeep.delete_printer({"data": {"layerkeep_id": model.layerkeep_id}})
@@ -121,7 +121,7 @@ class NodeApi(Api):
             if not response.success:
               raise response
           model.delete_instance(recursive=True)
-              
+        
         smodel.delete_instance(recursive=True)
         self.service.delete_service(smodel)
       except Exception as e:
@@ -260,8 +260,6 @@ class NodeApi(Api):
     return {'cameras': [camera.json for camera in Camera.select()]}
 
   def create_camera(self, request, *args, **kwargs):
-    print("INSIDE CREATE CAMERAs", flush=True)
-
     with Service._meta.database.atomic() as transaction:
       try:
         service = Service(name=request.params.get("name"), kind="camera", class_name="Camera")
@@ -272,6 +270,17 @@ class NodeApi(Api):
         service.save()
 
         camera = Camera(**request.params, service=service)
+        default_settings = {
+          "record": {
+            "timelapse": 2,
+            "frames_per_second": 10,
+          },
+          "video": {
+            "size": [640, 480],
+            "format": "avc1"
+          }
+        }
+        camera.settings = default_settings
         if not camera.is_valid:
           raise AncillaError(400, {"errors": camera.errors})
           # return {"status": 400, "errors": camera.errors}
@@ -288,9 +297,6 @@ class NodeApi(Api):
         raise e
 
   async def create_printer(self, request, layerkeep, *args, **kwargs):
-    print("INSIDE CREATE Printer", flush=True)
-
-
     with Service._meta.database.atomic() as transaction:
       try:
         service = Service(name=request.params.get("name"), kind="printer", class_name="Printer")

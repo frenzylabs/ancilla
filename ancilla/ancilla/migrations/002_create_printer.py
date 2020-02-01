@@ -58,14 +58,17 @@ def rollback(migrator, database, fake=False, **kwargs):
     ])
 
 
-# from ancilla.foundation.data.models import Device
+# from ancilla.foundation.data.models import Camera
 # from ancilla.foundation.env import Env
-# from peewee import SqliteDatabase
+# from playhouse.sqlite_ext import SqliteExtDatabase
 # from peewee_migrate import Router
 # path = "/".join([Env.ancilla, ".a_store"])
-# conn = SqliteDatabase(path, {'foreign_keys' : 1})
+# conn = SqliteExtDatabase(path, pragmas=(
+#     ('journal_mode', 'wal'),  # Use WAL-mode (you should always use this!).
+#     ('foreign_keys', 1),
+#     ('threadlocals', True)))
 # import os
-# migrate_dir = os.path.join(os.getcwd(), './ancilla/migrations')
+# migrate_dir = os.path.join(os.getcwd(), 'ancilla/ancilla/migrations')
 # router = Router(conn, migrate_dir=migrate_dir)
-# router.rollback("002_create_printer")
-# router.rollback("006_create_node")
+# # router.rollback("002_create_printer")
+# # router.rollback("006_create_node")

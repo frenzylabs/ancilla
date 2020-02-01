@@ -23,7 +23,7 @@ class Printer(BaseModel):
   model     = CharField(null=True)
   description = CharField(null=True)
 
-  service    = ForeignKeyField(Service, null=True, default=None)
+  service    = ForeignKeyField(Service, null=True, default=None, on_delete="SET NULL", backref="camera")
   
   layerkeep_id = IntegerField(null=True)
 

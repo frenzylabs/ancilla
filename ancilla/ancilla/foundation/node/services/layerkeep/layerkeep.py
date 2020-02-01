@@ -39,7 +39,7 @@ class Layerkeep(BaseService):
 
         self.default_config = {
           "base_url": "https://layerkeep.dev/",
-          "api_url": "https://layerkeep.com/", 
+          "api_url": "https://layerkeep.dev/api/", 
           "app": "Ancilla"
           }
         

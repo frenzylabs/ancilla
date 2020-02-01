@@ -28,7 +28,8 @@ class CameraApi(Api):
 
 
   async def update_service(self, request, *args):
-    s = self.service.model
+    # s = self.service.model
+    s = Service.get_by_id(self.service.model.id)
     frozen_keys = ['id', 'created_at', 'updated_at', 'service']
     with Service._meta.database.atomic() as transaction:
       try:

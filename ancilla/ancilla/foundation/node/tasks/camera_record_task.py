@@ -31,7 +31,7 @@ class CameraRecordTask(AncillaTask):
     super().__init__(name, *args)
     # self.request_id = request_id
     self.payload = payload
-    self.camera_model = payload.get('camera_model', None)
+    self.camera_model = payload.get('camera_model')
     self.task_settings = self.payload.get("settings") or {}
     self.service = service
     # self.state = Dotdict({"status": "pending", "model": {}})
@@ -50,9 +50,11 @@ class CameraRecordTask(AncillaTask):
     
     self.recording = CameraRecording(task_name=name, image_path=self.image_path, video_path=self.video_path, settings=self.task_settings, status="pending")
 
-    if self.camera_model:
-      self.recording.camera_snapshot = self.camera_model
-      self.recording.camera_id = self.camera_model["id"] #self.service.camera_model
+    if not self.camera_model:
+      return
+      
+    self.recording.camera_snapshot = self.camera_model
+    self.recording.camera_id = self.camera_model["id"] #self.service.camera_model
 
     printmodel = self.payload.get("model")
     if printmodel:
@@ -119,8 +121,9 @@ class CameraRecordTask(AncillaTask):
       # x = self.current_frame.bytes
       # x = cv2.imdecode(self.current_frame, cv2.IMREAD_COLOR)
       nparr = np.frombuffer(self.current_frame, np.uint8)
+      # x = cv2.resize(nparr, dsize=self.video_size, interpolation=cv2.INTER_CUBIC)
       x = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-      # x = cv2.resize(frame, dsize=self.video_size, interpolation=cv2.INTER_CUBIC)
+      # x = cv2.resize(x, dsize=self.video_size, interpolation=cv2.INTER_CUBIC)
       # print(x.shape)
 
       # x = x.astype(np.uint8)
@@ -205,16 +208,57 @@ class CameraRecordTask(AncillaTask):
     # self.device = device
     try:
       # print(f"CONTENT = {content}", flush=True)
+      # {
+      #   "record": {
+      #     "timelapse": 2,
+      #     "frames_per_second": 10,
+      #   },
+      #   "video": {
+      #     "size": [640, 480],
+      #   }
+      # }
+      defaul_cam_settings = {
+        "record": {
+          "timelapse": 2,
+          "frames_per_second": 10,
+        },
+        "video": {
+          "size": [640, 480],
+          "format": "avc1"
+        }
+      }
+      cam_settings = self.camera_model.get("settings", defaul_cam_settings)
       
-      self.timelapse = int(self.task_settings.get("timelapse") or 2) * 1000
-      self.settings = self.task_settings.get("settings") or {"size": [640, 480]}
-      width, height = self.settings.get("size") or [640, 480]
+      
+      
+      record_settings = cam_settings.get("record", {})
+      self.timelapse = int(record_settings.get("timelapse") or 2)
+      self.timelapse = int(self.task_settings.get("timelapse") or self.timelapse)
+      self.video_fps = int(record_settings.get("frames_per_second") or 10)
+      self.video_fps = int(self.task_settings.get("frames_per_second") or self.video_fps)
+
+      video_settings = cam_settings.get("video", {})
+      width, height = video_settings.get("size") or [640, 480]
       self.video_size = (width, height)
-      self.video_settings = self.task_settings.get("videoSettings") or {"format": "H264"}
-      self.video_format = self.video_settings.get("format") or "H264"
-      self.video_fps = int(self.video_settings.get("fps") or 10)
+      self.video_format = video_settings.get("format") or "avc1" #"X264"
+
+      # video_settings = record_settings.get("video") or {}
+      # video_settings.get('size') or [640, 480]
+      # video_settings.get('format') or "H264"
+      # video_settings.get('fps') or 10
+      
+      # self.timelapse = int(self.task_settings.get("timelapse") or 2) * 1000
+      # self.settings = self.task_settings.get("settings") or {"size": [640, 480]}
+      # width, height = self.settings.get("size") or [640, 480]
+      # self.video_size = (width, height)
+      # self.video_settings = self.task_settings.get("videoSettings") or {"format": "avc1"}
+      # self.video_format = self.video_settings.get("format") or "avc1" #"X264"
+      # self.video_fps = int(self.video_settings.get("fps") or 10)
       # print(f"self.video_Fps {self.video_fps}  vsize: {self.video_size}, vformat: {self.video_format}", flush=True)
+      # self.video_writer = cv2.VideoWriter(self.video_path + "/output.mp4", cv2.VideoWriter_fourcc(*self.video_format), self.video_fps, self.video_size)
       self.video_writer = cv2.VideoWriter(self.video_path + "/output.mp4", cv2.VideoWriter_fourcc(*self.video_format), self.video_fps, self.video_size)
+      # self.video_writer = cv2.VideoWriter(self.video_path + "/output.mp4", 0x00000021, self.video_fps, self.video_size)
+      
       # # out = cv2.VideoWriter('output.avi',cv2.VideoWriter_fourcc('M','J','P','G'), 29, videosize)
       # out = cv2.VideoWriter('output.mov',cv2.VideoWriter_fourcc('m','p','4','v'), 29, videosize)
       # name = self.payload.get("name") or ""
@@ -232,9 +276,16 @@ class CameraRecordTask(AncillaTask):
       self.state.id = self.recording.id
       
       self.service.fire_event(Camera.recording.started, self.state)
+      # if self.timelapse == 0:
+      #   # self.timelapse = 1000      
+      #   self.timelapse = int(1000 / self.video_fps)
+      flush_frame_check = self.timelapse * 1000
       if self.timelapse == 0:
-        self.timelapse = 20
-      self.flush_callback = PeriodicCallback(self.flush_camera_frame, self.timelapse)
+        # self.timelapse = 1000      
+        flush_frame_check = int(1000 / self.video_fps)
+
+      print(f'Self timelapase {self.timelapse} cb= {flush_frame_check}')
+      self.flush_callback = PeriodicCallback(self.flush_camera_frame, flush_frame_check)
       self.flush_callback.start()
       # num_commands = file_len(sf.path)
     except Exception as e:
@@ -263,7 +314,14 @@ class CameraRecordTask(AncillaTask):
     return {"state": self.state}
 
   def stop(self, *args):
+    print("Stop Camera Recording")
     self.finished()
+    self.recording.status = "finished"
+    self.recording.reason = self.state.reason or ""
+    self.recording.save()
+    if self.video_writer:
+      self.video_writer.release()
+      self.video_writer = None
     
   def cancel(self):
     self.state.status = "cancelled"

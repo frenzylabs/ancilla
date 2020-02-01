@@ -31,7 +31,8 @@ class PrinterHandler(DataHandler):
         self.device.fire_event(Printer.connection.closed, self.device.state)
         eventkind = b'events.printer.' + eventkind
       else:
-        eventkind = self.device.identity + b'.data.printer.' + eventkind
+        # eventkind = self.device.identity + b'.data.printer.' + eventkind
+        eventkind = b'data.printer.' + eventkind
 
 
       # newmsg = msg

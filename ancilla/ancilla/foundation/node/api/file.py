@@ -28,12 +28,6 @@ class FileApi(Api):
     # self.service.route('/', 'DELETE', self.delete)
 
 
-  # def initialize(self, node, **kwargs):    
-  #   self.node = node
-  #   self.root_path = "/".join([Env.ancilla, self.node.name, "user_files"])
-  #   if not os.path.exists(self.root_path):
-  #     os.makedirs(self.root_path)
-
   def unsync_layerkeep(self, request, layerkeep, file_id, *args):
     print_slice  = PrintSlice.get_by_id(file_id)
     print_slice.layerkeep_id = None
@@ -67,8 +61,13 @@ class FileApi(Api):
     name = request.params.get("name") or ""
     rootname, ext       = os.path.splitext(name)
     description = request.params.get("description") or ""
-
-    incoming        = request.files['file'][0]    
+    
+    incoming        = request.files.get('file', [])
+    if len(incoming) > 0:
+      incoming = incoming[0]
+    else:
+      raise AncillaError(400, {"error": "No File"})
+    # incoming        = request.files['file'][0]    
     generated_name  = rootname + "".join(random.choice(string.ascii_lowercase + string.digits) for x in range(6))    
     
     original_name   = incoming.get('filename') or incoming.get('name') or f"{generated_name}.txt"

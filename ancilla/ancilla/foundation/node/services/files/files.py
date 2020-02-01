@@ -40,7 +40,7 @@ class FileService(BaseService):
         # })
 
         if not self.config.root_path:
-          self.model.configuration["root_path"] = "/".join([Env.ancilla, self.model.name])
+          self.model.configuration["root_path"] = "/".join([Env.ancilla, self.model.id])
           self.model.save()
           self.config.update(self.model.configuration)
           

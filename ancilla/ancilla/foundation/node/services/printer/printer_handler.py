@@ -304,9 +304,7 @@ class PrinterHandler():
           prt = Print.get_by_id(print_id)
           if prt.status != "finished": # and prt.status != "failed":
             self.current_print = prt
-          
-            
-        
+
         if not self.current_print:
           fid = data.get("file_id")
           if not fid:
@@ -341,8 +339,8 @@ class PrinterHandler():
         task_name = payload.get("task_name")
 
         task_name = self.current_print.name #"print"        
-        if self.process.current_task.get(task_name):
-          self.process.current_task[task_name].cancel()
+        if self.process.current_tasks.get(task_name):
+          self.process.current_tasks[task_name].cancel()
           
           return {"status": "success"}
         else:
@@ -361,13 +359,12 @@ class PrinterHandler():
         payload = msg.get('data') or {}
         task_name = payload.get("task_name")
 
-
         # for k, v in self.current_task.items():
         #     print(f"TASKkey = {k} and v = {v}", flush=True)
 
         task_name = self.current_print.name #"print"        
-        if self.process.current_task.get(task_name):
-          self.process.current_task[task_name].pause()
+        if self.process.current_tasks.get(task_name):
+          self.process.current_tasks[task_name].pause()
           
           return {"status": "success"}
         else:
