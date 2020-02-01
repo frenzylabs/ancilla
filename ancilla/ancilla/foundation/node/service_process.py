@@ -184,7 +184,7 @@ class ServiceProcess():
       self.state = ConfigDict()._make_overlay()
       self.state._add_change_listener(partial(self.state_changed, 'state'))
       self.task_queue = Queue()
-      self.current_task = {}
+      self.current_tasks = {}
       self.video_processor = None
 
     def setup_event_loop(self):
@@ -212,7 +212,7 @@ class ServiceProcess():
       if self.handler:
         self.handler.close()
 
-      for k, v in self.current_task.items():
+      for k, v in self.current_tasks.items():
         if hasattr(v, "stop"):
             v.stop()
 
@@ -266,10 +266,6 @@ class ServiceProcess():
       self.data_handlers.append(obj)
 
     def setup_data(self):
-          
-        # self.camera_handler = CameraHandler(self)
-        # self.register_data_handlers(self.camera_handler)
-
         print(f"INSIDE base service {self.identity}", flush=True)
         deid = f"inproc://{self.identity}_collector"
         self.data_stream = self.ctx.socket(zmq.PULL)
@@ -283,52 +279,8 @@ class ServiceProcess():
     def state_changed(self, event, oldval, key, newval):
       print("state changed")
 
-      
-    
-
     async def run_loop(self):
-      
-      # IOLoop.clear_current()
-      # if hasattr(IOLoop, '_current'):
-      #   del IOLoop._current
-      
-      # print(f"INSIDE PROCESS SERVICE RUN {IOLoop.current(instance=False)}", flush=True)
 
-      # if self.loop is None:
-      #     if not IOLoop.current(instance=False):
-      #         self.loop = IOLoop.current() #IOLoop()
-      #     else:
-      #         self.loop = IOLoop.current()
-
-      # print(f"PLOOP = {self.loop}", flush=True)
-
-      # self.setup()
-
-      # self.ctx = zmq.Context.instance()
-      # self.port = 5556
-      # self.pub_port = 5557
-
-      # self.setup_router()
-      # self.zmq_router = ZMQStream(self.zrouter, self.loop)
-      # self.zmq_router.on_recv(self.router_message)
-      # # self.zmq_router.on_send(self.router_message_sent)
-
-
-      # self.setup_publiser()
-      # self.zmq_pub = ZMQStream(self.zpub, self.loop)
-      # # self.zmq_pub.on_recv(self.pub_message)
-      
-
-      # self.setup_data()
-
-      # # self.heartbeat = PeriodicCallback(self.send_state, 6000)        
-      # # self.heartbeat.start()
-      
-      print(f"INSIDE run loop {self.loop}")
-      # self.loop.start()
-      # self.loop.run_forever()
-      # print("AFTER LOOP")
-      # child_conn = self.child_conn
       child_conn = self.child_conn
       while self.running:
         res = child_conn.poll(0.01)
@@ -344,7 +296,6 @@ class ServiceProcess():
             elif key == "pubsub_address":
               child_conn.send((key, self.pubsub_address))
             elif key == "stop":
-              print(f'INSIDE Self.running key=stop', flush=True)
               self.stop_process()              
               child_conn.send((key, "success"))
               time.sleep(2)
@@ -354,52 +305,22 @@ class ServiceProcess():
 
 
     def run(self):
-      # asyncio.set_event_loop_policy(AnyThreadEventLoopPolicy())
       self.running = True
       try:
-          # loop = ZMQEventLoop()
-        print("RUN CAM PROCESS")
-        # evtloop = asyncio.new_event_loop()
-        # asyncio.set_event_loop(evtloop)
-        # self.run_loop(evtloop)
+        print("RUN PROCESS")
         self.evtloop.run_until_complete(self.run_loop())
-        print("RUN CAM PROCESS COMPLETE")
+        print("RUN PROCESS COMPLETE")
       except KeyboardInterrupt:
         self.stop_process()              
         self.child_conn.send(("stop", "success"))
         self.running = False
-        print('\nFinished (interrupted)')
+        print('\nProcessFinished (interrupted)')
     
     
     def send_state(self, *a, **kw):
       print("SENDING STATE", flush=True)
 
-    def on_message(self, msg):
-      print("ON MESSGE", msg)      
-      # if not msg or len(msg) < 3:
-      #   return
-      # topic, ident, pstring, *other = msg
-      # topic = topic.decode('utf-8')
-      # ident = ident.decode('utf-8')
-      # data = pstring.decode('utf-8')
-      # try:
-      #   data = json.loads(data)
-      # except Exception as e:
-      #   print("NOt json")
-
-      # epack = EventPack(topic, ident, data)
-
-      # # el = self.settings.get("event_handlers") or {}
-      # el = self.event_handlers or {}
-      # for ekey in self.event_handlers.keys():
-      #   if topic.startswith(ekey):
-      #     for action_item in el.get(ekey) or []:
-      #       action = action_item.get("action")
-      #       if hasattr(self, action):
-      #         method = getattr(self, action)
-      #         if method:
-      #           method(epack)
-
+    
 
     def on_data(self, data):
       # print("ON DATA", data)
@@ -417,7 +338,6 @@ class ServiceProcess():
       if hasattr(self.handler, action):
         method = getattr(self.handler, action)
         if method:
-            # out = call_maybe_yield(route.call, *[request], **args)
           res = b''
           try:
             res = method(request["body"])
@@ -463,11 +383,7 @@ class ServiceProcess():
         self.zmq_router.send_multipart([replyto, seq, res])
 
 
-    def router_message_sent(self, msg, status):
-      print(f"INSIDE ROUTE SEND {msg}", flush=True)
-
     def router_message(self, msg):
-      print("INSIDE ROUTE message", flush=True)
       print(f"Router Msg = {msg}", flush=True)
       
       replyto, seq_s, brequest, *args = msg
@@ -483,7 +399,6 @@ class ServiceProcess():
         module_name, class_name = classname.rsplit(".", 1)
         MyClass = getattr(importlib.import_module(module_name), class_name)
         # cvmodule = sys.modules.get(classname)
-        print(f'Process cmod = {MyClass}')
         instance = MyClass(**req.get('data', {}))
         print(f'Instance = {instance}')
         self.handle_route(replyto, seq_s, instance)
@@ -501,7 +416,6 @@ class ServiceProcess():
       evtname = evtname.encode('ascii')
       # payload["device"] = self.name
       pstring = json.dumps(payload, cls=ServiceJsonEncoder)
-      print(f"FireEvt: {evtname} JSON DUMP = {pstring}", flush=True)
       pstring = pstring.encode('ascii')
       self.zmq_pub.send_multipart([b'events.'+ evtname, self.identity, pstring])
 
@@ -514,12 +428,12 @@ class ServiceProcess():
       # print("About to get queue", flush=True)
       async for dtask in self.task_queue:
         # print('consuming {}...'.format(item))
-        self.current_task[dtask.name] = dtask
+        self.current_tasks[dtask.name] = dtask
         res = await dtask.run(self)
         rj = json.dumps(res, cls=ServiceJsonEncoder).encode('ascii')
         self.zmq_pub.send_multipart([self.identity+b'.task', b'finished', rj])
 
         # self.pusher.publish()
-        del self.current_task[dtask.name]
-        print(f"PROCESS TASK = {res}", flush=True)
+        del self.current_tasks[dtask.name]
+        print(f"PROCESS TASK DONE= {res}", flush=True)
 

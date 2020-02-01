@@ -166,7 +166,7 @@ class CameraHandler():
       #   raise AncillaError(400, {"error": "Camera Not Connected"})
       
       if self.video_processor:
-          for k, v in self.process.current_task.items():
+          for k, v in self.process.current_tasks.items():
             if isinstance(v, CameraProcessVideoTask):    
               return {"stream": v.processed_stream}
               # return v
@@ -192,7 +192,7 @@ class CameraHandler():
 
         printmodel = data.get("model")
       
-        for k, v in self.process.current_task.items():
+        for k, v in self.process.current_tasks.items():
           print(f"TASKkey = {k} and v = {v}", flush=True)
           if isinstance(v, CameraRecordTask):
             if printmodel:
@@ -250,7 +250,6 @@ class CameraHandler():
         payload = msg.get('data')
         name = "".join(random.choice(string.ascii_lowercase + string.digits) for x in range(6))
 
-        
         pt = CameraRecordTask(name, self.process, payload)
         self.process.add_task(pt)
         # self.task_queue.put(pt)

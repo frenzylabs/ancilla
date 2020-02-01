@@ -70,50 +70,12 @@ import multiprocessing as mp
 from .service_process import ServiceProcess
 
 
-def yields(value):
-    return isinstance(value, asyncio.futures.Future) or inspect.isgenerator(value) or \
-           isinstance(value, CoroutineType)
-
-    # @asyncio.coroutine
-    # def call_maybe_yield(func, *args, **kwargs):
-    #     rv = func(*args, **kwargs)
-    #     if yields(rv):
-    #         rv = yield from rv
-    #     return rv
-
-async def call_maybe_yield(func, *args, **kwargs):
-    rv = func(*args, **kwargs)
-    if yields(rv):
-        rv = await rv
-    return rv
-
 
 global SEQ_ID
 SEQ_ID = 0
 
 
 class ServiceConnector():
-    # connector = None
-    # endpoint = None         # Server identity/endpoint
-    # identity = None
-    # alive = True            # 1 if known to be alive
-    # ping_at = 0             # Next ping at this time
-    # expires = 0             # Expires at this time
-    # state = "IDLE"
-    # recording = False
-    
-    # command_queue = CommandQueue()
-    __actions__ = [
-      "start_recording",
-      "stop_recording",
-      "resume_recording",
-      "pause_recording",
-      "print_state_change"
-    ]
-    connector = None
-    video_processor = None
-    # zmq_pub = None
-    # zmq_router = None
 
     def __init__(self, service, handler, **kwargs): 
         ctx = mp.get_context('spawn')
@@ -121,10 +83,11 @@ class ServiceConnector():
         # ctx.Process.__init__(self)
         # super().__init__(**kwargs)
         self.service = service
-        self.identity = service.identity
+        self.name_identity = service.encoded_name
+        self.identity = service.identity #f"service{self.service.model.id}".encode('ascii')
         
         self.loop = None
-        print(f"PROCESS ID + {os.getpid()}", flush=True)
+        print(f"SERVICE Name = {service.encoded_name} ID = {service.identity} PROCESS ID + {os.getpid()}", flush=True)
         
         self.router_address = None
         self.rpc_router = None
@@ -133,76 +96,32 @@ class ServiceConnector():
         self.ctx = zmq.Context()
         
         self.rpc, self.child_conn = Pipe()
-        # self.p = ctx.Process(target=CameraProcess.start_process, args=(self.identity, self.child_conn,))
         self.p = ctx.Process(target=ServiceProcess.start_process, args=(self.identity, self.child_conn, handler))
         
-        # self.parent_conn, child_conn = ctx.Pipe()
-        # self.p = ctx.Process(target=self.run, args=(self.child_conn,))
-        # self.p.daemon = True
         
-        
-        # self.router_address = None
-        # asyncio.set_event_loop_policy(AnyThreadEventLoopPolicy())
-        
-        # self.ctx = zmq.Context.instance()
-        # self.port = 5556
-        
-
-        
-        
-        
-
-        # self.camera_handler = CameraHandler(self)
-        # self.register_data_handlers(self.camera_handler)
-        # self.api = CameraApi(self)
-        # self.connector = None
-        # self.video_processor = None
-
-        # self.event_class = CameraEvent
-
-        # self.state.load_dict({
-        #   "status": "Idle",
-        #   "connected": False, 
-        #   "alive": False,
-        #   "recording": False
-        # })
-
-        # self.register_data_handlers(PrinterHandler(self))
-
-    # def actions(self):
-    #   return [
-    #     "record"
-    #   ]
     def start(self, *args):
       print(f'Start Process {self.p}')
       self.p.start()
-      print(f'STARTING PROCESS')
       self.setup_queue()
 
     def stop(self, *args):
       print(f'Stop Process 1')
-      self.rpc.send(("stop", ""))  
-      print(f'Stop Process After Send')
+      self.rpc.send(("stop", ""))
       cnt = 10
       while cnt > 0:
         res = self.rpc.poll(1)
         if res:
-          print(f"res = {res} {cnt}")
           tada = self.rpc.recv()
           break 
 
         cnt -= 1
-      
-      
 
       self.p.join(2)
       # self.p.terminate()
       self.p = None
       print(f'Stopped Process')
       self.rpc_router.close()
-      # self.process_event_stream.close()
       
-      # self.ctx.destroy()
       
     def setup_queue(self):
       print(f"Setup Queues {self}")
@@ -221,20 +140,16 @@ class ServiceConnector():
 
       self.rpc_router = ZMQStream(rpc_router)
       self.rpc_router.on_recv(self.router_message)
-      # self.cam_router.on_send(self.router_message_sent)
-
-      print(f'CamRouter = {self.rpc_router}', flush=True)
 
       self.pubsub_address = self.get_pubsub_address()
       process_event_stream = self.ctx.socket(zmq.SUB)
       process_event_stream.connect(self.pubsub_address)
       self.process_event_stream = ZMQStream(process_event_stream)
       self.process_event_stream.linger = 0
-      self.process_event_stream.on_recv(self.on_process_message)
+      self.process_event_stream.on_recv(self.on_process_event)
 
       self.process_event_stream.setsockopt(zmq.SUBSCRIBE, b'events')
 
-      # self.requests = {}
 
     def is_alive(self, *args):
       return (self.p and self.p.is_alive())
@@ -251,9 +166,15 @@ class ServiceConnector():
       self.pubsub_address = val
       return self.pubsub_address
       
-    def on_process_message(self, msg):
+    def on_process_event(self, msg):
       # print(f"CAM PUBSUB Msg = {msg}", flush=True)
-      self.service.pusher.send_multipart(msg)
+      topic, identity, *res = msg
+      if topic.startswith(b'data'):
+        topic = self.service.encoded_name + b'.' + topic
+
+      nmsg = [topic, self.service.encoded_name] + res
+      # print(f"Process evt: {nmsg}")
+      self.service.pusher.send_multipart(nmsg)
 
     def router_message(self, msg):
       # print("INSIDE CAM ROUTE message", flush=True)

@@ -38,9 +38,9 @@ class BaseService(App):
             functools.partial(self.config_changed, 'config'))
         # self.add_hook("config", functools.partial(self.settings_changed, "config"))
         self.name = model.name
-        self.identity = self.name.encode('ascii')
+        self.encoded_name = self.name.encode('ascii')
+        self.identity = f"service{self.model.id}".encode('ascii')
         
-        # self.ctx = Context()
         self.ctx = zmq.Context.instance()
         # self.ctx = zmq.Context()
 
@@ -76,14 +76,14 @@ class BaseService(App):
 
         # self.ctx = zmq.Context()
         print(f"INSIDE base service {self.identity}", flush=True)
-        deid = f"inproc://{self.identity}_collector"
-        self.data_stream = self.ctx.socket(zmq.PULL)
-        # print(f'BEFORE CONNECT COLLECTOR NAME = {deid}', flush=True)  
-        self.data_stream.bind(deid)
-        # time.sleep(0.1)        
-        self.data_stream = ZMQStream(self.data_stream)
-        self.data_stream.linger = 0
-        self.data_stream.on_recv(self.on_data)
+        # deid = f"inproc://{self.identity}_collector"
+        # self.data_stream = self.ctx.socket(zmq.PULL)
+        # # print(f'BEFORE CONNECT COLLECTOR NAME = {deid}', flush=True)  
+        # self.data_stream.bind(deid)
+        # # time.sleep(0.1)        
+        # self.data_stream = ZMQStream(self.data_stream)
+        # self.data_stream.linger = 0
+        # self.data_stream.on_recv(self.on_data)
         # self.data_stream.stop_on_recv()
 
         event_stream = self.ctx.socket(zmq.SUB)
@@ -114,11 +114,16 @@ class BaseService(App):
       print("cleanup service", flush=True)
       self.pusher.close()
       self.event_stream.close()
-      self.data_stream.close()
+      # self.data_stream.close()
 
     def __del__(self):
       print(f"DELETE SERVICE", flush=True)
       self.cleanup()
+
+    def update_model(self, service_model):
+      self.model = service_model
+      self.name = service_model.name
+      self.encoded_name = self.name.encode('ascii')
 
     def load_config(self, dic):
       self.config.load_dict(dic)
@@ -301,47 +306,6 @@ class BaseService(App):
 
     
 
-    # def router_message(self, msg):
-    #   print("Unpack here", flush=True)
-    #   print(f"Router Msg = {msg}", flush=True)
-      
-    #   replyto, method, path, *args = msg
-    #   method = method.decode('utf-8')
-    #   path = path.decode('utf-8')
-    #   res = self._handle(method, path, {})
-    #   print(f"THE RESP here = {res}", flush=True)
-    #   self.zmq_router.send_multipart([replyto, b'tada', json.dumps(res).encode('ascii')])
-    #   # node_identity, request_id, device_identity, action, *msgparts = msg
-      
-    #   pass
-
-    # def send(self, msg):
-    #   # print("SENDING COMMAND", flush=True)
-    #   # print(msg)
-    #   request_id, action, *lparts = msg
-      
-    #   data = b''
-    #   if len(lparts) > 0:
-    #     data = lparts[0]
-      
-    #   try:
-    #     request_id = request_id.decode('utf-8')
-    #     action_name = action.decode('utf-8').lower()
-    #     method = getattr(self, action_name)
-    #     if not method:
-    #       return {'error': f'no action {action} found'}
-        
-    #     res = method(request_id, data)
-    #     if not res:
-    #       res = {"status": "sent"}
-    #     res["request_id"] = request_id
-    #     return res
-
-    #   except Exception as e:
-    #     print(f'Send Exception: {str(e)}', flush=True)
-    #     return {"error": str(e)}
-  
-
     async def _process_tasks(self):
       # print("About to get queue", flush=True)
       async for dtask in self.task_queue:
@@ -349,7 +313,7 @@ class BaseService(App):
         self.current_task[dtask.name] = dtask
         res = await dtask.run(self)
         rj = json.dumps(res, cls=ServiceJsonEncoder).encode('ascii')
-        self.pusher.send_multipart([self.identity+b'.task', b'finished', rj])
+        self.pusher.send_multipart([self.encoded_name+b'.task', b'finished', rj])
 
         # self.pusher.publish()
         del self.current_task[dtask.name]
@@ -368,5 +332,5 @@ class BaseService(App):
       pstring = json.dumps(payload, cls=ServiceJsonEncoder)
       # print(f"JSON DUMP = {pstring}", flush=True)
       pstring = pstring.encode('ascii')
-      self.pusher.send_multipart([b'events.'+ evtname, self.identity, pstring])
+      self.pusher.send_multipart([b'events.'+ evtname, self.encoded_name, pstring])
       

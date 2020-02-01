@@ -62,7 +62,7 @@ from ...response import AncillaResponse, AncillaError
 from multiprocessing import Process, Lock, Pipe
 import multiprocessing as mp
 
-class ServiceProcess(Process):
+class RemoteService():
     # connector = None
     # endpoint = None         # Server identity/endpoint
     # identity = None

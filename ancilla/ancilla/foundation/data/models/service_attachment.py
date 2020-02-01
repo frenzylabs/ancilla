@@ -23,8 +23,8 @@ class ServiceAttachment(BaseModel):
   # name      = CharField(unique=True)  
   settings     = JSONField(default={})
   listeners    = JSONField(default={})
-  parent       = ForeignKeyField(Service, column_name='parent_id', index=True, null=False, backref="service_attachments")
-  attachment   = ForeignKeyField(Service, column_name='attachment_id', index=True, null=False, backref="attached_to")
+  parent       = ForeignKeyField(Service, on_delete="CASCADE", column_name='parent_id', index=True, null=False, backref="service_attachments")
+  attachment   = ForeignKeyField(Service, on_delete="CASCADE", column_name='attachment_id', index=True, null=False, backref="attached_to")
 
 
   @property

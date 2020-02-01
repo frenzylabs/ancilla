@@ -17,11 +17,14 @@ from peewee import (
   IntegerField
 )
 
+from playhouse.sqlite_ext import JSONField
+
 class Camera(BaseModel):
   name      = CharField(unique=True)
   endpoint  = CharField(unique=True)
   # baud_rate = CharField()
-  service    = ForeignKeyField(Service, null=True, default=None)
+  service    = ForeignKeyField(Service, null=True, default=None, on_delete="SET NULL", backref="camera")
+  settings   = JSONField(default={})
   # service_id = IntegerField(null=True)
 
   @property
@@ -29,12 +32,13 @@ class Camera(BaseModel):
     return {
       'id':         self.id,
       'name':       self.name,
-      'endpoint':  self.endpoint
+      'endpoint':  self.endpoint,
+      'settings':  self.settings
     }
 
 
   def __repr__(self):
-    return "{}, {}, {}".format(
+    return "\\{{}, {}, {}\\}".format(
       self.id, 
       self.name, 
       self.endpoint

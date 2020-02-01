@@ -92,7 +92,7 @@ class Camera(BaseService):
 
     def __init__(self, model, **kwargs):
         # self.camera_model = CameraModel.get(CameraModel.name == name)
-        self.camera_model = CameraModel.get(CameraModel.service == model)
+        self.camera_model = CameraModel.select().where(CameraModel.service == model).first()
         # self.task_queue = Queue()
         # self.port = self.record['port']
         # self.baud_rate = self.record['baud_rate']
@@ -116,7 +116,7 @@ class Camera(BaseService):
           "recording": False
         })
 
-        print(f'curpid = {os.getpid()} CurIOLOOP = {IOLoop.current()}', flush=True)        
+        # print(f'curpid = {os.getpid()} CurIOLOOP = {IOLoop.current()}', flush=True)        
         self.connector = None
         
         # # self.process = ServiceProcess(self.identity)
@@ -131,173 +131,23 @@ class Camera(BaseService):
         # # self.statesub = ZMQStream(self.statesub, self.loop)
 
         # # # setup basic reactor events
-        # # self.heartbeat = PeriodicCallback(self.send_state,
-        # #                                   HEARTBEAT, self.loop)
+        # self.heartbeat = PeriodicCallback(self.get_state,
+        #                                   HEARTBEAT, self.loop)
         # # self.statesub.on_recv(self.recv_state)
-
-        # # self.ctx = zmq.Context.instance()
-        # # self.bind_address = "tcp://*:5556"
-        # # self.router_address = "tcp://127.0.0.1:5556"
-
-        # cam_router = self.ctx.socket(zmq.ROUTER)
-        # # zrouter.identity = self.identity
-        # print(f'PRocess is alive = {self.process.is_alive()}', flush=True)
-        # waitcnt = 10
-        # while waitcnt > 0 and not self.process.is_alive():
-        #   time.sleep(1)
-        #   waitcnt -= 1
-        # time.sleep(1)
-        # router_address = self.process.get_router_address()
-        # print(f"RouterAddress = {router_address}")
-        # cam_router.connect(router_address)
-
-        # self.cam_router = ZMQStream(cam_router)
-        # self.cam_router.on_recv(self.router_message)
-        # # self.cam_router.on_send(self.router_message_sent)
-
-        # print(f'CamRouter = {self.cam_router}', flush=True)
-
-        # self.pubsub_address = self.process.get_pubsub_address()
-        # process_event_stream = self.ctx.socket(zmq.SUB)
-        # process_event_stream.connect(self.pubsub_address)
-        # self.process_event_stream = ZMQStream(process_event_stream)
-        # self.process_event_stream.linger = 0
-        # self.process_event_stream.on_recv(self.on_process_message)
-
-        # self.process_event_stream.setsockopt(zmq.SUBSCRIBE, b'events')
-
-        # self.requests = {}
-
-        # print(f"INSIDE base service {self.identity}", flush=True)
-        # deid = f"inproc://{self.identity}_collector"
-        # self.data_stream = self.ctx.socket(zmq.PULL)
-        # # print(f'BEFORE CONNECT COLLECTOR NAME = {deid}', flush=True)  
-        # self.data_stream.bind(deid)
-        # # time.sleep(0.1)        
-        # self.data_stream = ZMQStream(self.data_stream)
-        # self.data_stream.linger = 0
-        # self.data_stream.on_recv(self.on_data)
-        # # self.data_stream.stop_on_recv()
-
-        # event_stream = self.ctx.socket(zmq.SUB)
-        # event_stream.connect("ipc://publisher")
-        # self.event_stream = ZMQStream(event_stream)
-        # self.event_stream.linger = 0
-        # self.event_stream.on_recv(self.on_message)
-
-
-        # ctx = mp.get_context('spawn')
-        # self.rcp, child_conn = ctx.Pipe()
-        # self.p = ctx.Process(target=run_camera, args=(self.identity, child_conn,))
-        # self.p.daemon = True
-        # self.p.start()
-        # self.register_data_handlers(PrinterHandler(self))
-
-    # def actions(self):
-    #   return [
-    #     "record"
-    #   ]
-    
-    # def router_message_sent(self, msg, status):
-    #   print(f"INSIDE CAM ROUTE SEND {msg} {status}", flush=True)
-
-    # def setup_queue(self):
-    #   print(f"Setup Queues {self}")
-    #   ctx = zmq.Context()
-    #   cam_router = ctx.socket(zmq.ROUTER)
-    #   # zrouter.identity = self.identity
-    #   print(f'PRocess is alive = {self.process.is_alive()}', flush=True)
-    #   waitcnt = 10
-    #   while waitcnt > 0 and not self.process.is_alive():
-    #     time.sleep(1)
-    #     waitcnt -= 1
-    #   time.sleep(1)
-    #   router_address = self.process.get_router_address()
-    #   print(f"RouterAddress = {router_address}")
-    #   cam_router.connect(router_address)
-
-    #   self.cam_router = ZMQStream(cam_router)
-    #   self.cam_router.on_recv(self.router_message)
-    #   # self.cam_router.on_send(self.router_message_sent)
-
-    #   print(f'CamRouter = {self.cam_router}', flush=True)
-
-    #   self.pubsub_address = self.process.get_pubsub_address()
-    #   process_event_stream = ctx.socket(zmq.SUB)
-    #   process_event_stream.connect(self.pubsub_address)
-    #   self.process_event_stream = ZMQStream(process_event_stream)
-    #   self.process_event_stream.linger = 0
-    #   self.process_event_stream.on_recv(self.on_process_message)
-
-    #   self.process_event_stream.setsockopt(zmq.SUBSCRIBE, b'events')
-
-    #   self.requests = {}
-
-    # def router_message(self, msg):
-    #   # print("INSIDE CAM ROUTE message", flush=True)
-    #   print(f"Cam Router Msg = {msg}", flush=True)
-    #   ident, seq, payload = msg
-    #   if seq in self.requests:
-    #     self.requests[seq].set_result(payload)
-
-    # def on_process_message(self, msg):
-    #   print(f"CAM PUBSUB Msg = {msg}", flush=True)
-    #   self.pusher.send_multipart(msg)
-
 
     def cleanup(self):
       print("cleanup camera", flush=True)
       if self.connector:
         self.connector.stop()
-      # if self.connector:
-      #   self.connector.close()
-      # if self.video_processor:
-      #   print(f"Close video processor")
-      #   self.video_processor.close()
-      # for k, v in self.current_task.items():
-      #   if hasattr(v, "stop"):
-      #       v.stop()
-      print(f'Cleanup Process Stop', flush=True)
       super().cleanup()
 
 
+    def update_model(self, service_model):
+      self.camera_model = service_model.model
+      super().update_model(service_model)
+
     async def make_request(self, request):
       return await self.connector.make_request(request)
-
-      # global SEQ_ID
-      # SEQ_ID += 1
-      # seq_s = struct.pack('!q', SEQ_ID)
-      
-      # loop = asyncio.get_running_loop()
-
-      # # Create a new Future object.
-      # fut = loop.create_future()
-      # self.requests[seq_s] = fut
-      # renc = request.encode()
-      # print(f'Encode request = {renc}')
-      # self.cam_router.send_multipart([self.identity, seq_s, renc])
-      # # self.cam_router.send_multipart([self.identity, seq_s, json.dumps(request).encode('ascii')])
-
-      # res = await fut
-      # try:
-      #   del self.requests[seq_s]
-      #   res = json.loads(res.decode('utf-8'))
-      #   classname = res.get('__class__')
-      #   # print(f'classname = {classname}')
-      #   module_name, class_name = classname.rsplit(".", 1)
-      #   MyClass = getattr(importlib.import_module(module_name), class_name)
-      #   if hasattr(MyClass, "decode"):
-      #     res = MyClass.decode(res.get('data', {}))
-      #   else:
-      #     res = MyClass(res.get('data', {}))
-        
-      # except Exception as e:
-      #   print('Exception')
-      #   raise AncillaError(400, str(e))
-      
-      # if isinstance(res, AncillaError):
-      #     raise res
-      # return res
 
 
     def start(self, *args):
@@ -337,10 +187,7 @@ class Camera(BaseService):
       if self.connector:
         self.connector.stop()
         self.connector = None
-      # # request = {"action": "stop", "body": {}}
-      # request = Request({"action": "stop", "body": {}})
-      # res =  await self.make_request(request)
-      # print(f'Stop res = {res}')
+
       self.state.connected = False
       return {"success": True }
 
