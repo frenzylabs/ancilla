@@ -130,6 +130,10 @@ class Printer(BaseService):
         print(f"INSIDE PRINTER INIT = {self.identity}", flush=True)
         self.register_data_handlers(PrinterHandler(self))
 
+        key = b"events.printer.state.changed"
+        self.event_stream.setsockopt(zmq.SUBSCRIBE, key)
+
+        
 
     # @property
     # def actions(self):
@@ -146,8 +150,9 @@ class Printer(BaseService):
         self.connector.stop()
       super().cleanup()
 
-    def test_hook(self, *args):
-      print(f"TESTHOOK Fired: {args}", flush=True)
+    def test_hook(self, data, layerkeep, **kwargs):
+      print(f"TESTHOOK Fired: lk = {layerkeep} {kwargs}", flush=True)
+      #print(f", andkwar= {kwargs}", flush=True)
 
     def start(self, *args):
       print("START Printer", flush=True)
@@ -225,6 +230,7 @@ class Printer(BaseService):
 
 
     async def send_command(self, msg):
+      print(f'PRINTER PLUGINS = {self.plugins}')
       if not self.state.connected:
         raise AncillaError(400, {"error": "Printer Not Connected"})
       

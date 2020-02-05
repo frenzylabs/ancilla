@@ -32,6 +32,24 @@ def pr(l, log):
   finally:
       l.release()
 
+# def run_log_commands(task_id, current_print, cmd_queue):
+#   from ...env import Env
+#   from ...data.db import Database
+#   from playhouse.sqlite_ext import SqliteExtDatabase
+#   import zmq
+#   Env.setup()
+#   conn = SqliteExtDatabase(Database.path, pragmas=(
+#     # ('cache_size', -1024 * 64),  # 64MB page-cache.
+#     ('journal_mode', 'wal'),  # Use WAL-mode (you should always use this!).
+#     ('foreign_keys', 1),
+#     ('threadlocals', True)))
+#     # {'foreign_keys' : 1, 'threadlocals': True})
+#   conn.connect()
+
+#   self.root_path = "/".join([Env.ancilla, "services", service.identity.decode('utf-8'), "recordings", self.name])
+#   if not os.path.exists(self.root_path):
+#       os.makedirs(self.root_path)
+
 def run_save_command(task_id, current_print, cmd_queue):
   from ...env import Env
   from ...data.db import Database
@@ -125,7 +143,13 @@ class PrintTask(AncillaTask):
     self.payload = payload
     self.state.update({"name": name, "status": "pending", "model": {}})
 
-    
+    # self.log_path = "/".join([Env.ancilla, "services", service.identity.decode('utf-8'), "prints", self.name])
+    # if not os.path.exists(self.log_path):
+    #   os.makedirs(self.log_path)
+
+    # M105 // temp
+    # M114 // cur position
+
     # image_collector = self.service.ctx.socket(zmq.SUB)
     # image_collector.bind(f"ipc://printcommand{self.task_id}.ipc")
 
@@ -159,7 +183,7 @@ class PrintTask(AncillaTask):
       # self.service.fire_event(Printer.state.changed, self.service.state)
 
       self.state.status = "running"
-      self.state.model = self.service.current_print.json
+      self.state.model = self.service.current_print.to_json(extra_attrs=["print_slice"])
       self.state.id = self.service.current_print.id
       
       self.service.fire_event(Printer.print.started, self.state)
@@ -172,6 +196,8 @@ class PrintTask(AncillaTask):
       # self.publish_request(request)
       return
 
+    self.state_callback = PeriodicCallback(self.get_state, 3000)
+    self.state_callback.start()
     
     # mp.set_start_method('spawn')
     # ctx = mp.get_context('fork')
@@ -270,70 +296,7 @@ class PrintTask(AncillaTask):
       self.state.reason = str(e)
       print(f"Print Exception: {str(e)}", flush=True)
 
-    # def cmd_callback(cmd, *args):
-    #   # print(f'Iniside Command Callback {cmd}, {args}')      
-    #   parent_conn.send(("cmd", cmd))
-    #   return True
 
-    # while self.state.status == "running":
-    #   current_command = None
-    #   try:
-    #     # print(f'Parent CURRENT OS = {os.getppid()}')
-    #     payload = None
-    #     res = parent_conn.poll(0.0001)
-        
-    #     if res:
-    #       payload = parent_conn.recv()
-    #     else:
-    #       await sleep(0.001)
-    #       continue
-    #     # payload = cmd_queue.get_nowait()        
-    #     # print(f"PCbefore = {payload}")
-    #     if payload:
-    #       (key, pc) = payload
-    #       if key == "state":
-    #         self.state.status = pc.get("status")
-    #         self.state.reason = pc.get("reason") or ""
-    #       elif key == "cmd":
-    #         current_command = pc
-    #         self.service.command_queue.add(current_command, cmd_callback )
-    #         IOLoop.current().add_callback(self.service.process_commands)
-    #         # if pc.nowait:
-    #         #   # self.service.connector.write(pc.command.encode('ascii'))
-    #         #   # pc.status = "finished"
-    #         #   self.service.command_queue.add(pc)
-    #         #   IOLoop.current().add_callback(self.service.process_commands)
-    #         # else:
-    #         #   self.service.command_queue.add(pc)
-    #         #   IOLoop.current().add_callback(self.service.process_commands)
-            
-    #         # while (current_command.status == "pending" or 
-    #         #           current_command.status == "running" or 
-    #         #           current_command.status == "busy"):
-
-    #         #     await sleep(0.001)
-    #         #     if self.state.status != "running":
-    #         #       current_command.status = self.state.status
-    #         #       break
-    #         # if current_command.status == "error":
-    #         #     current_command.status = "failed"
-    #         #     self.state.status = "failed"
-    #         #     self.state.reason = "Could Not Execute Command: " + current_command.command
-            
-    #         # # print(f"RespPC = {pc}")
-    #         # # resp_queue.put(("cmd", pickle.dumps(pc)))
-    #         # # resp_queue.put(("cmd", current_command))
-    #         # parent_conn.send(("cmd", current_command))
-    #     else:
-    #       await sleep(0.001)
-    #   except QueueEmpty:
-    #     await sleep(0.001)
-    #   except Exception as e:
-    #     print(f"Exception {type(e).__name__} {str(e)}")
-        
-
-
-    # print     # prints "[42, None, 'hello']"
     return self.cleanup()
 
 
@@ -343,7 +306,7 @@ class PrintTask(AncillaTask):
     self.p.join(timeout=5)
     self.service.current_print.status = self.state.status
     self.service.current_print.save()
-    self.state.model = self.service.current_print.json
+    self.state.model = self.service.current_print.to_json(extra_attrs=["print_slice"])
     if self.state.status == "failed":
       self.service.fire_event(Printer.print.failed, self.state)  
     elif self.state.status == "finished":
@@ -357,7 +320,7 @@ class PrintTask(AncillaTask):
     self.service.print_queued = False
     if self.service.current_print.status != "paused":
       self.service.current_print = None
-    # self.state_callback.stop()
+    self.state_callback.stop()
     self.service.fire_event(Printer.print.state.changed, self.state)
     self.service.state.printing = False
     self.service.fire_event(Printer.state.changed, self.service.state)
@@ -389,7 +352,7 @@ class PrintTask(AncillaTask):
       # self.service.fire_event(Printer.state.changed, self.service.state)
 
       self.state.status = "running"
-      self.state.model = self.service.current_print.json
+      self.state.model = self.service.current_print.to_json()
       self.state.id = self.service.current_print.id
       
       self.service.fire_event(Printer.print.started, self.state)
@@ -472,7 +435,7 @@ class PrintTask(AncillaTask):
 
     self.service.current_print.status = self.state.status
     self.service.current_print.save()
-    self.state.model = self.service.current_print.json
+    self.state.model = self.service.current_print.to_json()
     if self.state.status == "failed":
       self.service.fire_event(Printer.print.failed, self.state)  
     elif self.state.status == "finished":
@@ -507,6 +470,6 @@ class PrintTask(AncillaTask):
 
   def get_state(self):
     st = self.state.to_json()
-    self.state.model = self.service.current_print.json
-    if st != self.state.to_json():
-      self.service.fire_event(Printer.print.state.changed, self.state)
+    self.state.model = self.service.current_print.to_json(extra_attrs=["print_slice"])
+    # if st != self.state.to_json():
+    self.service.fire_event(Printer.print.state.changed, self.state)

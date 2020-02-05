@@ -111,7 +111,7 @@ class NodeService(App):
         post_save.connect(self.post_save_handler, name=f'service_model', sender=Service)
         post_save.connect(self.post_save_node_handler, name=f'node_model', sender=Node)
         post_delete.connect(self.post_delete_camera_handler, name=f'camera_model', sender=Camera)
-        post_delete.connect(self.post_delete_camera_recording_handler, name=f'camera_recording_model', sender=CameraRecording)
+        # post_delete.connect(self.post_delete_camera_recording_handler, name=f'camera_recording_model', sender=CameraRecording)
 
         # atexit.register(self.cleanup)
         # self.pipe, peer = zpipe(self.ctx)        
@@ -311,7 +311,7 @@ class NodeService(App):
 
     def post_delete_camera_recording_handler(self, sender, instance, *args, **kwargs):
       print(f"Post Delete of Camera Recording {sender} {instance}")
-      self.delete_recording(instance)
+      # self.delete_recording(instance)
 
     def post_delete_camera_handler(self, sender, instance, *args, **kwargs):
       print(f"Post Delete of Camera {sender} {instance}")
@@ -528,6 +528,7 @@ class NodeService(App):
     #   pass
 
     def handle_collect(self, msg):
+      # print(f'HandleCol Pub to {msg}', flush=True)
       self.publisher.send_multipart(msg)
       if len(msg) >= 3:
           topic, service, *other = msg

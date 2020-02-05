@@ -21,6 +21,7 @@ class CameraApi(Api):
     self.service.route('/recordings/<recording_id>', 'GET', self.get_recording)
     self.service.route('/recordings/<recording_id>', 'DELETE', self.delete_recording)
     self.service.route('/recordings/<recording_id>/video', 'GET', self.get_video)
+    self.service.route('/recordings/<recording_id>/stop', 'POST', self.stop_recording)
     self.service.route('/record', 'POST', self.record)
     self.service.route('/connection', 'POST', self.connect)
     self.service.route('/connection', 'DELETE', self.disconnect)
@@ -70,8 +71,6 @@ class CameraApi(Api):
         raise e
 
 
-
-
   def connect(self, *args):
     return self.service.connect()
   
@@ -79,6 +78,9 @@ class CameraApi(Api):
     # if self.service.connector:
     await self.service.stop()
     return {"status": "disconnected"}
+
+  async def stop_recording(self, request, recording_id, *args):
+    return await self.service.stop_recording({"data": request.params})
 
   async def record(self, request, *args):
     return await self.service.start_recording({"data": request.params})
@@ -108,18 +110,27 @@ class CameraApi(Api):
     page = int(request.params.get("page") or 1)
     per_page = int(request.params.get("per_page") or 5)
     q = self.service.camera_model.recordings.order_by(CameraRecording.created_at.desc())
+    if request.params.get("q[print_id]"):
+      q = q.where(CameraRecording.print_id == request.params.get("q[print_id]"))
+    if request.params.get("q[camera_id]"):
+      q = q.where(CameraRecording.camera_id == request.params.get("q[camera_id]"))
+    if request.params.get("q[status]"):
+      q = q.where(CameraRecording.status == request.params.get("q[status]"))
     if request.params.get("print_id"):
       q = q.where(CameraRecording.print_id == request.params.get("print_id"))
+    if request.params.get("status"):
+      q = q.where(CameraRecording.status == request.params.get("status"))
     
     cnt = q.count()
     num_pages = math.ceil(cnt / per_page)
     return {"data": [p.to_json(recurse=True) for p in q.paginate(page, per_page)], "meta": {"current_page": page, "last_page": num_pages, "total": cnt}}
 
   def delete_recording(self, request, recording_id, *args):
-    rcd = CameraRecording.get_by_id(recording_id)
-    if self.service.delete_recording(rcd):
-      return {"success": "Deleted"}
-    raise AncillaError(400, {"errors": "Coud Not Delete Recording"})
+    # rcd = CameraRecording.get_by_id(recording_id)
+    return self.service.delete_recording({"data": {"id": recording_id}})
+      # return {"success": "Deleted"}
+      
+    # raise AncillaError(400, {"errors": "Coud Not Delete Recording"})
 
 
   def get_video_processor(self, request, *args):

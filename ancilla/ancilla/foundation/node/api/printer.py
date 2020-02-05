@@ -21,11 +21,13 @@ class PrinterApi(Api):
     self.service.route('/print', 'POST', self.print)
     self.service.route('/prints', 'GET', self.prints)
     self.service.route('/commands', 'GET', self.printer_commands)
+    self.service.route('/commands', 'DELETE', self.delete_printer_commands)
     self.service.route('/prints/<print_id>/sync_layerkeep', 'POST', self.sync_print_to_layerkeep)
     self.service.route('/prints/<print_id>/unsync_layerkeep', 'POST', self.unsync_print_from_layerkeep)
     self.service.route('/prints/<print_id>/recordings', 'GET', self.get_print_recordings)
     self.service.route('/prints/<print_id>', 'GET', self.get_print)
     self.service.route('/prints/<print_id>', 'DELETE', self.delete_print)
+    self.service.route('/prints/<print_id>', 'PATCH', self.update_print)
     self.service.route('/', 'PATCH', self.update_service)
 
   async def update_service(self, request, layerkeep, *args):
@@ -152,18 +154,24 @@ class PrinterApi(Api):
   async def sync_print_to_layerkeep(self, request, layerkeep, print_id, *args):
     print(f"sync layerkeep {request.params}", flush=True)
     prnt = Print.get_by_id(print_id)
+    # if prnt.layerkeep_id:
+    #   return {"data": prnt.json}
     if prnt.layerkeep_id:
-      return {"data": prnt.json}
-    
-    response = await layerkeep.create_print({"data": {"print": prnt.json, "params": request.params}})
+      response = await layerkeep.update_print({"data": prnt.json})
+      if not response.success:
+        raise response
+    else:
+      response = await layerkeep.create_print({"data": {"print": prnt.json, "params": request.params}})
+      if not response.success:
+        raise response
+      prnt.layerkeep_id = response.body.get("data").get("id")
+      prnt.save()
 
-    if not response.success:
-      raise response
-
-    prnt.layerkeep_id = response.body.get("data").get("id")
-    prnt.save()
+    asset_ids = []
     for r in prnt.recordings:
-      if not r.layerkeep_id:
+      if r.layerkeep_id:
+        asset_ids.append(r.layerkeep_id)
+      else:
         data = {
             "params": {
               "layerkeep_id": prnt.layerkeep_id
@@ -175,7 +183,12 @@ class PrinterApi(Api):
           }
         response = await layerkeep.upload_print_asset({"data": data})
         if response.success:
-          r.layerkeep_id = response.body.get("data").get("id")
+          resdata = response.body.get("data", {})
+          assets = resdata.get("attributes", {}).get("assets", [])
+          target = next((item for item in assets if item.get("id") not in asset_ids), None)
+          if target:
+            asset_ids.append(target.get("id"))
+          r.layerkeep_id = target.get("id")
           r.save()
         
 
@@ -187,16 +200,47 @@ class PrinterApi(Api):
     prnt = Print.get_by_id(print_id)
     prnt.layerkeep_id = None
     prnt.save()
+    for r in prnt.recordings:
+      r.layerkeep_id = None
+      r.save()
     return {"data": prnt.json}
 
 
-  def delete_print(self, request, print_id, *args):
+  async def update_print(self, request, layerkeep, print_id, *args):
+    print(f"UPDATe PRINT {request.params}")
     prnt = Print.get_by_id(print_id)
-    prnt.delete_instance(recursive=True)
-    return {"success": True}
+    name = request.params.get("name")
+    description = request.params.get("description")
+    if name:
+      prnt.name = name
+    if description:
+      prnt.description = description
+
+    if prnt.layerkeep_id:
+      response = await layerkeep.update_print({"data": prnt.json})
+      if not response.success:
+        raise response
+    
+    prnt.save()
+    return {"data": prnt.json}
+
+  async def delete_print(self, request, layerkeep, print_id, *args):
+    prnt = Print.get_by_id(print_id)
+    if prnt.layerkeep_id:
+      if request.params.get("delete_remote"):
+        resp = await layerkeep.delete_print({"data": {"layerkeep_id": prnt.layerkeep_id}})
+
+    if prnt.delete_instance(recursive=True):
+      return {"status": 200}
+    else:
+      raise AncillaError(400, {"error": f"Could Not Delete Print {prnt.name}"})
+
+    
+    # prnt.delete_instance(recursive=True)
+    # return {"success": True}
 
   def printer_commands(self, request, *args):
-    # prnts = Print.select().order_by(Print.created_at.desc())    
+    # prnts = Print.select().order_by(Print.created_at.desc())
     page = int(request.params.get("page") or 1)
     per_page = int(request.params.get("per_page") or 5)
     if request.params.get("print_id"):
@@ -204,6 +248,9 @@ class PrinterApi(Api):
       q = prnt.commands.order_by(PrinterCommand.created_at.desc())
     else:
       q = self.service.printer.commands.order_by(PrinterCommand.created_at.desc())
+
+    if request.params.get("q[command]"):
+      q = q.where(PrinterCommand.command % (request.params.get("q[command]")+"*"))
     
     # prnt = Print.get_by_id(print_id)
     # q = prnt.commands.order_by(PrinterCommand.created_at.desc())
@@ -212,6 +259,17 @@ class PrinterApi(Api):
     return {"data": [p.to_json(recurse=False) for p in q.paginate(page, per_page)], "meta": {"current_page": page, "last_page": num_pages, "total": cnt}}
     # return self.service.start_print(request.params)
   
+  def delete_printer_commands(self, request, *args):
+    if request.params.get("print_id"):
+      q = PrinterCommand.delete().where(PrinterCommand.print_id == request.params.get("print_id"))
+      cnt = q.execute()
+      return {"success": True, "message": f"Deleted {cnt} commands"}
+    # else:
+    #   q = self.service.printer.commands.order_by(PrinterCommand.created_at.desc())
+    return {"success": True}
+
+    
+
   # def start_print(self, *args):
   #   try:
   #     res = data.decode('utf-8')

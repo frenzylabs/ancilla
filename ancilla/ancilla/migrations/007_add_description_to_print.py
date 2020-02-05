@@ -33,42 +33,24 @@ except ImportError:
 
 SQL = pw.SQL
 
-from ancilla.foundation.data.models import Printer, Print, PrinterCommand
+from ancilla.foundation.data.models import Print
 
 def migrate(migrator, database, fake=False, **kwargs):
     """Write your migrations here."""
     # database.drop_tables([Printer])
-    database.create_tables([
-        Printer,
-        Print,
-        PrinterCommand
-    ])
 
+    # migrator.add_index(ServiceAttachment, "parent_id", "attachment_id", unique=True)
     # migrator.add_index(PrinterCommand, "", "device_type", unique=True)
-    # migrator.add_fields(Printer, device=pw.ForeignKeyField(Device, backref='specific'))
+    # CharField(null=True)
+    f = pw.CharField(null=True)
+    print(f'charfield = {f}', flush=True)
+    migrator.add_fields(Print, description=f)
+    
 
 
 
 def rollback(migrator, database, fake=False, **kwargs):
     """Write your rollback migrations here."""
-    database.drop_tables([
-        Printer,
-        Print,
-        PrinterCommand
-    ])
+    migrator.remove_fields(Print, ["description"])
+    
 
-
-# from ancilla.foundation.data.models import Camera, Print, PrinterCommand, PrintSlice
-# from ancilla.foundation.env import Env
-# from playhouse.sqlite_ext import SqliteExtDatabase
-# from peewee_migrate import Router
-# path = "/".join([Env.ancilla, ".a_store"])
-# conn = SqliteExtDatabase(path, regexp_function=True, timeout=3, pragmas=(
-#     ('journal_mode', 'wal'),  # Use WAL-mode (you should always use this!).
-#     ('foreign_keys', 1),
-#     ('threadlocals', True)))
-# import os
-# migrate_dir = os.path.join(os.getcwd(), 'ancilla/ancilla/migrations')
-# router = Router(conn, migrate_dir=migrate_dir)
-# # router.rollback("002_create_printer")
-# # router.rollback("006_create_node")

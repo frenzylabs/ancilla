@@ -147,7 +147,9 @@ class Camera(BaseService):
       super().update_model(service_model)
 
     async def make_request(self, request):
-      return await self.connector.make_request(request)
+      if self.connector:
+        return await self.connector.make_request(request)
+      raise AncillaError(400, {"error": "Not Connected"})
 
 
     def start(self, *args):
@@ -228,6 +230,37 @@ class Camera(BaseService):
       except Exception as e:
         print(f"Cant change recording task {str(e)}", flush=True)
         return {"status": "error", "error": f"Could not resume task {str(e)}"}
+
+    def delete_recording(self, msg):
+      rid = msg.get("data", {}).get("id")
+      if rid:
+        recording = CameraRecording.get_by_id(rid)
+
+      if recording:
+        try:
+          
+          if os.path.exists(recording.image_path):
+            shutil.rmtree(recording.image_path)
+          if os.path.exists(recording.video_path):
+            shutil.rmtree(recording.video_path)
+
+          res = recording.delete_instance()
+          return {"success": True}
+        except Exception as e:
+          print(f"delete recording exception {str(e)}")
+          raise AncillaError(400, {"status": "error", "error": f"Could not delete recording {str(e)}"}, exception=e)
+      
+      raise AncillaError(400, {"status": "error", "error": f"Could not delete recording"})
+
+
+    # async def delete_recording(self, msg):
+    #   try:
+    #     request = Request({"action": "delete_recording", "body": msg})
+    #     res =  await self.make_request(request)
+    #     return res
+    #   except Exception as e:
+    #     print(f"Cant delete recording {str(e)}", flush=True)
+    #     return {"status": "error", "error": f"Could not delete recording {str(e)}"}
 
     async def resume_recording(self, msg):
       try:

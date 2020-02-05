@@ -59,7 +59,7 @@ from types import CoroutineType
 # from ...tasks.camera_record_task import CameraRecordTask
 # from ...tasks.camera_process_video_task import CameraProcessVideoTask
 
-from .events import Event, EventPack #, Service as EventService
+from .events import Event, EventPack, State as StateEvent #, Service as EventService
 # from ...events.camera import Camera as CameraEvent
 from .events.event_pack import EventPack
 # from ...middleware.camera_handler import CameraHandler
@@ -277,7 +277,13 @@ class ServiceProcess():
         self.data_stream.on_recv(self.on_data)
 
     def state_changed(self, event, oldval, key, newval):
-      print("state changed")
+      # print(f"state changed {self.state}, key={key} OLDVAL: {oldval}, {newval}", flush=True)
+      # oldval[key] = newval
+      # print(f'oldval = {oldval.__dict__}')
+      dict.__setitem__(oldval, key, newval)
+      # print(f'Oldval after = {oldval}')
+      # oldval.dict.__setitem__(key, newval)
+      self.fire_event(StateEvent.changed, oldval)
 
     async def run_loop(self):
 
@@ -315,11 +321,6 @@ class ServiceProcess():
         self.child_conn.send(("stop", "success"))
         self.running = False
         print('\nProcessFinished (interrupted)')
-    
-    
-    def send_state(self, *a, **kw):
-      print("SENDING STATE", flush=True)
-
     
 
     def on_data(self, data):

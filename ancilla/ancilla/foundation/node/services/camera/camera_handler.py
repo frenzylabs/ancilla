@@ -132,7 +132,7 @@ class CameraHandler():
       if self.video_processor:
         print(f"Close video processor")
         self.video_processor.close()
-      self.process.fire_event(CameraEvent.connection.closed, {"status": "success"})
+      self.process.fire_event(CameraEvent.connection.closed, self.state)
     
 
     def connect(self, data):
@@ -145,12 +145,12 @@ class CameraHandler():
       self.connector.open()
       
       self.connector.run()
-      self.process.state.connected = True
+      self.state.connected = True
       print(f"Cam {os.getpid()} ")
       # tcr = CameraRecording(task_name="bob", settings={}, status="pending")
       # tcr.save()
 
-      self.process.fire_event(CameraEvent.connection.opened, {"status": "success"})
+      self.process.fire_event(CameraEvent.connection.opened, self.state)
       return {"status": "connected"}
 
     # def stop(self, *args):
@@ -214,6 +214,7 @@ class CameraHandler():
         task = self.get_recording_task(payload)
         if task:
           task.cancel()
+          self.state.recording = False
           return {"status": "success"}
         else:
           return {"status": "error", "error": "Task Not Found"}
@@ -223,6 +224,7 @@ class CameraHandler():
         task = self.get_recording_task(payload)
         if task:
           task.pause()
+          self.state.recording = False
           return {"status": "success"}
         else:
           return {"status": "error", "error": "Task Not Found"}
@@ -233,6 +235,7 @@ class CameraHandler():
         task = self.get_recording_task(payload)
         if task:
           task.resume()
+          self.state.recording = True
           return {"status": "success"}
         else:
           return {"status": "error", "error": "Task Not Found"}
@@ -252,6 +255,7 @@ class CameraHandler():
 
         pt = CameraRecordTask(name, self.process, payload)
         self.process.add_task(pt)
+        self.state.recording = True
         # self.task_queue.put(pt)
         # loop = IOLoop().current()
         # loop.add_callback(partial(self._process_tasks))
@@ -261,6 +265,8 @@ class CameraHandler():
         print(f"Cant record task {str(e)}", flush=True)
         raise AncillaError(400, {"status": "error", "error": f"Could not record {str(e)}"}, exception=e)
         # return {"status": "error", "error": f"Could not record {str(e)}"}
+
+    
 
 
 

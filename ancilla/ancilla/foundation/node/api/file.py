@@ -44,10 +44,21 @@ class FileApi(Api):
     if description:
       print_slice.description = description
 
-    if print_slice.layerkeep_id:
-      response = await layerkeep.update_sliced_file({"data": print_slice.json})    
-      if not response.success:
-        raise response
+    lksync = request.params.get("layerkeep_sync")
+
+    if lksync and lksync != 'false':
+      if print_slice.layerkeep_id:
+        response = await layerkeep.update_sliced_file({"data": print_slice.json})    
+        if not response.success:
+          raise response
+      else:
+        response = await layerkeep.upload_sliced_file({"data": {"sliced_file": print_slice.json, "params": request.params}})    
+        if not response.success:
+          raise response
+        print_slice.layerkeep_id = response.body.get("data").get("id")
+    else:
+      print_slice.layerkeep_id = None
+
 
     print_slice.save()
     return {"file": print_slice.json}
@@ -101,6 +112,8 @@ class FileApi(Api):
     page = int(request.params.get("page") or 1)
     per_page = int(request.params.get("per_page") or 5)
     q = PrintSlice.select().order_by(PrintSlice.created_at.desc())
+    if request.params.get("q[name]"):
+      q = q.where(PrintSlice.name.contains(request.params.get("q[name]")))
     
     cnt = q.count()
     num_pages = math.ceil(cnt / per_page)

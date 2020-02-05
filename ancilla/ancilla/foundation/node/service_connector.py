@@ -120,7 +120,8 @@ class ServiceConnector():
       # self.p.terminate()
       self.p = None
       print(f'Stopped Process')
-      self.rpc_router.close()
+      if self.rpc_router:
+        self.rpc_router.close()
       
       
     def setup_queue(self):
@@ -171,6 +172,16 @@ class ServiceConnector():
       topic, identity, *res = msg
       if topic.startswith(b'data'):
         topic = self.service.encoded_name + b'.' + topic
+      
+      if topic.startswith(b'events.state'):
+        try:
+          newstate = json.loads(res[0].decode('utf-8'))
+          print(f'EVENT NEW STATE = {topic}  and res = {newstate}')
+          self.service.state.update(newstate)
+          # print(f'EVENT NEW STATE = {topic}  and res = {self.service.state}')
+        except:
+          pass
+        
 
       nmsg = [topic, self.service.encoded_name] + res
       # print(f"Process evt: {nmsg}")

@@ -216,6 +216,8 @@ class NodeApi(Api):
       q = q.where(CameraRecording.print_id == request.params.get("q[print_id]"))
     if request.params.get("q[camera_id]"):
       q = q.where(CameraRecording.camera_id == request.params.get("q[camera_id]"))
+    if request.params.get("q[status]"):
+      q = q.where(CameraRecording.status == request.params.get("q[status]"))
     
     cnt = q.count()
     num_pages = math.ceil(cnt / per_page)
