@@ -41,11 +41,10 @@ def migrate(migrator, database, fake=False, **kwargs):
 
     # migrator.add_index(ServiceAttachment, "parent_id", "attachment_id", unique=True)
     # migrator.add_index(PrinterCommand, "", "device_type", unique=True)
-    # CharField(null=True)
-    f = pw.CharField(null=True)
-    print(f'charfield = {f}', flush=True)
-    migrator.add_fields(Print, description=f)
-    
+    res = next((c for c in database.get_columns(Print._meta.table_name) if c.name == "description" ))
+    if not res:
+        f = pw.CharField(null=True)
+        migrator.add_fields(Print, description=f)
 
 
 
