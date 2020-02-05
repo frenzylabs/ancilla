@@ -40,7 +40,9 @@ class BaseModel(Model):
     return model_to_dict(self)
 
   def to_json(self, **kwargs):
-    return model_to_dict(self, **kwargs)
+    default = {"recurse": False}
+    default.update(kwargs)
+    return model_to_dict(self, **default)
   # model_to_dict(model, recurse=True, backrefs=False, only=None,
   #                 exclude=None, seen=None, extra_attrs=None,
   #                 fields_from_query=None, max_depth=None, manytomany=False):

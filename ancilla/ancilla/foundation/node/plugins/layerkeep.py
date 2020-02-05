@@ -34,13 +34,17 @@ class LayerkeepPlugin(object):
 
     def apply(self, callback, context):
         # Override global configuration with route-specific values.
-        print(f"INSIDE LKP apply {context}", flush=True)
+        # print(f"INSIDE LKP apply {context}", flush=True)
         # print(f"LKP app {context.app}", flush=True)
         # print(f"LKP settings {context.app.settings}", flush=True)
-        if isinstance(context.app, NodeService):
-            lkservice = context.app.layerkeep_service
+        if hasattr(context, "app"):
+            app = context.app
         else:
-            lkservice = context.app.settings.get('_mount.app').layerkeep_service
+            app = context
+        if isinstance(app, NodeService):
+            lkservice = app.layerkeep_service
+        else:
+            lkservice = app.settings.get('_mount.app').layerkeep_service
 
         # print(f"LKP service {lkservice}", flush=True)
         # settins = context.app.settings.get('layerkeep.name')
@@ -52,7 +56,14 @@ class LayerkeepPlugin(object):
 
         # Test if the original callback accepts a 'db' keyword.
         # Ignore it if it does not need a database handle.
-        args = inspect.getargspec(context.callback)[0]
+        
+        if hasattr(context, "callback"):
+            origcb = context.callback
+        else:
+            origcb = callback
+        
+        # args = inspect.getargspec(context.callback)[0]
+        args = inspect.getargspec(origcb)[0]
         if self.keyword not in args:
             return callback
 

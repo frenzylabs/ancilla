@@ -30,6 +30,8 @@ class Print(BaseModel):
   printer_snapshot = JSONField(default={})
   printer    = ForeignKeyField(Printer, on_delete="CASCADE", backref='prints')
   print_slice    = ForeignKeyField(PrintSlice, on_delete="SET NULL", null=True, backref='prints')
+
+  description = CharField(null=True)
   
   layerkeep_id  = IntegerField(null=True)
 
@@ -40,7 +42,8 @@ class Print(BaseModel):
       'name':       self.name,
       'status':  self.status,
       'state':  self.state,
-      'settings':  self.settings
+      'settings':  self.settings,
+      'description': self.description
     }
 
 

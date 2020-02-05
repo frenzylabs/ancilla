@@ -199,9 +199,11 @@ class Layerkeep(BaseService):
     
         url = f'{self.settings.api_url}{self.settings.get("auth.user.username")}/printers'
         req = requests.Request('POST', url, json=payload)
-        response = await self.make_request(req)        
+        response = await self.make_request(req)       
+        print(f'Create Printer response = {response.body}') 
         return response
       except AncillaResponse as e:
+        print(f'Create Printer Ancilla Error = {e.body}')
         raise e
       except Exception as e:
         print(f"CREATe printer exception = {e}", flush=True)
@@ -214,9 +216,11 @@ class Layerkeep(BaseService):
 
         url = f'{self.settings.api_url}{self.settings.get("auth.user.username")}/printers/{payload.get("layerkeep_id")}'
         req = requests.Request('PATCH', url, json=payload)
-        response = await self.make_request(req)        
+        response = await self.make_request(req)
+        print(f'Update Printer response = {response.body}')
         return response
       except AncillaResponse as e:
+        print(f'Update Printer Ancilla Error = {e.body}')
         raise e
       except Exception as e:
         print(f"Update printer exception = {e}", flush=True)
@@ -297,6 +301,22 @@ class Layerkeep(BaseService):
         raise e
       except Exception as e:
         print(f"Update Print Exception = {e}", flush=True)
+        raise AncillaError(status= 400, body={"error": f"{str(e)}"}, exception=e)
+
+    @check_authorization
+    async def delete_print(self, evt):
+      try:
+        payload = evt.get("data")
+        print_id = payload.get("layerkeep_id")
+
+        url = f'{self.settings.api_url}{self.settings.get("auth.user.username")}/prints/{print_id}'
+        req = requests.Request('DELETE', url)
+        response = await self.make_request(req)
+        return response
+      except AncillaResponse as e:
+        raise e
+      except Exception as e:
+        print(f"Delete print exception = {e}", flush=True)
         raise AncillaError(status= 400, body={"error": f"{str(e)}"}, exception=e)
         
 

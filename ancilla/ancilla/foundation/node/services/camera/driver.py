@@ -89,6 +89,7 @@ class CameraConnector(object):
       # topic = 'camera_frame'
       retry = 0
       max_retry_cnt = 10
+      
       while self.alive:
         try:
           
@@ -102,7 +103,6 @@ class CameraConnector(object):
             raise Exception("1 Camera Disconnected")
           ret, frame = res
           # frame = video.read()
-          
           if ret:
             i += 1
             retry = 0
@@ -112,7 +112,7 @@ class CameraConnector(object):
           else:
             if retry < max_retry_cnt:
               retry += 1
-              time.sleep(1)
+              time.sleep(0.5)
               continue
             
             print(f'CAMEA DISCONNECTED retrycnt {retry}', flush=True)
@@ -131,6 +131,7 @@ class CameraConnector(object):
           device_collector.send_multipart([self.identity + b'.data_received', b'error', str(e).encode('ascii')])
           # device_collector.send_multipart([self.identity, b'error', str(e).encode('ascii')])
           self.alive = False
+          self.close_video()
           break
       device_collector.close()
       device_collector = None
@@ -149,6 +150,16 @@ class CameraConnector(object):
       except Exception as e:
         print(f'Serial Open Exception {str(e)}')
 
+    def close_video(self):
+      try:
+        print("CLOSE VIDEO", flush=True)
+        if self.video:          
+          self.video.release()
+          time.sleep(0.3)
+          self.video = None
+      except Exception as e:
+        print(f"SErail close {str(e)}", flush=True)
+
     def close(self):
       """Stop copying"""
       print('stopping', flush=True)
@@ -159,14 +170,15 @@ class CameraConnector(object):
           if not self.thread_read.isAlive():
             self.thread_read = None
 
-      try:
-        print("CLOSE SERIAL", flush=True)
-        if self.video:          
-          self.video.release()
-          time.sleep(1)
-          self.video = None
-      except Exception as e:
-        print(f"SErail close {str(e)}", flush=True)
+      self.close_video()
+      # try:
+      #   print("CLOSE SERIAL", flush=True)
+      #   if self.video:          
+      #     self.video.release()
+      #     time.sleep(0.3)
+      #     self.video = None
+      # except Exception as e:
+      #   print(f"SErail close {str(e)}", flush=True)
       # finally:
       #   del self.serial
       #   self.serial = None

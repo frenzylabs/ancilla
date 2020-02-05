@@ -104,7 +104,7 @@ class LayerkeepApi(Api):
     response = await self.service.make_request(req)
     print(f"response = {response}", flush=True)    
     if response.status_code == 200:
-      printer = response.body    
+      printer = response.body
       return printer
     elif response.status_code == 401:
       return {"status": 401, "error": "Unauthorized"}

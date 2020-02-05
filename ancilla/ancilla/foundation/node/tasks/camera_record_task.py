@@ -277,7 +277,7 @@ class CameraRecordTask(AncillaTask):
       
       self.service.fire_event(Camera.recording.started, self.state)
       # if self.timelapse == 0:
-      #   # self.timelapse = 1000      
+      #   # self.timelapse = 1000
       #   self.timelapse = int(1000 / self.video_fps)
       flush_frame_check = self.timelapse * 1000
       if self.timelapse == 0:
@@ -300,28 +300,34 @@ class CameraRecordTask(AncillaTask):
       await sleep(0.1)
 
 
+    return self.cleanup()
+
+  def cleanup(self):
     print("FINSIHED RECORDING", flush=True)
 
     self.recording.status = "finished"
     self.recording.reason = self.state.reason or ""
     self.recording.save()
+    self.service.state.recording = False
     self.service.fire_event(Camera.recording.state.changed, self.state)
-    # self.service.state.recording = False    
+    
     self.flush_callback.stop()
     self.event_stream.close()
     if self.video_writer:
       self.video_writer.release()
+      self.video_writer = None
     return {"state": self.state}
 
   def stop(self, *args):
     print("Stop Camera Recording")
     self.finished()
-    self.recording.status = "finished"
-    self.recording.reason = self.state.reason or ""
-    self.recording.save()
-    if self.video_writer:
-      self.video_writer.release()
-      self.video_writer = None
+    self.cleanup()
+    # self.recording.status = "finished"
+    # self.recording.reason = self.state.reason or ""
+    # self.recording.save()
+    # if self.video_writer:
+    #   self.video_writer.release()
+    #   self.video_writer = None
     
   def cancel(self):
     self.state.status = "cancelled"

@@ -221,7 +221,7 @@ class BaseService(App):
 
 
     def on_message(self, msg):
-      # print("ON MESSGE", msg)      
+      # print("ON MESSGE", msg)
       if not msg or len(msg) < 3:
         return
       topic, ident, pstring, *other = msg
@@ -235,6 +235,17 @@ class BaseService(App):
 
       epack = EventPack(topic, ident, data)
 
+      # print(f'PRINTER PLUGINS = {self.plugins}')
+      # if len(self.plugins):
+      #   method = getattr(self, "test_hook")
+      #   for plugin in self.plugins:
+      #       method = plugin.apply(method, self)
+
+      #   method = plugin.apply(method, self)
+      #   res = method({"data": data})
+      #   if yields(res):
+      #     future = asyncio.run_coroutine_threadsafe(res, asyncio.get_running_loop())
+        
       # el = self.settings.get("event_handlers") or {}
       el = self.event_handlers or {}
       for ekey in self.event_handlers.keys():
@@ -247,15 +258,18 @@ class BaseService(App):
               #   method(epack)
 
               if method:
-              
                 res = b''
                 try:
+                  if len(self.plugins):
+                    for plugin in self.plugins:
+                      method = plugin.apply(method, self)
+
                   res = method({"data": data})
                 except AncillaResponse as ar:
                   res = ar
                 except Exception as e:
                   print(f"Handle Event Error  {str(e)}")
-                  return
+                  continue
                   # res = AncillaError(404, {"error": str(e)})
               # else:
               #   # newres = b'{"error": "No Method"}'
@@ -278,15 +292,6 @@ class BaseService(App):
 
                   future.add_done_callback(onfinish)
 
-                # else:
-                #   print(f"THE RESP here = {res}", flush=True)
-                #   if not res:
-                #     res = {"success": "ok"}
-                #   if isinstance(res, AncillaResponse):
-                #     res = res.encode()
-                #   else:
-                #     res = AncillaResponse(res).encode()
-                #   self.zmq_router.send_multipart([replyto, seq, res])  
 
 
     def on_data(self, data):
