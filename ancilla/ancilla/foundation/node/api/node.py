@@ -265,6 +265,7 @@ class NodeApi(Api):
     with Service._meta.database.atomic() as transaction:
       try:
         service = Service(name=request.params.get("name"), kind="camera", class_name="Camera")
+        service.service_name = request.params.get("name")
 
         if not service.is_valid:
           raise AncillaError(400, {"errors": service.errors})
@@ -302,6 +303,7 @@ class NodeApi(Api):
     with Service._meta.database.atomic() as transaction:
       try:
         service = Service(name=request.params.get("name"), kind="printer", class_name="Printer")
+        service.service_name = request.params.get("name")
 
         if not service.is_valid:
           raise AncillaError(400, {"errors": service.errors})
