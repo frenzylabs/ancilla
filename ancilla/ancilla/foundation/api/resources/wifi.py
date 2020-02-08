@@ -94,10 +94,10 @@ class WifiResource(BaseHandler):
 
 
     url = f'{self.wifi_host}/{wifipath}'
-    print(f"GET WIFI URL = {url}")
+    # print(f"GET WIFI URL = {url}")
     req = requests.Request('GET', url)
     resp = await self.make_request(req)
-    print(f"GET WIFI RESP = {resp}")
+
     if resp:
       self.set_status(resp.status_code)
       content = {}
@@ -112,10 +112,4 @@ class WifiResource(BaseHandler):
         content["errors"] = [resp.text]
         
       self.write(content)
-
-
-    # self.write(
-    #   {'nodes': []}
-    # )
-
 

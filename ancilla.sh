@@ -1,5 +1,13 @@
 #!/bin/bash
 
+#
+#  ancilla.sh
+#  ancilla
+# 
+#  Created by Kevin Musselman (kevin@frenzylabs.com) on 01/18/20
+#  Copyright 2019 FrenzyLabs, LLC.
+#
+
 # ANCILLA_HOME="$HOME/.ancilla"
 HOME=/home/pi
 ANCILLA_HOME="$HOME/.ancilla"
@@ -212,8 +220,6 @@ run_wifi() {
 
 
   handle_wifi_container
-  
-      
 }
 
 

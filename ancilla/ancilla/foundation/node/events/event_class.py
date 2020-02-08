@@ -1,3 +1,11 @@
+'''
+ event_class.py
+ ancilla
+
+ Created by Kevin Musselman (kevin@frenzylabs.com) on 01/08/20
+ Copyright 2019 FrenzyLabs, LLC.
+'''
+
 class EventClass(type):
 
     def find_event(self, key):

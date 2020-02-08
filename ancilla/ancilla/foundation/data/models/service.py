@@ -7,7 +7,6 @@
 '''
 
 from .base import BaseModel
-# from .printer import Printer
 import re
 
 from peewee import (

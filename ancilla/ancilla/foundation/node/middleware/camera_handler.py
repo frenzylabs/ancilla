@@ -1,3 +1,11 @@
+'''
+ camera_handler.py
+ ancilla
+
+ Created by Kevin Musselman (kevin@frenzylabs.com) on 01/08/20
+ Copyright 2019 FrenzyLabs, LLC.
+'''
+
 from .data_handler import DataHandler
 from ..events.camera import Camera
 import json
@@ -26,6 +34,5 @@ class CameraHandler(DataHandler):
       else:
         eventkind = b'data.camera.' + eventkind
 
-      # identifier, frm_num, frame = data
 
       return [eventkind, identifier, frm_num, msg]

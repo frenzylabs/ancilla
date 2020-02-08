@@ -1,5 +1,12 @@
+'''
+ layerkeep.py
+ ancilla
 
-# from ...events.printer import Printer as PrinterEvent
+ Created by Kevin Musselman (kevin@frenzylabs.com) on 01/08/20
+ Copyright 2019 FrenzyLabs, LLC.
+'''
+
+
 from ...base_service import BaseService
 from ...api.layerkeep import LayerkeepApi
 from ....data.models import Printer, PrintSlice
@@ -12,14 +19,15 @@ from ...response import AncillaResponse, AncillaError
 import os
 import hashlib
 import base64
+
 BLOCKSIZE = 65536
 
 
 
 def check_authorization(f):
     def wrapper(self, *args, **kwargs):
-        print(f'Authusername = {self.settings.get("auth.user.username")}', flush=True)
-        print(f'Settings = {self.settings}', flush=True)
+        # print(f'Authusername = {self.settings.get("auth.user.username")}', flush=True)
+        # print(f'Settings = {self.settings}', flush=True)
         if not self.settings.get("auth.user.username"):
           raise AncillaError(status= 401, body={"error": "Not Signed In"})
         return f(self, *args, **kwargs)
@@ -45,10 +53,7 @@ class Layerkeep(BaseService):
         
 
         super().__init__(model, **kwargs)
-        
 
-        # self.printer = PrinterModel.get(PrinterModel.service == model)
-        # self.printer = model #query[0]
         
         self.api = LayerkeepApi(self)
         if "auth" not in self.model.settings:
@@ -57,17 +62,9 @@ class Layerkeep(BaseService):
 
         
         access_token = self.settings.get("auth.token.access_token")
-        print(f"INIT {access_token}", flush=True)
         self.session.headers.update({"Content-Type" : "application/json", "Accept": "application/json"})
         if access_token:          
           self.session.headers.update({'Authorization': f'Bearer {access_token}'})
-        # self.event_class = PrinterEvent
-        # self.state = Dotdict({
-        #   "status": "Idle",
-        #   "connected": False, 
-        #   "alive": False,
-        #   "printing": False
-        # })
 
         self.state["connected"] = True if access_token else False
         
@@ -79,7 +76,7 @@ class Layerkeep(BaseService):
 
 
     def test_hook(self, *args):
-      print(f"LK TESTHOOK Fired: {args}", flush=True)
+      pass
 
     def set_access_token(self, *args):
       access_token = self.settings.get("auth.token.access_token")
@@ -99,7 +96,7 @@ class Layerkeep(BaseService):
       prepped = self.session.prepare_request(req)
       if not auth:
         del prepped.headers['Authorization']
-      print(f"prepped = {prepped.headers}", flush=True)
+      # print(f"prepped = {prepped.headers}", flush=True)
       loop = asyncio.get_event_loop()
       makerequest = functools.partial(self.session.send, prepped, **options)
 
@@ -110,7 +107,7 @@ class Layerkeep(BaseService):
 
 
     def handle_response(self, response, content_type='json'):
-      print(f"HandleResponse = {response}, {response.headers}", flush=True)
+      # print(f"HandleResponse = {response}, {response.headers}", flush=True)
       resp = AncillaResponse(status=response.status_code)
       
       try:
@@ -136,7 +133,6 @@ class Layerkeep(BaseService):
         response = await self.make_request(req)
         return response
       except Exception as e:
-        print("Exception")
         raise e
       
     @check_authorization
@@ -148,7 +144,6 @@ class Layerkeep(BaseService):
         response = await self.make_request(req)
         return response
       except Exception as e:
-        print("Exception")
         raise e
 
     @check_authorization
@@ -160,7 +155,6 @@ class Layerkeep(BaseService):
         response = await self.make_request(req)
         return response
       except Exception as e:
-        print("Exception")
         raise e      
 
     @check_authorization
@@ -174,7 +168,6 @@ class Layerkeep(BaseService):
         response = await self.make_request(req)
         return response
       except Exception as e:
-        print("Exception")
         raise e
 
     @check_authorization
@@ -188,7 +181,6 @@ class Layerkeep(BaseService):
         response = await self.make_request(req)
         return response
       except Exception as e:
-        print("Exception")
         raise e
 
 
@@ -199,11 +191,9 @@ class Layerkeep(BaseService):
     
         url = f'{self.settings.api_url}{self.settings.get("auth.user.username")}/printers'
         req = requests.Request('POST', url, json=payload)
-        response = await self.make_request(req)       
-        print(f'Create Printer response = {response.body}') 
+        response = await self.make_request(req)
         return response
       except AncillaResponse as e:
-        print(f'Create Printer Ancilla Error = {e.body}')
         raise e
       except Exception as e:
         print(f"CREATe printer exception = {e}", flush=True)
@@ -217,7 +207,6 @@ class Layerkeep(BaseService):
         url = f'{self.settings.api_url}{self.settings.get("auth.user.username")}/printers/{payload.get("layerkeep_id")}'
         req = requests.Request('PATCH', url, json=payload)
         response = await self.make_request(req)
-        print(f'Update Printer response = {response.body}')
         return response
       except AncillaResponse as e:
         print(f'Update Printer Ancilla Error = {e.body}')
@@ -230,8 +219,6 @@ class Layerkeep(BaseService):
     async def delete_printer(self, evt):
       try:
         payload = evt.get("data")
-        print(f"cp payload = {payload}", flush=True)    
-
         url = f'{self.settings.api_url}{self.settings.get("auth.user.username")}/printers/{payload.get("layerkeep_id")}'
         req = requests.Request('DELETE', url)
         response = await self.make_request(req)
@@ -281,7 +268,7 @@ class Layerkeep(BaseService):
       except AncillaResponse as e:
         raise e
       except Exception as e:
-        print(f"CREATe printer exception = {e}", flush=True)
+        print(f"Create printer exception = {e}", flush=True)
         raise AncillaError(status= 400, body={"error": f"{str(e)}"}, exception=e)
 
 
@@ -341,13 +328,11 @@ class Layerkeep(BaseService):
 
         direct_upload = {"filepath": filepath}
         direct_upload.update(signed_response.body.get("direct_upload"))
-        print(f"direct_upload = {direct_upload}")    
+        # print(f"direct_upload = {direct_upload}")    
 
         ## Upload sliced file to Bucket
         upload_response = await self.upload_file({"data": direct_upload})
 
-        # if sliced_file.get("description"):
-        #   slice_params["description"] = sliced_file.get("description")
         
         lkpayload = {
             "files": [signed_response.body.get("signed_id")]
@@ -368,7 +353,6 @@ class Layerkeep(BaseService):
     async def download_sliced_file(self, evt):
       try:
         payload = evt.get("data")
-        print(f"cp payload = {payload}", flush=True)    
 
         url = f'{self.settings.api_url}{self.settings.get("auth.user.username")}/slices/{payload.get("id")}/gcodes'
         req = requests.Request('GET', url)
@@ -399,7 +383,7 @@ class Layerkeep(BaseService):
 
         direct_upload = {"filepath": filepath}
         direct_upload.update(signed_response.body.get("direct_upload"))
-        print(f"direct_upload = {direct_upload}")    
+        # print(f"direct_upload = {direct_upload}")    
 
         ## Upload sliced file to Bucket
         upload_response = await self.upload_file({"data": direct_upload})
@@ -508,7 +492,7 @@ class Layerkeep(BaseService):
       except AncillaResponse as e:
         raise e
       except Exception as e:
-        print(f"CREATe slicedFile exception = {e}", flush=True)
+        print(f"Create SlicedFile exception = {e}", flush=True)
         raise AncillaError(status= 400, body={"error": f"{str(e)}"}, exception=e)
 
     @check_authorization
@@ -526,7 +510,7 @@ class Layerkeep(BaseService):
       except AncillaResponse as e:
         raise e
       except Exception as e:
-        print(f"CREATe slicedFile exception = {e}", flush=True)
+        print(f"Create slicedFile exception = {e}", flush=True)
         raise AncillaError(status= 400, body={"error": f"{str(e)}"}, exception=e)
 
     @check_authorization

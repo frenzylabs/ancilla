@@ -34,27 +34,26 @@ class MyListener:
       self.myservices = {}
 
     def remove_service(self, zeroconf, type, name):
-        print("Service %s removed" % (name,))
+        print("ZeroConf Service %s removed" % (name,))
         nm = name.split(type)[0].rstrip(".")
         if nm in self.myservices:
           del self.myservices[nm]
 
     def add_service(self, zeroconf, type, name):
         info = zeroconf.get_service_info(type, name)
-        print(f"ADD SERVICE {info}")
         addresses = [("%s" % socket.inet_ntoa(a)) for a in info.addresses]
         nm = name.split(info.type)[0].rstrip(".")
         self.myservices[f"{nm}"] = {"addresses": addresses, "port": info.port, "server": info.server.rstrip("."), "type": info.type}
 
     def update_service(self, zeroconf, type, name):
         info = zeroconf.get_service_info(type, name)
-        print(f"Update SERVICE {info}")
+        print(f"ZeroConf: Update SERVICE {info}")
         addresses = [("%s" % socket.inet_ntoa(a)) for a in info.addresses]
         nm = name.split(info.type)[0].rstrip(".")
         self.myservices[f"{nm}"] = {"addresses": addresses, "port": info.port, "server": info.server.rstrip("."), "type": info.type}
 
     def update_record(self, zeroconf, now, record):
-      print("uPDATE DNS RECORD")
+      print("ZeroConf: Update DNS RECORD")
       info = zeroconf.get_service_info(type, record.name)
       addresses = [("%s" % socket.inet_ntoa(a)) for a in info.addresses]
       nm = info.name.split(info.type)[0].rstrip(".")
@@ -75,10 +74,6 @@ class Beacon(object):
     self.identifier = self.name
     self.type       = "_ancilla._tcp.local."
     self.port       = port
-
-    
-             
-    # self.update_network()
     
     self._info = None
     self._address = address
@@ -124,17 +119,6 @@ class Beacon(object):
   def peers(self):
     return self.sb.services
     
-    # _broadcast  = self.conf.get_service_info(self.type, "{}.{}".format(self.name, self.type))
-    # print(f"INSIDE PEERSBROD {_broadcast}")    
-    # if not _broadcast:
-    #   return []
-
-    
-    # _addrs      = [("%s" % socket.inet_ntoa(a)) for a in _broadcast.addresses]
-    # print(f"INSIDE PEERS_ADDRS {_addrs}")
-    # return list(
-    #   filter(lambda a: a != self.local_ip, _addrs)
-    # )
 
   @property
   def instance_name(self):
@@ -179,8 +163,7 @@ class Beacon(object):
     except Exception as e:
       template = "A Beacon exception of type {0} occurred. Arguments:\n{1!r}"
       message = template.format(type(e).__name__, e.args)
-      print(message)
-      # print(f"BeaconEXception {str(e)}")
+      print(f"Beacon: {message}")
       
 
   def update_name(self, name):
@@ -204,8 +187,6 @@ class Beacon(object):
     
   def update(self):
     try:
-      # print(f"UPDATE SERVICE {self._info}")
-      # self.conf.update_service(self.info)
       self.conf.unregister_service(self._info)
       self.register()
     except Exception as e:

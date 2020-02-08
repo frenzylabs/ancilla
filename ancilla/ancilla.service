@@ -4,7 +4,7 @@ Description=Ancilla 3D Services
 [Service]
 Type=simple
 WorkingDirectory=/home/pi
-ExecStart=/home/pi/ancilla/run.sh
+ExecStart=/home/pi/ancilla/ancilla.sh
 Restart=always
 User=pi
 

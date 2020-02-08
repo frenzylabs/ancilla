@@ -1,4 +1,12 @@
-import threading
+'''
+ router.py
+ ancilla
+
+ Created by Kevin Musselman (kevin@frenzylabs.com) on 01/08/20
+ Copyright 2019 FrenzyLabs, LLC.
+'''
+
+
 import time
 import zmq
 from tornado.ioloop import IOLoop
@@ -7,9 +15,11 @@ from tornado.ioloop import IOLoop
 from types import FunctionType
 
 import sys, base64, cgi, email.utils, functools, hmac, imp, itertools, mimetypes,\
-        os, re, tempfile, threading, time, warnings, weakref, hashlib
+        os, re, tempfile, time, warnings, weakref, hashlib
 from urllib.parse import urlencode
 
+
+from ..utils import makelist, update_wrapper, cached_property
 
 from .response import AncillaResponse, AncillaError
 
@@ -51,11 +61,11 @@ def debug(mode=True):
     DEBUG = bool(mode)
 
 
-def update_wrapper(wrapper, wrapped, *a, **ka):
-    try:
-        functools.update_wrapper(wrapper, wrapped, *a, **ka)
-    except AttributeError:
-        pass
+# def update_wrapper(wrapper, wrapped, *a, **ka):
+#     try:
+#         functools.update_wrapper(wrapper, wrapped, *a, **ka)
+#     except AttributeError:
+#         pass
 
 # These helpers are used at module level and need to be defined first.
 # And yes, I know PEP-8, but sometimes a lower-case classname makes more sense.
@@ -71,31 +81,31 @@ def depr(major, minor, cause, fix):
     return DeprecationWarning(text)
 
 
-def makelist(data):  # This is just too handy
-    if isinstance(data, (tuple, list, set, dict)):
-        return list(data)
-    elif data:
-        return [data]
-    else:
-        return []
+# def makelist(data):  # This is just too handy
+#     if isinstance(data, (tuple, list, set, dict)):
+#         return list(data)
+#     elif data:
+#         return [data]
+#     else:
+#         return []
 
 
 
 
 
-class cached_property(object):
-    """ A property that is only computed once per instance and then replaces
-        itself with an ordinary attribute. Deleting the attribute resets the
-        property. """
+# class cached_property(object):
+#     """ A property that is only computed once per instance and then replaces
+#         itself with an ordinary attribute. Deleting the attribute resets the
+#         property. """
 
-    def __init__(self, func):
-        update_wrapper(self, func)
-        self.func = func
+#     def __init__(self, func):
+#         update_wrapper(self, func)
+#         self.func = func
 
-    def __get__(self, obj, cls):
-        if obj is None: return self
-        value = obj.__dict__[self.func.__name__] = self.func(obj)
-        return value
+#     def __get__(self, obj, cls):
+#         if obj is None: return self
+#         value = obj.__dict__[self.func.__name__] = self.func(obj)
+#         return value
 
 
 class lazy_attribute(object):

@@ -30,15 +30,6 @@ class CameraConnector(object):
       self.thread_read = None
       self.identity = identity
       self.endpoint = endpoint
-      # if not isinstance(self.endpoint, (int, float, complex)) and not isinstance(self.endpoint, bool):
-      # imp.find_module("cv2")
-      # import cv2
-      # cvmodule = sys.modules.get("cv2")
-      # print(sys.modules.get("cv2"))
-      # print(VideoCapture)
-      # reload(sys.modules.get("cv2"))
-      # importlib.reload(cv2)
-      
 
       if isinstance(self.endpoint, str) and self.endpoint.isnumeric():
         self.endpoint = int(self.endpoint)
@@ -61,9 +52,6 @@ class CameraConnector(object):
 
     
     def run(self):
-      print("INSIDe RUN")
-      # ctx = zmq.Context()
-
       self.alive = True
       if not self.thread_read or not self.thread_read.isAlive():
         self.thread_read = threading.Thread(target=self.reader, args=(self.ctx,))
@@ -72,21 +60,11 @@ class CameraConnector(object):
         self.thread_read.start()
 
     def reader(self, ctx):
-      print(f"RUN Camera SERVER: inproc://{self.identity}_collector", flush=True)
       device_collector = ctx.socket(zmq.PUSH)
       device_collector.connect(f"inproc://{self.identity}_collector")
-      # publisher.connect("ipc://collector")
-      # publisher.send_multipart([b'ender3', b'hello there'])
-      # if self.endpoint
-      # 'rtsp://192.168.1.64/1'
-      # endpoint = self.endpoint.decode('utf-8')
-      # if endpoint.isnumeric():
-      #   endpoint = int(endpoint)
-        
-      # video = cv2.VideoCapture(endpoint)
-      # camera = CameraConn(self.identity, "ipc://collector", self.endpoint.decode("utf-8"), self.baudrate, pipe)
+    
       i=0
-      # topic = 'camera_frame'
+
       retry = 0
       max_retry_cnt = 10
       
@@ -99,10 +77,10 @@ class CameraConnector(object):
               retry += 1
               time.sleep(1)
               continue
-            print(f'1 CAMEA DISCONNECTED retrycnt {retry}', flush=True)
+            print(f'1 CAMERA DISCONNECTED retrycnt {retry}', flush=True)
             raise Exception("1 Camera Disconnected")
+          
           ret, frame = res
-          # frame = video.read()
           if ret:
             i += 1
             retry = 0
@@ -129,7 +107,6 @@ class CameraConnector(object):
         except Exception as e:
           print(f'Exception with Camera Driver: {str(e)}', flush=True)
           device_collector.send_multipart([self.identity + b'.data_received', b'error', str(e).encode('ascii')])
-          # device_collector.send_multipart([self.identity, b'error', str(e).encode('ascii')])
           self.alive = False
           self.close_video()
           break
@@ -140,13 +117,8 @@ class CameraConnector(object):
     def open(self):
       try:
         if not self.video or not self.video.isOpened():
-          # print(f"OPEN SERIAL {self.alive}", flush=True)
-          # self
           self.create_camera()
-          # self.serial = serial.Serial(self.port, self.baud_rate, timeout=4.0)
-        # elif self.serial.is_closed:
-        #   print("closeing IS OPEN")
-        #   self.close()
+
       except Exception as e:
         print(f'Serial Open Exception {str(e)}')
 
@@ -158,28 +130,15 @@ class CameraConnector(object):
           time.sleep(0.3)
           self.video = None
       except Exception as e:
-        print(f"SErail close {str(e)}", flush=True)
+        print(f"Serial close {str(e)}", flush=True)
 
     def close(self):
       """Stop copying"""
-      print('stopping', flush=True)
       self.alive = False
       if self.thread_read:
-          print("JOIN THREAD", flush=True)
           res = self.thread_read.join(2.0)
           if not self.thread_read.isAlive():
             self.thread_read = None
 
       self.close_video()
-      # try:
-      #   print("CLOSE SERIAL", flush=True)
-      #   if self.video:          
-      #     self.video.release()
-      #     time.sleep(0.3)
-      #     self.video = None
-      # except Exception as e:
-      #   print(f"SErail close {str(e)}", flush=True)
-      # finally:
-      #   del self.serial
-      #   self.serial = None
-      
+

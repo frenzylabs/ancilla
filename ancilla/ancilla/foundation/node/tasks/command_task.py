@@ -1,4 +1,11 @@
-import threading
+'''
+ command_task.py
+ ancilla
+
+ Created by Kevin Musselman (kevin@frenzylabs.com) on 01/08/20
+ Copyright 2019 FrenzyLabs, LLC.
+'''
+
 import time
 import sys
 import os
@@ -16,7 +23,6 @@ import functools
 from tornado.gen        import sleep
 from .ancilla_task import AncillaTask
 
-from ...utils import Dotdict
 
 from ..events.printer import Printer
 
@@ -25,7 +31,6 @@ class CommandTask(AncillaTask):
     super().__init__(name, *args)
     # self.request_id = request_id    
     self.payload = payload
-    # self.state = Dotdict({"status": "pending", "model": {}})
     self.state.update({"status": "pending", "model": {}})
     # self.state._add_change_listener(
     #         functools.partial(self.trigger_hook, 'state'))

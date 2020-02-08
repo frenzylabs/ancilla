@@ -1,4 +1,12 @@
-import threading
+'''
+ print_task.py
+ ancilla
+
+ Created by Kevin Musselman (kevin@frenzylabs.com) on 01/08/20
+ Copyright 2019 FrenzyLabs, LLC.
+'''
+
+
 import time
 import sys
 import os
@@ -14,10 +22,9 @@ import functools
 from functools import partial
 from asyncio       import sleep
 
-from .ancilla_task import AncillaTask
+from .ancilla_task import AncillaTask, PeriodicTask
 from ..events.printer import Printer
 from ...data.models import Print, PrintSlice, PrinterCommand
-
 
 
 from multiprocessing import Process, Queue, Lock, Pipe
@@ -63,26 +70,16 @@ def run_save_command(task_id, current_print, cmd_queue):
     ('threadlocals', True)))
     # {'foreign_keys' : 1, 'threadlocals': True})
   conn.connect()
-  # Database.connect()
-  # pr(lock, f'conn = {conn}')
+
   from ...data.models import Print, PrintSlice, PrinterCommand
   PrinterCommand._meta.database = conn
 
-  # context = zmq.Context()
-  # cmd_queue = context.socket(zmq.PULL)
-  # cmd_queue.connect("tcp://127.0.0.1:5557")
+
 
   start_time = time.time()
   cnt = 1
   running = True
   while running:
-    # if cnt == 1:
-    #   start_time = time.time()
-    if cnt % 100 == 0:
-      print(f"PROCESS COMMANDS {cnt} DONE {time.time() - start_time}")
-      # running = False
-      # break
-
     try:
       # payload = resp_queue.get()
       payload = None
@@ -124,10 +121,7 @@ def run_save_command(task_id, current_print, cmd_queue):
               # cmd_queue.send(('done', respcommand.id))
         elif key == "close":
           running = False
-            # current_print.save()
-            # line = fp.readline()
-            # cnt += 1                  
-            # cmd_end_time = time.time()
+
     except Exception as e:
       print(f"RES READ EXCEPTION {type(e).__name__}, {str(e)}", flush=True)
       # cmd_queue.put(("state", {"status": "error", "reason": str(e)}))
@@ -169,6 +163,28 @@ class PrintTask(AncillaTask):
 
     # ["wessender", "start_print", {"name": "printit", "file_id": 1}]
 
+  def command_active(self, cmd):
+    return (self.state.status == "running" and (cmd.status == "pending" or cmd.status == "busy" or cmd.status == "running"))
+        
+
+  async def get_temp(self, payload):
+    cnt = 0
+    try:
+      cmd = payload.get("command")
+      is_comment = cmd.startswith(";")
+      self.curcommand = self.service.add_command(self.task_id, cnt, cmd, is_comment, print_id=self.service.current_print.id)
+      # current_command = service.add_command(self.task_id, cnt, cmd.encode('ascii'))
+      while self.command_active(self.curcommand):
+        await sleep(0.001)
+
+      if self.curcommand.status == "finished" and len(self.curcommand.response) > 0:
+        self.service.current_print.state["temp"] = self.curcommand.response[0]
+      return {"status": self.curcommand.status}
+
+    except Exception as e:
+      print(f"Couldnot run task {self.name}: {str(e)}")
+      return {"status": "error", "reason": "Error Running Task"}
+
   async def run(self, device):
     if not self.service.current_print:
       return {"error": "No Print to send to Printer"}
@@ -191,16 +207,19 @@ class PrintTask(AncillaTask):
     except Exception as e:
       print(f"Cant get file to print {str(e)}", flush=True)
       self.service.fire_event(Printer.print.failed, {"status": "failed", "reason": str(e)})
-      # request.status = "failed"
-      # request.save()
-      # self.publish_request(request)
       return
 
     self.state_callback = PeriodicCallback(self.get_state, 3000)
     self.state_callback.start()
-    
-    # mp.set_start_method('spawn')
-    # ctx = mp.get_context('fork')
+
+    data = {
+      "command": "M105"
+    }
+    self.temp_task = PeriodicTask(f"temp-{self.service.current_print.name}", self.service, data)
+    self.temp_task.run_callback = self.get_temp
+    self.service.process.add_task(self.temp_task)
+
+
     ctx = mp.get_context('spawn')
     # cmd_queue = ctx.Queue()
     # resp_queue = ctx.Queue()
@@ -227,11 +246,7 @@ class PrintTask(AncillaTask):
         line = fp.readline()
         start_time = time.time()
         while self.state.status == "running":
-          if cnt % 100 == 0:
-            print(f"{cnt} COMMANDS FINISHED AFTER {time.time() - start_time}")
-            # self.state.status = "paused"
-            # break
-          # for line in fp:
+
           cmd_start_time = time.time()
           pos = fp.tell()
           
@@ -317,148 +332,20 @@ class PrintTask(AncillaTask):
       self.service.fire_event(Printer.print.paused, self.state)  
 
     
-    self.service.print_queued = False
-    if self.service.current_print.status != "paused":
-      self.service.current_print = None
+    self.temp_task.stop()
     self.state_callback.stop()
-    self.service.fire_event(Printer.print.state.changed, self.state)
-    self.service.state.printing = False
-    self.service.fire_event(Printer.state.changed, self.service.state)
-    print(f"FINISHED PRINT {self.state}", flush=True)
-    return {"state": self.state}
 
-  async def run2(self, device):
-    # self.state_callback = PeriodicCallback(self.get_state, 3000)
-    # self.state_callback.start()
-    
-    # request = DeviceRequest.get_by_id(self.request_id)
-    # self.device = device
-    if not self.service.current_print:
-      return {"error": "No Print to send to Printer"}
-      
-    sf = self.service.current_print.print_slice
-    num_commands = -1
-    try:
-      # print(f"CONTENT = {content}", flush=True)
-      # fid = self.payload.get("file_id")
-      # name = self.payload.get("name") or ""
-      # sf = SliceFile.get(fid)
-      # device.current_print = Print(name=name, status="running", printer_snapshot=device.record, printer=device.printer, slice_file=sf)
-      # device.current_print.save(force_insert=True)   
-
-      self.service.state.printing = True
-      self.service.current_print.status = "running"
-      self.service.current_print.save()
-      # self.service.fire_event(Printer.state.changed, self.service.state)
-
-      self.state.status = "running"
-      self.state.model = self.service.current_print.to_json()
-      self.state.id = self.service.current_print.id
-      
-      self.service.fire_event(Printer.print.started, self.state)
-      # num_commands = file_len(sf.path)
-    except Exception as e:
-      print(f"Cant get file to print {str(e)}", flush=True)
-      self.service.fire_event(Printer.print.failed, {"status": "failed", "reason": str(e)})
-      # request.status = "failed"
-      # request.save()
-      # self.publish_request(request)
-      return
-
-
-    try:
-      with open(sf.path, "r") as fp:
-        cnt = 1
-        fp.seek(0, os.SEEK_END)
-        endfp = fp.tell()
-        # print("End File POS: ", endfp)
-        self.service.current_print.state["end_pos"] = endfp
-        current_pos = self.service.current_print.state.get("pos", 0)
-        fp.seek(current_pos)
-        line = fp.readline()
-        while self.state.status == "running":
-          # for line in fp:
-          cmd_start_time = time.time()
-          pos = fp.tell()
-          
-          # print("File POS: ", pos)
-          if pos == endfp:
-            self.state.status = "finished"
-            self.service.current_print.status = "finished"
-            self.service.current_print.save()
-            break
-
-          if not line.strip():
-            line = fp.readline()
-            continue
-
-          # print("Line {}, POS: {} : {}".format(cnt, pos, line))    
-
-          is_comment = line.startswith(";")
-          self.current_command = self.service.add_command(self.task_id, cnt, line, is_comment, print_id=self.service.current_print.id)
-
-          # print(f"CurCmd: {self.current_command.command}", flush=True)
-          
-          while (self.current_command.status == "pending" or 
-                self.current_command.status == "running" or 
-                self.current_command.status == "busy"):
-
-            await sleep(0.01)
-            if self.state.status != "running":
-              self.current_command.status = self.state.status
-              break
-          
-          print(f"COMMAND {self.current_command.command} FINISHED {time.time() - cmd_start_time}", flush=True)
-          IOLoop().current().add_callback(functools.partial(self.save_command, self.current_command))
-          
-          # print(f'InsidePrintTask curcmd= {self.current_command}', flush=True)
-          if self.current_command.status == "error":
-            self.service.current_print.status = "failed"
-            self.state.status = "failed"
-            self.state.reason = "Could Not Execute Command: " + self.current_command.command
-            break
-
-          if self.current_command.status == "finished":
-            self.service.current_print.state["pos"] = pos
-            # self.service.current_print.save()
-            line = fp.readline()
-            cnt += 1                  
-            cmd_end_time = time.time()
-
-        
-    except Exception as e:
-      self.service.current_print.status = "failed"
-      # device.current_print.save()
-      self.state.status = "failed"
-      self.state.reason = str(e)
-      print(f"Print Exception: {str(e)}", flush=True)
-
-    self.service.current_print.status = self.state.status
-    self.service.current_print.save()
-    self.state.model = self.service.current_print.to_json()
-    if self.state.status == "failed":
-      self.service.fire_event(Printer.print.failed, self.state)  
-    elif self.state.status == "finished":
-      self.service.fire_event(Printer.print.finished, self.state)  
-    elif self.state.status == "cancelled":
-      self.service.fire_event(Printer.print.cancelled, self.state)  
-    elif self.state.status == "paused":
-      self.service.fire_event(Printer.print.paused, self.state)  
-
-    
     self.service.print_queued = False
     if self.service.current_print.status != "paused":
       self.service.current_print = None
-    # self.state_callback.stop()
+    
+    
     self.service.fire_event(Printer.print.state.changed, self.state)
     self.service.state.printing = False
     self.service.fire_event(Printer.state.changed, self.service.state)
     print(f"FINISHED PRINT {self.state}", flush=True)
     return {"state": self.state}
 
-  def save_command(self, command, *args):
-    # print(f"Save Command {command.command}")
-    command.save()
 
   def cancel(self, *args):
     self.state.status = "cancelled"

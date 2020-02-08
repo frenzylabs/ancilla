@@ -1,3 +1,11 @@
+'''
+ node.py
+ ancilla
+
+ Created by Kevin Musselman (kevin@frenzylabs.com) on 01/14/20
+ Copyright 2019 FrenzyLabs, LLC.
+'''
+
 import time
 from .api import Api
 from ..events import Event
@@ -5,12 +13,10 @@ from ...data.models import Service, Printer, Camera, ServiceAttachment, CameraRe
 from ..response import AncillaError, AncillaResponse
 
 
-import asyncio
 import re
 import math
 import os
 import json
-# import bluetooth
 
 MB = 1 << 20
 BUFF_SIZE = 10 * MB
@@ -101,12 +107,7 @@ class NodeApi(Api):
 
     return {"nodes": nodes}
 
-  #   nearby_devices = bluetooth.discover_devices(lookup_names=True)
-  #   print("Found {} devices.".format(len(nearby_devices)))
 
-  #   return {"devices": [{addr: name} for addr, name in nearby_devices]}
-      # print("  {} - {}".format(addr, name))
-    
 
   async def delete_service(self, request, layerkeep, service_id, *args):
     smodel = Service.get_by_id(service_id)
@@ -117,7 +118,6 @@ class NodeApi(Api):
           # if request.params.get("layerkeep_sync") and request.params.get("layerkeep_sync") != "false":
           if layerkeep and smodel.kind == "printer" and model.layerkeep_id:
             response = await layerkeep.delete_printer({"data": {"layerkeep_id": model.layerkeep_id}})
-            print(f"LK response = {response.status}  {response.body}", flush=True)
             if not response.success:
               raise response
           model.delete_instance(recursive=True)
@@ -179,16 +179,11 @@ class NodeApi(Api):
             model.save()
 
 
-        # print(f"Serv Config= {request.params.get('configuration')}", flush=True)
         if request.params.get('configuration') != None:
-          print('Has config', flush=True)
           s.configuration = request.params.get('configuration')
         if request.params.get('settings') != None:
-          print('Has settings', flush=True)
           s.settings = request.params.get('settings')
 
-        # s.settings = request.params.get('settings') or s.settings
-        # s.configuration = request.params.get('configuration') or s.configuration
         s.event_listeners = request.params.get('event_listeners') or s.event_listeners
         s.save()
         return {"service_model": s.json}
@@ -250,15 +245,9 @@ class NodeApi(Api):
     return self.stream_video(request, fp)
 
   def list_printers(self, *args, **kwargs):
-    print("INSIDE LIST Printers", flush=True)
-    print(f"args = {args}", flush=True)
     return {'printers': [printer.json for printer in Printer.select()]}
 
   def list_cameras(self, request, *args, **kwargs):
-    print("INSIDE LIST CAMERAs", flush=True)
-    print(f"args = {args}", flush=True)
-    print(f"kwargs = {kwargs}", flush=True)
-    print(f"REQUEST PARAMs = {request.params}", flush=True)
     return {'cameras': [camera.json for camera in Camera.select()]}
 
   def create_camera(self, request, *args, **kwargs):
@@ -269,7 +258,7 @@ class NodeApi(Api):
 
         if not service.is_valid:
           raise AncillaError(400, {"errors": service.errors})
-          # return {"status": 400, "errors": service.errors}
+
         service.save()
 
         camera = Camera(**request.params, service=service)
@@ -286,7 +275,6 @@ class NodeApi(Api):
         camera.settings = default_settings
         if not camera.is_valid:
           raise AncillaError(400, {"errors": camera.errors})
-          # return {"status": 400, "errors": camera.errors}
 
         camera.save()
         camera_service = service.json
@@ -307,19 +295,15 @@ class NodeApi(Api):
 
         if not service.is_valid:
           raise AncillaError(400, {"errors": service.errors})
-          # return {"status": 400, "errors": service.errors}
         service.save()
         
         printer = Printer(**request.params, service=service)
         if not printer.is_valid:
           raise AncillaError(400, {"errors": printer.errors})
-          # return {"status": 400, "errors": printer.errors}
 
-        # print(f"Layerkeep = {layerkeep}", flush=True)
         if request.params.get("layerkeep_sync") == True:
           if layerkeep:  
             response = await layerkeep.create_printer({"data": request.params})
-            print(f"LK response = {response.status}  {response.body}", flush=True)
             if response.success:
               printer.layerkeep_id = response.body.get("data").get("id")
             else:
@@ -357,7 +341,6 @@ class NodeApi(Api):
     end = min(end, file_size - 1)
     end = min(end, start + BUFF_SIZE - 1)
     length = end - start + 1
-    # resp.body.buffer_size = length
 
     request.response.set_header(
         'Content-Range', 'bytes {0}-{1}/{2}'.format(
@@ -384,10 +367,8 @@ class NodeApi(Api):
         return 0, None
 
   def catchUnmountedServices(self, request, service, service_id, *args, **kwargs):
-    print("INSIDE CATCH service")
-    print(f"INSIDECatch {service} {service_id}", flush=True)
+    print(f"INSIDECatch service {service} {service_id}", flush=True)
     print(f"INSIDECatch {args},  {kwargs}", flush=True)
-    print(f"Request = {request}", flush=True)
     print(f"Request = {request.params}", flush=True)
     
     try:
@@ -401,13 +382,9 @@ class NodeApi(Api):
       print(f"Could not mount service {str(e)}")
       return {"error": str(e)}
 
-    
-    # self.__handle
     return {"retry": True}
 
   def catchIt(self, name, *args, **kwargs):
     print("INSIDE CATCH IT")
-    print(f"INSIDECatch {name}", flush=True)
-    print(f"INSIDECatch {args},  {kwargs}", flush=True)
     return {"catch it": True}
 

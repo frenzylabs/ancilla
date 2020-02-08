@@ -1,3 +1,11 @@
+'''
+ printer_handler.py
+ ancilla
+
+ Created by Kevin Musselman (kevin@frenzylabs.com) on 01/08/20
+ Copyright 2019 FrenzyLabs, LLC.
+'''
+
 from .data_handler import DataHandler
 from ..events.printer import Printer
 import json
@@ -31,7 +39,6 @@ class PrinterHandler(DataHandler):
         self.device.fire_event(Printer.connection.closed, self.device.state)
         eventkind = b'events.printer.' + eventkind
       else:
-        # eventkind = self.device.identity + b'.data.printer.' + eventkind
         eventkind = b'data.printer.' + eventkind
 
 
@@ -76,5 +83,3 @@ class PrinterHandler(DataHandler):
 
       
       return [eventkind, identifier, json.dumps(payload).encode('ascii')]
-      # super().on_data(data)
-      # return data

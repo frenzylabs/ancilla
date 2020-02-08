@@ -1,3 +1,11 @@
+'''
+ camera_process_video_task.py
+ ancilla
+
+ Created by Kevin Musselman (kevin@frenzylabs.com) on 01/21/20
+ Copyright 2019 FrenzyLabs, LLC.
+'''
+
 import threading
 import time
 import sys
@@ -16,7 +24,6 @@ from ...data.models import PrintSlice, CameraRecording
 from tornado.gen        import sleep
 from .ancilla_task import AncillaTask
 
-from ...utils import Dotdict
 from ...env import Env
 from ..events.camera import Camera
 
@@ -47,7 +54,6 @@ class CameraProcessVideoTask(AncillaTask):
     # self.video_fps = int(self.video_settings.get("fps") or 10)
 
     self.service = service
-    # self.state = Dotdict({"status": "pending", "model": {}})
     self.state.update({"name": name, "status": "pending", "model": {}})
 
 
@@ -57,8 +63,6 @@ class CameraProcessVideoTask(AncillaTask):
     self.current_frame = None
 
     image_collector = self.service.ctx.socket(zmq.SUB)
-    # image_collector.connect(f"ipc://publisher")
-    print(f'PUBSUB ADDRESS {self.service.pubsub_address}', flush=True)
     image_collector.connect(self.service.pubsub_address)
     
     
@@ -69,17 +73,14 @@ class CameraProcessVideoTask(AncillaTask):
 
     image_collector.setsockopt(zmq.SUBSCRIBE, b'data.camera.data_received')
     image_collector.setsockopt(zmq.SUBSCRIBE, b'events.camera.connection.closed')
-    # image_collector.setsockopt(zmq.SUBSCRIBE, self.service.identity + b'.events.camera.data_received')
-    # image_collector.setsockopt(zmq.SUBSCRIBE, self.service.identity + b'.events.camera.connection.closed')
 
     self.ready = True
-    # self.flush_callback = PeriodicCallback(self.flush_camera_frame, 20)
-    # self.flush_callback.start()
+
     
   def on_data(self, msg):
     # identity, identifier, frm_num, frame = data
     if len(msg) != 4:
-        print(f"DATA = {msg[0]}", flush=True)
+        # print(f"DATA = {msg[0]}", flush=True)
         # if 'bytes' in msg[0]:
         # if msg[0].bytes.endswith(b'connection.closed'):
         #     self.running = False
@@ -90,14 +91,11 @@ class CameraProcessVideoTask(AncillaTask):
         return
     else:
       topic, identifier, framenum, imgdata = msg
-    # print("CR Task, ON DATA", flush=True)
-      # if self.ready:      
+
       self.current_frame = [topic, framenum, imgdata]
 
 
   async def run(self, *args):
-    print("INSIDe ProcessVideo RUN")
-    # ctx = zmq.Context()
 
     self.running = True
     self.state.status = "running"
@@ -112,6 +110,7 @@ class CameraProcessVideoTask(AncillaTask):
 
     while self.state.status == "running":
         await sleep(0.1)
+
     print("FINISHED PROCESSING", flush=True)
     self.running = False
     self.image_collector.close()
@@ -119,12 +118,7 @@ class CameraProcessVideoTask(AncillaTask):
     
 
   def process_images(self, ctx):
-    print(f"RUN Camera Image Processor SERVER: {self.processed_stream}", flush=True)
-    # image_collector = ctx.socket(zmq.SUB)
-    # image_collector.connect(f"ipc://publisher")
-    
-    # image_collector.setsockopt(zmq.SUBSCRIBE, self.service.identity + b'.events.camera.data_received')
-    # image_collector.setsockopt(zmq.SUBSCRIBE, self.service.identity + b'.events.camera.connection.closed')
+    # print(f"RUN Camera Image Processor SERVER: {self.processed_stream}", flush=True)
 
     self.publish_data = ctx.socket(zmq.XPUB)
     self.publish_data.bind(self.processed_stream)
@@ -134,8 +128,6 @@ class CameraProcessVideoTask(AncillaTask):
     # self._mon_stream.on_recv(self._on_mon)
     
     self.timer = time.time()
-    # self.ready = True
-    
     self.subsription_time = time.time()
 
 
@@ -149,7 +141,6 @@ class CameraProcessVideoTask(AncillaTask):
     while self.running:
       try:
         if len(self.subscribers.keys()) == 0 and (time.time() - self.subsription_time) > 10:
-          print("NO SUBSCRIBERS", flush=True)
           self.state.status = "idle-close"
           break
           
@@ -159,14 +150,7 @@ class CameraProcessVideoTask(AncillaTask):
             break           # Interrupted4
 
         if self.current_frame:
-          # print("PROCESS IMAGE FRAME")
           self.process_img(self.current_frame)
-          # gc.collect()
-
-        # if image_collector in items:
-        #     # print("INSIDE AGENT PIPE", flush=True)          
-        #     data = image_collector.recv_multipart()
-        #     self.process_img(data)
 
         if self.publish_data in items:
           
@@ -184,15 +168,6 @@ class CameraProcessVideoTask(AncillaTask):
               print(f"PUBLISH SOCKET has subscribed {topic}")
           
 
-
-        # publish_data.send(self.identity + b'.data_received', zmq.SNDMORE)
-        # publish_data.send(f'{i}'.encode('ascii'), zmq.SNDMORE)
-        # publish_data.send_pyobj(ebytes)
-        # else:
-        #   if not self.video.isOpened():
-        #     print("VIDEO IS NOT OPENED", flush=True)
-          # time.sleep(2)
-          # print('Sent frame {}'.format(i))
       except Exception as e:
         print(f'Exception with Camera Process: {str(e)}', flush=True)
         if self.publish_data:
@@ -205,36 +180,18 @@ class CameraProcessVideoTask(AncillaTask):
       except:
         pass
 
-    print(f'Close process video data', flush=True)
+    
     self.publish_data.close()
     self.publish_data = None
 
   def process_img(self, data):
-      # if len(data) != 4:
-      #   if data[0].endswith(b'connection.closed'):
-      #     self.running = False
-      #     self.state.status = "closed"
-      #   return
-
-
       topic, framenum, msg = data
 
 
       # fnum = int(framenum.decode('utf-8'))
       if not self.ready:
-        # print(f"Not ready {fnum} {self}")
         return
 
-      
-      # if (fnum % 100) == 0:
-      # timedif = time.time() - self.timer
-      # if timedif > 0.01:
-      #   self.timer = time.time()
-      #   # print(f"fRAME = {fnum} {timedif},  {self.timer}")
-        
-      # else:
-      #   # print(f"NOtReady fRAME = {fnum} {timedif},  {self.timer}")
-      #   return
 
       self.ready = False
 
@@ -253,65 +210,13 @@ class CameraProcessVideoTask(AncillaTask):
 
       ebytes = encodedImage.tobytes()
       
-      # frame = video.read()
-      # print(f"Publishdata {fnum} {len(ebytes)}")
       
       self.publish_data.send_multipart([self.service.identity + b'.data', framenum, ebytes], copy=False)
       self.ready = True
 
-  # def process_img(self, data):
-  #     if len(data) != 4:
-  #       if data[0].endswith(b'connection.closed'):
-  #         self.running = False
-  #         self.state.status = "closed"
-  #       return
-
-
-  #     topic, device, framenum, msg = data
-
-
-  #     fnum = int(framenum.decode('utf-8'))
-  #     if not self.ready:
-  #       # print(f"Not ready {fnum} {self}")
-  #       return
-
-      
-  #     # if (fnum % 100) == 0:
-  #     timedif = time.time() - self.timer
-  #     if timedif > 0.01:
-  #       self.timer = time.time()
-  #       # print(f"fRAME = {fnum} {timedif},  {self.timer}")
-        
-  #     else:
-  #       # print(f"NOtReady fRAME = {fnum} {timedif},  {self.timer}")
-  #       return
-
-  #     self.ready = False
-
-  #     frame = pickle.loads(msg)
-      
-  #     frame = cv2.flip(frame, 1)
-  #     # x = frame
-      
-  #     x = cv2.resize(frame, dsize=self.video_size, interpolation=cv2.INTER_CUBIC)
-      
-  #     # # print(x.shape)
-  #     # x = x.astype(np.uint8)
-  #     # encodedImage = x
-  #     (flag, encodedImage) = cv2.imencode(".jpg", x)
-
-  #     ebytes = encodedImage.tobytes()
-      
-  #     # frame = video.read()
-  #     # print(f"Publishdata {fnum} {len(ebytes)}")
-      
-  #     self.publish_data.send_multipart([self.service.identity + b'.data', framenum, ebytes])
-  #     self.ready = True
-    
 
   def _on_mon(self, msg):
-      print("MONITOR SOCKET")
-      print(f"MONEVENT= {msg}")
+      print("MONITOR SOCKET", msg)
       ev = zmq.utils.monitor.parse_monitor_message(msg)
       event = ev['event']
       endpoint = ev['endpoint']
@@ -345,8 +250,6 @@ class CameraProcessVideoTask(AncillaTask):
     # self.state.status = "paused"
 
   def get_state(self):
-    print("get state", flush=True)
     self.state.model = self.service.current_print.json
     self.service.fire_event(Camera.recording.state.changed, self.state)
-    
-    # self.publish_request(request)
+

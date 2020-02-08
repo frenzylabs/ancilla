@@ -1,10 +1,17 @@
-import threading
+'''
+ files.py
+ ancilla
+
+ Created by Kevin Musselman (kevin@frenzylabs.com) on 01/08/20
+ Copyright 2019 FrenzyLabs, LLC.
+'''
+
 import time
 import zmq
 import os
 
 import json
-from tornado.ioloop import IOLoop
+
 
 
 from ....data.models import PrintSlice
@@ -13,31 +20,17 @@ from ...events.file import FileEvent
 from ...api.file import FileApi
 from ....env import Env
 
-import asyncio
-from functools import partial
-import struct # for packing integers
-from zmq.eventloop.ioloop import PeriodicCallback
 
 
-
-
-class FileService(BaseService):    
-    # state = "IDLE"    
+class FileService(BaseService):
     __actions__ = ["delete_file"]
 
-    # events = PrinterEvents
     def __init__(self, model, **kwargs):
 
         super().__init__(model, **kwargs)
         self.api = FileApi(self)
         self.event_class = FileEvent
 
-        # self.state = Dotdict({
-        #   "status": "Idle",
-        #   "connected": False, 
-        #   "alive": False,
-        #   "printing": False
-        # })
 
         if not self.config.root_path:
           self.model.configuration["root_path"] = "/".join([Env.ancilla, f'{self.model.name}'])
@@ -49,8 +42,6 @@ class FileService(BaseService):
 
         print(f"the rootpath = {self.config.root_path}")
 
-        # print(f"INSIDE PRINTER INIT = {self.identity}", flush=True)
-        # self.register_data_handlers(PrinterHandler(self))
 
     @property
     def root_path(self):

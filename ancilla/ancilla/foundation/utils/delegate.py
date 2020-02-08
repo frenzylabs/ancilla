@@ -1,3 +1,11 @@
+'''
+ delegate.py
+ ancilla
+
+ Created by Kevin Musselman (kevin@frenzylabs.com) on 01/29/20
+ Copyright 2019 FrenzyLabs, LLC.
+'''
+
 class DelegatedAttribute:
     def __init__(self, delegate_name, attr_name):
         self.attr_name = attr_name

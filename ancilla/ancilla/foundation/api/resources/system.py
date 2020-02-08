@@ -49,3 +49,10 @@ class SystemResource(BaseHandler):
       self.set_status(400)
       self.write({"errors": [str(resp.exception())] }) 
 
+  async def get(self, *args):
+    config_path = "/".join([Env.ancilla, "config.json"])
+    configdata = {}
+    with open(config_path, "r") as f:
+        configdata = json.load(f)
+    self.write({"data": configdata})
+
