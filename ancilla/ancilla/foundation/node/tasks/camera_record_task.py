@@ -1,4 +1,11 @@
-import threading
+'''
+ camera_record_task.py
+ ancilla
+
+ Created by Kevin Musselman (kevin@frenzylabs.com) on 01/08/20
+ Copyright 2019 FrenzyLabs, LLC.
+'''
+
 import time
 import sys
 import os
@@ -15,7 +22,6 @@ from ...data.models import PrintSlice, CameraRecording
 from tornado.gen        import sleep
 from .ancilla_task import AncillaTask
 
-from ...utils import Dotdict
 from ...env import Env
 from ..events.camera import Camera
 
@@ -34,7 +40,6 @@ class CameraRecordTask(AncillaTask):
     self.camera_model = payload.get('camera_model')
     self.task_settings = self.payload.get("settings") or {}
     self.service = service
-    # self.state = Dotdict({"status": "pending", "model": {}})
     self.state.update({"name": name, "status": "pending", "model": {}})
     
     self.root_path = "/".join([Env.ancilla, "services", service.identity.decode('utf-8'), "recordings", self.name])
@@ -137,7 +142,7 @@ class CameraRecordTask(AncillaTask):
       res = time.time() - curtime
       # print(f"cam recording flush tooke {res}", flush=True)
     except Exception as e:
-      print(f"ERror saving camera frame {str(e)}", flush=True)
+      print(f"Error saving camera frame {str(e)}", flush=True)
       if self.retry > 0:
         self.retry -= 1
       else:
@@ -146,77 +151,9 @@ class CameraRecordTask(AncillaTask):
         self.state.recording = False
         
         
-    # frame_width = int(video.get(3))
-    # frame_height = int(video.get(4))
-    # videosize = (frame_width,frame_height)
-    # videosize = (640,480)
-    # videosize = (1028,720)
-    # # out = cv2.VideoWriter('output.avi',cv2.VideoWriter_fourcc('M','J','P','G'), 29, videosize)
-    # out = cv2.VideoWriter('output.mov',cv2.VideoWriter_fourcc('m','p','4','v'), 29, videosize)
-
-    # i = 120
-    # while i > 0:
-    #   i = i - 1
-    #   ret, frame = video.read()
-    #   if ret == True: 
-    #     x = cv2.resize(frame, dsize=videosize, interpolation=cv2.INTER_CUBIC)
-    #     out.write(x)
-
-
-
-
-    # img_array = []
-    # fps = 15
-    # capSize = (1028,720) # this is the size of my source video
-    # fourcc = cv2.cv.CV_FOURCC('m', 'p', '4', 'v') # note the lower case
-    # self.vout = cv2.VideoWriter()
-    # success = self.vout.open('output.mov',fourcc,fps,capSize,True) 
-
-    # for filename in glob.glob('C:/New folder/Images/*.jpg'):
-    #     img = cv2.imread(filename)
-    #     height, width, layers = img.shape
-    #     size = (width,height)
-    #     img_array.append(img)
     
-    #     out = cv2.VideoWriter('output.mpeg', self.fourcc, 24.0, (640,480))
-    #     out = cv2.VideoWriter('output.avi', cv2.VideoWriter_fourcc(*'MP42'), 15.0, (640,480))
-    # out = cv2.VideoWriter('output3.mov',cv2.VideoWriter_fourcc('m','p','4','v'), 29, videosize)    
-    # # for filename in glob.glob('images/*.jpg')
-    # for filename in sorted(glob.glob(f'images/*.jpg'), key=numericalSort):
-    #   img = cv2.imread(filename)
-    #   out.write(img)
-      
-    #   height, width, layers = img.shape
-    #   size = (width,height)
-    #   img_array.append(img)
-
-    #   img = cv2.imread(filename)
-    #       out.write(img)
-
-    # for i in range(len(img_array)):
-    #     out.write(img_array[i])
-
-    #     out.release()
-          # cv2.waitKey(1)
-
-
-
   async def run(self, dv):
-     
-    print("STARTING RECORDING", flush=True)
-    # request = DeviceRequest.get_by_id(self.request_id)
-    # self.device = device
     try:
-      # print(f"CONTENT = {content}", flush=True)
-      # {
-      #   "record": {
-      #     "timelapse": 2,
-      #     "frames_per_second": 10,
-      #   },
-      #   "video": {
-      #     "size": [640, 480],
-      #   }
-      # }
       defaul_cam_settings = {
         "record": {
           "timelapse": 2,
@@ -242,32 +179,8 @@ class CameraRecordTask(AncillaTask):
       self.video_size = (width, height)
       self.video_format = video_settings.get("format") or "avc1" #"X264"
 
-      # video_settings = record_settings.get("video") or {}
-      # video_settings.get('size') or [640, 480]
-      # video_settings.get('format') or "H264"
-      # video_settings.get('fps') or 10
-      
-      # self.timelapse = int(self.task_settings.get("timelapse") or 2) * 1000
-      # self.settings = self.task_settings.get("settings") or {"size": [640, 480]}
-      # width, height = self.settings.get("size") or [640, 480]
-      # self.video_size = (width, height)
-      # self.video_settings = self.task_settings.get("videoSettings") or {"format": "avc1"}
-      # self.video_format = self.video_settings.get("format") or "avc1" #"X264"
-      # self.video_fps = int(self.video_settings.get("fps") or 10)
-      # print(f"self.video_Fps {self.video_fps}  vsize: {self.video_size}, vformat: {self.video_format}", flush=True)
-      # self.video_writer = cv2.VideoWriter(self.video_path + "/output.mp4", cv2.VideoWriter_fourcc(*self.video_format), self.video_fps, self.video_size)
       self.video_writer = cv2.VideoWriter(self.video_path + "/output.mp4", cv2.VideoWriter_fourcc(*self.video_format), self.video_fps, self.video_size)
-      # self.video_writer = cv2.VideoWriter(self.video_path + "/output.mp4", 0x00000021, self.video_fps, self.video_size)
-      
-      # # out = cv2.VideoWriter('output.avi',cv2.VideoWriter_fourcc('M','J','P','G'), 29, videosize)
-      # out = cv2.VideoWriter('output.mov',cv2.VideoWriter_fourcc('m','p','4','v'), 29, videosize)
-      # name = self.payload.get("name") or ""
-      # sf = SliceFile.get(fid)
-      
-      
 
-      # self.service.state.recording = True
-      # self.service.fire_event(Camera.state.changed, self.service.state)
 
       self.state.status = "recording"
       self.recording.status = self.state.status
@@ -276,15 +189,12 @@ class CameraRecordTask(AncillaTask):
       self.state.id = self.recording.id
       
       self.service.fire_event(Camera.recording.started, self.state)
-      # if self.timelapse == 0:
-      #   # self.timelapse = 1000
-      #   self.timelapse = int(1000 / self.video_fps)
+
       flush_frame_check = self.timelapse * 1000
       if self.timelapse == 0:
         # self.timelapse = 1000      
         flush_frame_check = int(1000 / self.video_fps)
 
-      print(f'Self timelapase {self.timelapse} cb= {flush_frame_check}')
       self.flush_callback = PeriodicCallback(self.flush_camera_frame, flush_frame_check)
       self.flush_callback.start()
       # num_commands = file_len(sf.path)
@@ -319,15 +229,9 @@ class CameraRecordTask(AncillaTask):
     return {"state": self.state}
 
   def stop(self, *args):
-    print("Stop Camera Recording")
     self.finished()
     self.cleanup()
-    # self.recording.status = "finished"
-    # self.recording.reason = self.state.reason or ""
-    # self.recording.save()
-    # if self.video_writer:
-    #   self.video_writer.release()
-    #   self.video_writer = None
+    
     
   def cancel(self):
     self.state.status = "cancelled"
@@ -343,7 +247,6 @@ class CameraRecordTask(AncillaTask):
     # self.state.status = "paused"
 
   def get_state(self):
-    print("get state", flush=True)
     self.state.model = self.service.handler.current_print.json
     self.service.fire_event(Camera.recording.state.changed, self.state)
     

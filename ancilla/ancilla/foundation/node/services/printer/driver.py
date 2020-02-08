@@ -1,3 +1,11 @@
+'''
+ driver.py
+ ancilla
+
+ Created by Kevin Musselman (kevin@frenzylabs.com) on 01/08/20
+ Copyright 2019 FrenzyLabs, LLC.
+'''
+
 import logging
 import socket
 import sys
@@ -16,13 +24,6 @@ class SerialConnector(object):
     self.baud_rate = baud_rate
     self.alive = False
 
-    # self.baud_rate = 999999999
-    # print("BAUD RATE: ", self.baud_rate)
-    # ser = serial.serial_for_url(args.SERIALPORT, do_not_open=True)
-    # ser.timeout = 3     # required so that the reader thread can exit
-    # # reset control line as no _remote_ "terminal" has been connected yet
-    # ser.dtr = False
-    # ser.rts = False
     self.create_serial()
     # self.serial = serial.Serial(self.port, self.baud_rate, timeout=4.0)
     # self.serial.rts = False
@@ -42,16 +43,6 @@ class SerialConnector(object):
     # self.serial.dtr = False
   
   def run(self):
-    print("INSIDe RUN")
-    # ctx = zmq.Context()
-    
-    # if not self.serial:
-    #   print("NEW SERIAL", flush=True)
-    #   self.serial = serial.Serial(self.port, self.baud_rate, timeout=1.0)
-    # elif not self.serial.is_open:
-    #   print("OPEN SERIAL PORT", flush=True)
-    #   self.serial.open()
-
     self.alive = True
     if not self.thread_read or not self.thread_read.isAlive():
       self.thread_read = threading.Thread(target=self.reader, args=(self.ctx,))
@@ -92,7 +83,6 @@ class SerialConnector(object):
               # except socket.error as msg: 
               print('Serial Reader Error: {}'.format(e))
               # probably got disconnected
-              # self.serial.close()
               publisher.send_multipart([self.identity + b'.data_received', b'error', str(e).encode('ascii')])
               break
      
@@ -106,7 +96,7 @@ class SerialConnector(object):
 
       # publisher.close()
       publisher.send_multipart([self.identity+ b'.connection.closed', b'closed', b'{"connected": False}'])
-      print('reader thread terminated', flush=True)
+
 
 
   def open(self):
@@ -135,12 +125,8 @@ class SerialConnector(object):
           res = self.thread_read.join(4.0)
           if not self.thread_read.isAlive():
             self.thread_read = None
-          # if not res:
-          #   self.thread_read.kill()
-          # if self
 
       try:
-        # print("CLOSE SERIAL", flush=True)
         if self.serial:
           # self.serial.flush()
           self.serial.reset_input_buffer()
@@ -151,15 +137,6 @@ class SerialConnector(object):
           self.serial = None
         return {"status": "success"}
       except Exception as e:
-        print(f"SErail close {str(e)}", flush=True)
+        print(f"Serial close {str(e)}", flush=True)
         return {"status": "error", "reason": str(e)}
-      # finally:
-      #   del self.serial
-      #   self.serial = None
-      
-        
-      
-      # if self.alive:
-      
-      # self.serial = None
 

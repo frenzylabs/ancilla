@@ -1,132 +1,59 @@
 '''
- camera.py
+ service_process.py
  ancilla
 
- Created by Kevin Musselman (kevin@frenzylabs.com) on 01/08/20
+ Created by Kevin Musselman (kevin@frenzylabs.com) on 01/29/20
  Copyright 2019 FrenzyLabs, LLC.
 '''
 
 
+
 import logging
-import socket
 import sys
 import time
-import threading
-import serial
-import serial.rfc2217
 import zmq
 import importlib
-# from ..zhelpers import zpipe
-
-# import cv2
 
 import os
-import shutil
 
 import json
 
 
-# from ..zhelpers import zpipe, socket_set_hwm
-from ..data.models import Camera as CameraModel, CameraRecording
-# from .base_service import BaseService
 from ..utils.service_json_encoder import ServiceJsonEncoder
 
-# from ...data.models import DeviceRequest
-# from .driver import CameraConnector
-# from queue import Queue
-# import asyncio
 from functools import partial
 from tornado.queues     import Queue
-# from tornado import gen
-# from tornado.gen        import coroutine, sleep
-# from collections import OrderedDict
-import struct # for packing integers
-# from zmq.eventloop.ioloop import PeriodicCallback
 
-# from zmq.asyncio import Context, ZMQEventLoop
+import struct # for packing integers
+
 
 from zmq.eventloop.zmqstream import ZMQStream
-from tornado.ioloop import IOLoop, PeriodicCallback
+from tornado.ioloop import IOLoop
 
 import inspect
 import asyncio
-from types import CoroutineType
 
-# from tornado.platform.asyncio import AnyThreadEventLoopPolicy
+from .events import Event, EventPack, State as StateEvent
 
-
-# from ..tasks.device_task import PeriodicTask
-# from ...tasks.camera_record_task import CameraRecordTask
-# from ...tasks.camera_process_video_task import CameraProcessVideoTask
-
-from .events import Event, EventPack, State as StateEvent #, Service as EventService
-# from ...events.camera import Camera as CameraEvent
-from .events.event_pack import EventPack
-# from ...middleware.camera_handler import CameraHandler
-# from ...api.camera import CameraApi
 from .response import AncillaResponse, AncillaError
 from .request import Request
-from .app import ConfigDict
+from ..utils import yields
+from ..utils.dict import ConfigDict
 
-# from multiprocessing import Process, Lock, Pipe, Value, Array
-# import multiprocessing as mp
-
-
-def yields(value):
-    return isinstance(value, asyncio.futures.Future) or inspect.isgenerator(value) or \
-           isinstance(value, CoroutineType)
-
-    # @asyncio.coroutine
-    # def call_maybe_yield(func, *args, **kwargs):
-    #     rv = func(*args, **kwargs)
-    #     if yields(rv):
-    #         rv = yield from rv
-    #     return rv
-
-async def call_maybe_yield(func, *args, **kwargs):
-    rv = func(*args, **kwargs)
-    if yields(rv):
-        rv = await rv
-    return rv
 
 
 class ServiceProcess():
-    # connector = None
-    # endpoint = None         # Server identity/endpoint
-    # identity = None
-    # alive = True            # 1 if known to be alive
-    # ping_at = 0             # Next ping at this time
-    # expires = 0             # Expires at this time
-    # state = "IDLE"
-    # recording = False
-    
-    # command_queue = CommandQueue()
-    __actions__ = [
-      "start_recording",
-      "stop_recording",
-      "resume_recording",
-      "pause_recording",
-      "print_state_change"
-    ]
-    # connector = None
-    # video_processor = None
-    # zmq_pub = None
-    # zmq_router = None
+
 
     def __init__(self, identity, child_conn, handler, **kwargs): 
-        # ctx = mp.get_context('spawn')
-        # ctx.set_start_method('spawn')
-        # ctx.Process.__init__(self)
-        # super().__init__(**kwargs)
-        # self.service = service
+
         self.identity = identity
         self.child_conn = child_conn
         self.data_handlers = []      
         self.handler = handler(self)
         
         self.loop = None
-        print(f"PROCESS ID + {os.getpid()}", flush=True)
-        # self.rpc, self.child_conn = Pipe()
+
         self.router_address = None
 
         self.setup_event_loop()
@@ -139,8 +66,6 @@ class ServiceProcess():
         self.setup_router()
         self.zmq_router = ZMQStream(self.zrouter, self.loop)
         self.zmq_router.on_recv(self.router_message)
-        # self.zmq_router.on_send(self.router_message_sent)
-
 
         self.setup_publiser()
         self.zmq_pub = ZMQStream(self.zpub, self.loop)
@@ -155,7 +80,6 @@ class ServiceProcess():
       inst.run()
 
     def setup(self):
-      print(f'SETUP PROCESS')
       from ..env import Env
       from ..data.db import Database
       from playhouse.sqlite_ext import SqliteExtDatabase
@@ -171,15 +95,6 @@ class ServiceProcess():
       Database.conn.close()
       Database.conn = conn
       Database.connect()
-        # {'foreign_keys' : 1, 'threadlocals': True})
-      # conn.connect()
-      # # Database.connect()
-      # # pr(lock, f'conn = {conn}')
-      # from ....data.models import Camera, CameraRecording, Print, PrintSlice, PrinterCommand
-      # # Camera._meta.database = conn
-      # CameraRecording._meta.database = conn
-      
-      # PrinterCommand._meta.database = conn
 
       self.state = ConfigDict()._make_overlay()
       self.state._add_change_listener(partial(self.state_changed, 'state'))
@@ -194,21 +109,15 @@ class ServiceProcess():
       IOLoop.clear_current()
       if hasattr(IOLoop, '_current'):
         del IOLoop._current
-      
-      print(f"INSIDE PROCESS SERVICE RUN {IOLoop.current(instance=False)}", flush=True)
 
       if self.loop is None:
           if not IOLoop.current(instance=False):
               self.loop = IOLoop.current() #IOLoop()
           else:
               self.loop = IOLoop.current()
-      print(f"PLOOP = {self.loop}", flush=True)
 
-    
       
     def stop_process(self):
-      print(f'INSIDE PROCESS stop_process here', flush=True)
-      
       if self.handler:
         self.handler.close()
 
@@ -218,6 +127,7 @@ class ServiceProcess():
 
       self.data_stream.close()
       self.zrouter.close()
+      # if we close zpub here we wont get the last messages
       # self.zpub.close()
       
 
@@ -266,23 +176,17 @@ class ServiceProcess():
       self.data_handlers.append(obj)
 
     def setup_data(self):
-        print(f"INSIDE base service {self.identity}", flush=True)
         deid = f"inproc://{self.identity}_collector"
         self.data_stream = self.ctx.socket(zmq.PULL)
-        # print(f'BEFORE CONNECT COLLECTOR NAME = {deid}', flush=True)  
         self.data_stream.bind(deid)
-        # time.sleep(0.1)        
+
         self.data_stream = ZMQStream(self.data_stream)
         self.data_stream.linger = 0
         self.data_stream.on_recv(self.on_data)
 
     def state_changed(self, event, oldval, key, newval):
       # print(f"state changed {self.state}, key={key} OLDVAL: {oldval}, {newval}", flush=True)
-      # oldval[key] = newval
-      # print(f'oldval = {oldval.__dict__}')
       dict.__setitem__(oldval, key, newval)
-      # print(f'Oldval after = {oldval}')
-      # oldval.dict.__setitem__(key, newval)
       self.fire_event(StateEvent.changed, oldval)
 
     async def run_loop(self):
@@ -313,9 +217,7 @@ class ServiceProcess():
     def run(self):
       self.running = True
       try:
-        print("RUN PROCESS")
         self.evtloop.run_until_complete(self.run_loop())
-        print("RUN PROCESS COMPLETE")
       except KeyboardInterrupt:
         self.stop_process()              
         self.child_conn.send(("stop", "success"))
@@ -324,9 +226,6 @@ class ServiceProcess():
     
 
     def on_data(self, data):
-      # print("ON DATA", data)
-      # print(f"onData self = {self.identity}", flush=True)
-      # print(f"DATA Handles: {self.data_handlers}", flush=True)
       for d in self.data_handlers:
         data = d.handle(data)
 
@@ -349,13 +248,10 @@ class ServiceProcess():
         else:
           # newres = b'{"error": "No Method"}'
           res = AncillaError(404, {"error": "No Method"})
-          # self.zmq_router.send_multipart([replyto, seq, err.encode()])
-          # return
 
       if yields(res):
         future = asyncio.run_coroutine_threadsafe(res, asyncio.get_running_loop())
         
-        print("FUTURE = ", future)
         zmqrouter = self.zmq_router
         def onfinish(fut):
           res = b''
@@ -373,7 +269,6 @@ class ServiceProcess():
         future.add_done_callback(onfinish)
 
       else:
-        print(f"THE RESP here = {res}", flush=True)
         if not res:
           res = {"success": "ok"}
         if isinstance(res, AncillaResponse):
@@ -385,7 +280,7 @@ class ServiceProcess():
 
 
     def router_message(self, msg):
-      print(f"Router Msg = {msg}", flush=True)
+      # print(f"Router Msg = {msg}", flush=True)
       
       replyto, seq_s, brequest, *args = msg
       # seq = struct.unpack('!q',seq_s)[0]
@@ -394,14 +289,11 @@ class ServiceProcess():
       try:
         req = json.loads(request)
         classname = req.get('__class__')
-        print(f'classname = {classname}')
-        # module = __import__(module_name)
-        
+
         module_name, class_name = classname.rsplit(".", 1)
         MyClass = getattr(importlib.import_module(module_name), class_name)
-        # cvmodule = sys.modules.get(classname)
+
         instance = MyClass(**req.get('data', {}))
-        print(f'Instance = {instance}')
         self.handle_route(replyto, seq_s, instance)
       except Exception as e:
         print(f'PROCESS EXCEPTION {str(e)}')
@@ -426,15 +318,13 @@ class ServiceProcess():
       loop.add_callback(partial(self._process_tasks))
 
     async def _process_tasks(self):
-      # print("About to get queue", flush=True)
       async for dtask in self.task_queue:
-        # print('consuming {}...'.format(item))
+        # print('process task {}...'.format(dtask))
         self.current_tasks[dtask.name] = dtask
         res = await dtask.run(self)
         rj = json.dumps(res, cls=ServiceJsonEncoder).encode('ascii')
         self.zmq_pub.send_multipart([self.identity+b'.task', b'finished', rj])
 
-        # self.pusher.publish()
         del self.current_tasks[dtask.name]
         print(f"PROCESS TASK DONE= {res}", flush=True)
 

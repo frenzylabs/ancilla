@@ -1,3 +1,11 @@
+'''
+ printer.py
+ ancilla
+
+ Created by Kevin Musselman (kevin@frenzylabs.com) on 01/08/20
+ Copyright 2019 FrenzyLabs, LLC.
+'''
+
 import time
 
 import math
@@ -122,12 +130,11 @@ class PrinterApi(Api):
 
   
   def prints(self, request, *args):
-    # prnts = Print.select().order_by(Print.created_at.desc())
     page = int(request.params.get("page") or 1)
     per_page = int(request.params.get("per_page") or 5)
     # print(f'request search params = {request.params}', flush=True)
-    if request.params.get("q[name]"):
-      print(f'request search params = {request.params.get("q[name]")}', flush=True)
+    # if request.params.get("q[name]"):
+    #   print(f'request search params = {request.params.get("q[name]")}', flush=True)
 
     q = self.service.printer.prints.order_by(Print.created_at.desc())
     cnt = q.count()
@@ -152,10 +159,8 @@ class PrinterApi(Api):
     return {"data": [p.to_json(recurse=True) for p in q.paginate(page, per_page)], "meta": {"current_page": page, "last_page": num_pages, "total": cnt}}
 
   async def sync_print_to_layerkeep(self, request, layerkeep, print_id, *args):
-    print(f"sync layerkeep {request.params}", flush=True)
     prnt = Print.get_by_id(print_id)
-    # if prnt.layerkeep_id:
-    #   return {"data": prnt.json}
+
     if prnt.layerkeep_id:
       response = await layerkeep.update_print({"data": prnt.json})
       if not response.success:
@@ -196,7 +201,6 @@ class PrinterApi(Api):
     return {"data": prnt.json}
 
   async def unsync_print_from_layerkeep(self, request, print_id, *args):
-    print(f"unsync layerkeep {request.params}", flush=True)
     prnt = Print.get_by_id(print_id)
     prnt.layerkeep_id = None
     prnt.save()
@@ -207,10 +211,10 @@ class PrinterApi(Api):
 
 
   async def update_print(self, request, layerkeep, print_id, *args):
-    print(f"UPDATe PRINT {request.params}")
     prnt = Print.get_by_id(print_id)
     name = request.params.get("name")
     description = request.params.get("description")
+    
     if name:
       prnt.name = name
     if description:
@@ -222,6 +226,13 @@ class PrinterApi(Api):
         raise response
     
     prnt.save()
+
+    recording_id = request.params.get("recording", {}).get("recording_id")
+    if recording_id:
+      recording = CameraRecording.select().where(CameraRecording.id == recording_id).first()
+      if recording:
+        recording.print_id = prnt.id
+        recording.save()
     return {"data": prnt.json}
 
   async def delete_print(self, request, layerkeep, print_id, *args):
@@ -235,9 +246,6 @@ class PrinterApi(Api):
     else:
       raise AncillaError(400, {"error": f"Could Not Delete Print {prnt.name}"})
 
-    
-    # prnt.delete_instance(recursive=True)
-    # return {"success": True}
 
   def printer_commands(self, request, *args):
     # prnts = Print.select().order_by(Print.created_at.desc())

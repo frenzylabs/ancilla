@@ -19,7 +19,7 @@ from .foundation import (
   Document
 )
 
-from .foundation.node.service import NodeService
+from .foundation.node.node_service import NodeService
 
 from .foundation.data.db      import Database
 from .foundation.data.models  import (
@@ -41,10 +41,7 @@ class Application():
     self.document_store = Document()
     if not IOLoop.current(instance=False):
       loop = IOLoop().initialize(make_current=True)  
-    print(f"IO LOOP = #{IOLoop.current()}")
-    # self.node_server    = NodeService() # NodeServer()
-    # self.api_server     = APIServer(self.document_store, self.node_server)
-    
+
     
     atexit.register(self.stop)
     
@@ -58,7 +55,6 @@ class Application():
     if self.running:
       self.running = False      
       self.node_server.cleanup()
-      print("CLEANUP node server")
       self.api_server.stop()
       print("API ServerStopped")
       IOLoop.current().stop()
@@ -87,11 +83,7 @@ class Application():
   def start_db(self):
     Database.connect()
     Database.run_migrations()
-    print(f'DATBASE conn = {Database.conn.__dict__}')
-    # Database.create_tables([
-    #   Printer,
-    #   PrinterLog
-    # ])
+
 
   def _start_dev(self):
     print("START DEV 1")
@@ -99,12 +91,8 @@ class Application():
     # self.th.start()        
     # self.window.show()
 
-    # self.th = threading.Thread(target=self.api_server.start)
-    # self.th.daemon = True
-    # self.th.start()
-    # subprocess.
     
-    self.node_server    = NodeService() # NodeServer()
+    self.node_server    = NodeService(api_port=5000) # NodeServer()
     self.api_server     = APIServer(self.document_store, self.node_server)
     self.api_server.start()
     

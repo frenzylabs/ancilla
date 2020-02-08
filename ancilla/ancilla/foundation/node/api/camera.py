@@ -1,3 +1,11 @@
+'''
+ camera.py
+ ancilla
+
+ Created by Kevin Musselman (kevin@frenzylabs.com) on 01/08/20
+ Copyright 2019 FrenzyLabs, LLC.
+'''
+
 import time
 from .api import Api
 from ..events.camera import Camera as CameraEvent
@@ -110,14 +118,20 @@ class CameraApi(Api):
     page = int(request.params.get("page") or 1)
     per_page = int(request.params.get("per_page") or 5)
     q = self.service.camera_model.recordings.order_by(CameraRecording.created_at.desc())
-    if request.params.get("q[print_id]"):
-      q = q.where(CameraRecording.print_id == request.params.get("q[print_id]"))
+
     if request.params.get("q[camera_id]"):
       q = q.where(CameraRecording.camera_id == request.params.get("q[camera_id]"))
+    if request.params.get("q[name]"):
+      q = q.where(CameraRecording.task_name.contains(request.params.get("q[name]")))
     if request.params.get("q[status]"):
       q = q.where(CameraRecording.status == request.params.get("q[status]"))
-    if request.params.get("print_id"):
-      q = q.where(CameraRecording.print_id == request.params.get("print_id"))
+
+    print_id = request.params.get("q[print_id]")
+    if print_id:
+      if print_id == "0":
+        q = q.where(CameraRecording.print_id >> None)  
+      else:
+        q = q.where(CameraRecording.print_id == print_id)
     if request.params.get("status"):
       q = q.where(CameraRecording.status == request.params.get("status"))
     
@@ -129,8 +143,6 @@ class CameraApi(Api):
     # rcd = CameraRecording.get_by_id(recording_id)
     return self.service.delete_recording({"data": {"id": recording_id}})
       # return {"success": "Deleted"}
-      
-    # raise AncillaError(400, {"errors": "Coud Not Delete Recording"})
 
 
   def get_video_processor(self, request, *args):

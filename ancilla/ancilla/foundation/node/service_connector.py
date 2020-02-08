@@ -13,60 +13,28 @@ import sys
 import time
 import zmq
 import importlib
-
 import os
 
 import json
 
-
-# from ..zhelpers import zpipe, socket_set_hwm
-# from ....data.models import Camera as CameraModel, CameraRecording
-from .base_service import BaseService
-from ..utils.service_json_encoder import ServiceJsonEncoder
-
-# from ...data.models import DeviceRequest
-# from .driver import CameraConnector
-# from queue import Queue
-# import asyncio
-
-
-
-# from tornado.gen        import coroutine, sleep
-# from collections import OrderedDict
 import struct # for packing integers
-# from zmq.eventloop.ioloop import PeriodicCallback
-
-# from zmq.asyncio import Context, ZMQEventLoop
 
 from zmq.eventloop.zmqstream import ZMQStream
-from tornado.ioloop import IOLoop, PeriodicCallback
 
-import inspect
 import asyncio
-from types import CoroutineType
-
-# from tornado.platform.asyncio import AnyThreadEventLoopPolicy
 
 
-# from ..tasks.device_task import PeriodicTask
-# from ...tasks.camera_record_task import CameraRecordTask
-# from ...tasks.camera_process_video_task import CameraProcessVideoTask
-
-# from ...events import Event, EventPack
-# from ...events.camera import Camera as CameraEvent
-# from ...events.event_pack import EventPack
-# from ...middleware.camera_handler import CameraHandler
-# from ...api.camera import CameraApi
-from .response import AncillaResponse, AncillaError
-from .request import Request
-# from .app import App, ConfigDict
-
-from multiprocessing import Process, Lock, Pipe
+# from multiprocessing import Process, Pipe
 import multiprocessing as mp
 
 
+from .response import AncillaResponse, AncillaError
+from .request import Request
 
-# from .camera_process import CameraProcess
+from .base_service import BaseService
+from ..utils.service_json_encoder import ServiceJsonEncoder
+
+
 from .service_process import ServiceProcess
 
 
@@ -78,16 +46,13 @@ SEQ_ID = 0
 class ServiceConnector():
 
     def __init__(self, service, handler, **kwargs): 
-        ctx = mp.get_context('spawn')
-        # ctx.set_start_method('spawn')
-        # ctx.Process.__init__(self)
-        # super().__init__(**kwargs)
+        processCtx = mp.get_context('spawn')
+
         self.service = service
         self.name_identity = service.encoded_name
         self.identity = service.identity #f"service{self.service.model.id}".encode('ascii')
         
         self.loop = None
-        print(f"SERVICE Name = {service.encoded_name} ID = {service.identity} PROCESS ID + {os.getpid()}", flush=True)
         
         self.router_address = None
         self.rpc_router = None
@@ -95,8 +60,8 @@ class ServiceConnector():
         self.requests = {}
         self.ctx = zmq.Context()
         
-        self.rpc, self.child_conn = Pipe()
-        self.p = ctx.Process(target=ServiceProcess.start_process, args=(self.identity, self.child_conn, handler))
+        self.rpc, self.child_conn = mp.Pipe()
+        self.p = processCtx.Process(target=ServiceProcess.start_process, args=(self.identity, self.child_conn, handler))
         
         
     def start(self, *args):
@@ -122,21 +87,21 @@ class ServiceConnector():
       print(f'Stopped Process')
       if self.rpc_router:
         self.rpc_router.close()
-      
+        
+      if self.process_event_stream:
+        self.process_event_stream.flush()
+        self.process_event_stream.close()
+
       
     def setup_queue(self):
-      print(f"Setup Queues {self}")
-      
       rpc_router = self.ctx.socket(zmq.ROUTER)
-      # zrouter.identity = self.identity
-      print(f'PRocess is alive = {self.is_alive()}', flush=True)
+
       waitcnt = 100
       while waitcnt > 0 and not self.is_alive():
         time.sleep(0.1)
         waitcnt -= 1
       time.sleep(0.5)
       router_address = self.get_router_address()
-      print(f"RouterAddress = {router_address}")
       rpc_router.connect(router_address)
 
       self.rpc_router = ZMQStream(rpc_router)
@@ -176,9 +141,7 @@ class ServiceConnector():
       if topic.startswith(b'events.state'):
         try:
           newstate = json.loads(res[0].decode('utf-8'))
-          print(f'EVENT NEW STATE = {topic}  and res = {newstate}')
           self.service.state.update(newstate)
-          # print(f'EVENT NEW STATE = {topic}  and res = {self.service.state}')
         except:
           pass
         
@@ -188,8 +151,7 @@ class ServiceConnector():
       self.service.pusher.send_multipart(nmsg)
 
     def router_message(self, msg):
-      # print("INSIDE CAM ROUTE message", flush=True)
-      print(f"Cam Router Msg = {msg}", flush=True)
+      # print(f"Router Result = {msg}", flush=True)
       ident, seq, payload = msg
       if seq in self.requests:
         self.requests[seq].set_result(payload)
@@ -206,16 +168,15 @@ class ServiceConnector():
       fut = loop.create_future()
       self.requests[seq_s] = fut
       renc = request.encode()
-      print(f'Encode request = {renc}')
+
       self.rpc_router.send_multipart([self.identity, seq_s, renc])
-      # self.cam_router.send_multipart([self.identity, seq_s, json.dumps(request).encode('ascii')])
 
       res = await fut
       try:
         del self.requests[seq_s]
         res = json.loads(res.decode('utf-8'))
         classname = res.get('__class__')
-        # print(f'classname = {classname}')
+
         module_name, class_name = classname.rsplit(".", 1)
         MyClass = getattr(importlib.import_module(module_name), class_name)
         if hasattr(MyClass, "decode"):

@@ -1,6 +1,12 @@
+'''
+ data_handler.py
+ ancilla
+
+ Created by Kevin Musselman (kevin@frenzylabs.com) on 01/08/20
+ Copyright 2019 FrenzyLabs, LLC.
+'''
+
 class DataHandler(object):
-  # def __init__(self, *args):
-  #     self.name = name
 
   def handle(self, data):
     return data

@@ -22,8 +22,7 @@ WORKDIR /home/pi/ancilla
 COPY requirements.txt .
 RUN pip install -r requirements.txt
 
-COPY run.py .
-COPY ancilla.service .
+
 RUN mkdir -p /home/pi/ancilla/ancilla
 COPY ancilla /home/pi/ancilla/ancilla/
 

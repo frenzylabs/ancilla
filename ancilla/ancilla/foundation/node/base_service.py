@@ -1,24 +1,30 @@
-# import threading
+'''
+ base_service.py
+ ancilla
+
+ Created by Kevin Musselman (kevin@frenzylabs.com) on 01/14/20
+ Copyright 2019 FrenzyLabs, LLC.
+'''
+
 import time
 import sys
 import zmq
 import asyncio
 from zmq.eventloop.zmqstream import ZMQStream
-# import zmq.asyncio
+
 import functools
 import json
 from tornado.queues import Queue
-# from tornado.ioloop import IOLoop
-# from ..zhelpers import zpipe
+
 from .events import Event, EventPack, Service as EventService
-# from .devices.events import Event
-# from .devices import *
+
 from ..data.models import Service
 
-from .app import App, ConfigDict
+from .app import App
 
 from ..utils.service_json_encoder import ServiceJsonEncoder
 from ..utils import yields
+from ..utils.dict import ConfigDict
 
 from playhouse.signals import Signal, post_save
 
@@ -32,7 +38,6 @@ class BaseService(App):
         super().__init__()
 
         self.model = model
-        # self.config.load_dict(model.configuration)
         self.load_config(model.configuration)
         self.config._add_change_listener(
             functools.partial(self.config_changed, 'config'))
@@ -42,21 +47,11 @@ class BaseService(App):
         self.identity = f"service{self.model.id}".encode('ascii')
         
         self.ctx = zmq.Context.instance()
-        # self.ctx = zmq.Context()
 
-        # print(f'Service Name {self.name} {self.model.json}', flush=True)
-        # def __init__(self, ctx, name, **kwargs):    
-        # print(f'Service NAME = {self.name}', flush=True)  
-        # if type(name) == bytes:
-        #   self.identity = name
-        #   self.name = name.decode('utf-8')
-        # else:
-        
           
         self.data_handlers = []
         self.task_queue = Queue()
         self.current_task = {}
-        # event_handlers = model.settings.get("event_handlers") or {}
 
         self.settings = self.config._make_overlay()
           
@@ -65,26 +60,11 @@ class BaseService(App):
         #   print(f"INSIDE STATE CHANGED HOOK EVENT: {event}, {oldstate},  {key}, {newval}", flush=True)
         # st._add_change_listener(functools.partial(state_changed, 'state'))
         self.events = []
-        # self.ping_at = time.time() + 1e-3*PING_INTERVAL
-        # self.expires = time.time() + 1e-3*SERVER_TTL
 
-        # zmq.Context()
-        # self.ctx = zmq.Context()
+
 
         self.pusher = self.ctx.socket(zmq.PUSH)
         self.pusher.connect(f"ipc://collector.ipc")
-
-        # self.ctx = zmq.Context()
-        print(f"INSIDE base service {self.identity}", flush=True)
-        # deid = f"inproc://{self.identity}_collector"
-        # self.data_stream = self.ctx.socket(zmq.PULL)
-        # # print(f'BEFORE CONNECT COLLECTOR NAME = {deid}', flush=True)  
-        # self.data_stream.bind(deid)
-        # # time.sleep(0.1)        
-        # self.data_stream = ZMQStream(self.data_stream)
-        # self.data_stream.linger = 0
-        # self.data_stream.on_recv(self.on_data)
-        # self.data_stream.stop_on_recv()
 
         event_stream = self.ctx.socket(zmq.SUB)
         event_stream.connect("ipc://publisher.ipc")
@@ -117,7 +97,6 @@ class BaseService(App):
       # self.data_stream.close()
 
     def __del__(self):
-      print(f"DELETE SERVICE", flush=True)
       self.cleanup()
 
     def update_model(self, service_model):
@@ -128,18 +107,11 @@ class BaseService(App):
     def load_config(self, dic):
       self.config.load_dict(dic)
 
-    # def __repr__(self):
-    #     return json.dumps({"sname": self.name, "settings": self.model.settings})
-        
-    # def start_receiving(self):
-    #   # print("Start receiving", flush=True)
-    #   self.data_stream.on_recv(self.on_data)
-      # self.input_stream.on_recv(self.on_message)
+
 
     def events_changed(self, event, oldval, key, newval):
       # print(f"INSIDE event_changed CHANGED HOOK EVENT: {event}, {oldval},  {key}, {newval}", flush=True)
       if not newval:
-        # print(f"UNSUBSCRIBING from event {key}", flush=True)
         self.event_stream.setsockopt(zmq.UNSUBSCRIBE, key.encode('ascii'))
       else:
         # print(f"SUBSCRIBING TO event {key}", flush=True)
@@ -183,7 +155,8 @@ class BaseService(App):
       return self.state
 
     def log_stuff(self, epack, *args):
-      print(f"INSIDE LOG STUFF {epack.to_json()}", flush=True)
+      # print(f"INSIDE LOG STUFF {epack.to_json()}", flush=True)
+      pass
 
 
     def list_actions(self, *args):
@@ -231,22 +204,10 @@ class BaseService(App):
       try:
         data = json.loads(data)
       except Exception as e:
-        print("NOt json")
+        print(f"Received Invalid JSON Message - {str(e)}")
 
       epack = EventPack(topic, ident, data)
-
-      # print(f'PRINTER PLUGINS = {self.plugins}')
-      # if len(self.plugins):
-      #   method = getattr(self, "test_hook")
-      #   for plugin in self.plugins:
-      #       method = plugin.apply(method, self)
-
-      #   method = plugin.apply(method, self)
-      #   res = method({"data": data})
-      #   if yields(res):
-      #     future = asyncio.run_coroutine_threadsafe(res, asyncio.get_running_loop())
-        
-      # el = self.settings.get("event_handlers") or {}
+  
       el = self.event_handlers or {}
       for ekey in self.event_handlers.keys():
         if topic.startswith(ekey):
@@ -280,7 +241,6 @@ class BaseService(App):
                 if yields(res):
                   future = asyncio.run_coroutine_threadsafe(res, asyncio.get_running_loop())
                   
-                  print("FUTURE = ", future)
                   # zmqrouter = self.zmq_router
                   def onfinish(fut):
                     # res = b''
@@ -296,18 +256,16 @@ class BaseService(App):
 
     def on_data(self, data):
       # print("ON DATA", data)
-      # print(f"onData self = {self.identity}", flush=True)
-      # print(f"DATA Handles: {self.data_handlers}", flush=True)
       for d in self.data_handlers:
         data = d.handle(data)
 
       self.pusher.send_multipart(data)
 
     def stop(self):
-      print("stop")
+      pass
     
     def start(self):
-      print("RUN SERVER", flush=True)
+      pass
 
     
 
@@ -322,7 +280,7 @@ class BaseService(App):
 
         # self.pusher.publish()
         del self.current_task[dtask.name]
-        print(f"PROCESS TASK = {res}", flush=True)
+        print(f"PROCESSED TASK = {res}", flush=True)
 
     async def _add_task(self, msg):
       await self.task_queue.put(msg)

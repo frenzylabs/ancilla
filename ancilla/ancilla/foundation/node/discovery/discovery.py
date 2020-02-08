@@ -1,7 +1,12 @@
-"""Interface class for Chapter on Distributed Computing
+'''
+ discovery.py
+ ancilla
 
-This implements an "interface" to our network of nodes
-"""
+ Created by Kevin Musselman (kevin@frenzylabs.com) on 01/14/20
+ Copyright 2019 FrenzyLabs, LLC.
+'''
+
+
 
 import time
 import uuid
@@ -39,7 +44,7 @@ def pipe(ctx):
     b.connect(url)
     return a, b
 
-class Interface(object):
+class Discovery(object):
     """Interface class.
 
     Just starts a UDP ping agent in a background thread."""
@@ -55,37 +60,26 @@ class Interface(object):
     broadcast = None
 
     def __init__(self, node):
-        print(f"START UDP PING AGENT")
         self._current_address = None
         self.cached_peers = [] 
         self.node = node
 
         self.current_address, self.broadcast = self.check_interface_addresses()
-        self.beacon = Beacon(self.node.name, address=self.current_address)
+        self.beacon = Beacon(self.node.name, port=self.node.api_port, address=self.current_address)
         # self.beacon.address = self.current_address
 
         self.networkcb = PeriodicCallback(self.check_network, PING_INTERVAL * 2000, 0.2)
         self.nodecb = PeriodicCallback(self.check_nodes, PING_INTERVAL * 4000, 0.1)
         self.run(self.node.settings.discovery)
-        # self.run(False)
 
-        
-        
-        # if self.node.settings.discovery == True:
-        #     self.start()
+
     @property
     def current_address(self):
         if not self._current_address:
             return '127.0.0.1'
         else:
             return self._current_address
-        # s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        # s.connect(("8.8.8.8", 80))
-        # return s.getsockname()[0]
 
-        # return socket.gethostbyname(
-        #   socket.gethostname()
-        # )
     @current_address.setter
     def current_address(self, val):
         self._current_address = val
@@ -108,15 +102,12 @@ class Interface(object):
             self.pipe.close()
         if self.requestpipe:
             self.requestpipe.close()
-        print(f"Closed Pipes", flush=True)
         if self.agent:
             self.agent.stop()
             self.agent = None
         print(f"Closed Agent", flush=True)
-        print(f"destroy interface self.ctx {self.ctx}", flush=True)
         if self.ctx:
             self.ctx.destroy()
-        # self.ctx.term()
 
     def start(self):
         print(f"Start Discovery here", flush=True)
@@ -128,7 +119,7 @@ class Interface(object):
             self.ctx = zmq.Context()
             p0, p1 = pipe(self.ctx)
             p2, p3 = pipe(self.ctx)
-            self.agent = InterfaceAgent(self.ctx, self.node, p1, p3)
+            self.agent = DiscoveryAgent(self.ctx, self.node, p1, p3)
             self.agent.udp.broadcast = self.broadcast
             self.agent_thread = Thread(target=self.agent.start, daemon=True)
             self.agent_thread.start()
@@ -166,13 +157,10 @@ class Interface(object):
             # return [self.node.model.to_json(only = [Node.uuid, Node.name])]
 
     def request(self, msg):
-        # print("Send request, get reply")
-        # request = [b"REQUEST"] + msg
         if not self.requestpipe:
             raise AncillaError(400, {"error": "Discovery is not running"})
         self.requestpipe.send_multipart(msg)
         reply = self.requestpipe.recv_multipart()
-        # print(f'Reply = {reply}', flush=True)
         kind, msg = reply
         return msg.decode('utf-8')
 
@@ -186,7 +174,6 @@ class Interface(object):
         res = self.request([b'peers'])
         new_peers = json.loads(res)
         if self.cached_peers != new_peers:
-            # print(f"Peers are different")
             self.cached_peers = new_peers         
             msg = [b'notifications.nodes_changed', b'check', b'{"nodes":"check"}']
             self.node.publisher.send_multipart(msg)
@@ -249,14 +236,12 @@ class Interface(object):
     def check_network(self):
         # print(f"CHECK NETWORK {threading.currentThread()}", flush=True)
         adr, bcast = self.check_interface_addresses()
-        # print(f"curadd= {self.current_address} address = {adr}, currentbroad: {self.broadcast} bcast= {bcast}", flush=True)
         if self.agent and self.agent.udp.broadcast != bcast:
             self.broadcast = bcast or '255.255.255.255'
             print(f"broadcast change = {self.broadcast}", flush=True)
             self.agent.udp.broadcast = self.broadcast 
             
         if self.current_address != adr or (self.beacon and self.beacon.address != adr):
-            print(f"address change = {adr}", flush=True)
             self.current_address = adr
             if self.beacon:
                 self.beacon.close()
@@ -274,8 +259,8 @@ class Interface(object):
 # Asynchronous part, works in the background
 
 PING_PORT_NUMBER    = 9999
-PING_INTERVAL       = 1.0  # Once per second
-PEER_EXPIRY         = 5.0  # Five seconds and it's gone
+PING_INTERVAL       = 2.0  # Once every 2 seconds
+PEER_EXPIRY         = 10.0  # Ten seconds and it's gone
 UUID_BYTES          = 32
 
 class Peer(object):
@@ -306,7 +291,7 @@ class Peer(object):
         return {"uuid": self.uuid, "name": self.name, "ip": self.ip}
 
 
-class InterfaceAgent(object):
+class DiscoveryAgent(object):
     """This structure holds the context for our agent so we can
     pass that around cleanly to methods that need it
     """
@@ -370,17 +355,11 @@ class InterfaceAgent(object):
         if not self.node.settings.discoverable:
             return
         try:
-            # print(f'node = {self.node.identity}')
-            # print(f'uuid = {self.uuid}')
-            # print(f"SEND PING {threading.currentThread()}", flush=True)
             packet = json.dumps([self.uuid, self.node.name]).encode('utf-8')
-            # packet = b'['+self.node.identity+ b', '+ self.uuid + b']'
-            # print(f'Self node #{packet}')
             self.udp.send(packet)
-            # self.udp.send(self.uuid)
         except Exception as e:
             print(f'Ping Exception = {str(e)}')
-            # self.loop.stop()
+
 
     def control_message(self, event):
         """Here we handle the different control messages from the frontend."""
@@ -388,10 +367,8 @@ class InterfaceAgent(object):
         action, *res = event
         if action == b'peers':
             p = [p.to_json() for p in self.peers.values()]
-            # print(f'peer values = {p}', flush=True)
-            # list(self.peers.values())
+
             t = [b'peers', json.dumps(p, cls=ServiceJsonEncoder).encode('utf-8')]
-            # print(f"ACTION PEERS {t}", flush=True)
             self.request.send_multipart(t)
         else:
             print("control message: %s"%event)
@@ -405,8 +382,7 @@ class InterfaceAgent(object):
             res = json.loads(pack)
             uuid = res[0]
             name = res[1]
-            
-            # print(f"Handle beacon {ip} {uuid}  {res}")
+
             if uuid in self.peers:
                 
                 self.peers[uuid].is_alive(*res, ip)

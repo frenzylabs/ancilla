@@ -72,14 +72,13 @@ class NodeApiHandler(BaseHandler):
 
     
     async def delete(self, *args):
-        print("Start delete request", self.request)
         try:
           resp = await self.node(self.environ)
           self.set_resp_headers(resp)
           self.set_status(resp.status_code)
           self.write(resp.body)
         except AncillaResponse as e:
-          print(f"ancillpostexception = {e}", flush=True)    
+          print(f"ancilldeleteexception = {e}", flush=True)    
           self.set_resp_headers(e)   
           self.set_status(e.status_code)
           self.write(e.body)
@@ -91,7 +90,6 @@ class NodeApiHandler(BaseHandler):
           self.finish()
 
     async def patch(self, *args):
-        print("Start patch request", self.request)
         try:
           resp = await self.node(self.environ)
 
@@ -99,7 +97,7 @@ class NodeApiHandler(BaseHandler):
           self.set_status(resp.status_code)
           self.write(resp.body)
         except AncillaResponse as e:
-          print(f"ancillpostexception = {e}", flush=True)       
+          print(f"ancillpatchexception = {e}", flush=True)       
           self.set_resp_headers(e)
           self.set_status(e.status_code)
           self.write(e.body)
@@ -111,12 +109,9 @@ class NodeApiHandler(BaseHandler):
           self.finish()
 
     async def post(self, *args):
-        print("Start post request", self.request)
         try:
           # resp = await self.test()
           resp = await self.node(self.environ)
-          # resp = await self.node.make_request(self.request)
-          # print(f"POST REPONSE= {resp}", flush=True)
           self.set_resp_headers(resp)
           self.set_status(resp.status_code)
           self.write(resp.body)
@@ -134,25 +129,15 @@ class NodeApiHandler(BaseHandler):
 
 
     async def get(self, *args):
-        print("Start get request", self.request)
-        # print(f'Query ARgs= {self.request.query_arguments}', flush=True)
-        # print(f'Q ARgs= {self.get_query_arguments("q")}', flush=True)
-        # for (k, v) in self.request.headers.items():
-        #     print(f"RequestHeader: K={k}, v={v} ", flush=True)
         try:
           resp = await self.node(self.environ)
-          # for (k, v) in resp.headers.items():
-          #   print(f"K={k}, v={v} ", flush=True)
-          
+
           self.set_resp_headers(resp)
           self.set_status(resp.status_code)
           try:
-            # iterator = iter(resp.body)
-            # if isinstance(resp.body, Iterable):
-            # print(f"body = {resp.body}", flush=True)
-            # if hasattr(resp.body, '__aiter__'):
+
             if '__aiter__' in dir(resp.body):
-              print("Has aeiter", flush=True)
+              # print("Has aeiter", flush=True)
               
               async for frame in resp.body:
                 self.write(frame)

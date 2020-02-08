@@ -1,9 +1,15 @@
+'''
+ node_service.py
+ ancilla
+
+ Created by Kevin Musselman (kevin@frenzylabs.com) on 01/14/20
+ Copyright 2019 FrenzyLabs, LLC.
+'''
+
 
 import time
 import zmq
 from tornado.ioloop import IOLoop
-from tornado.gen import coroutine
-# from asyncio.coroutines import coroutine
 from zmq.eventloop.zmqstream import ZMQStream
 
 import importlib
@@ -15,26 +21,27 @@ import os, shutil
 import uuid
 import functools
 
-from types import CoroutineType
-
 from zmq.eventloop.future import Context
 
 from playhouse.signals import Signal, post_save, post_delete
 import atexit
 
-from .app import App, yields, ConfigDict
+from .app import App
+from ..utils import yields
+from ..utils.dict import ConfigDict
 from ..data.models import Camera, Printer, Service, CameraRecording, Node
 from .events.camera import Camera as CameraEvent
 from .api import NodeApi
 from ..env import Env
-from .discovery.interface import Interface
+from .discovery.discovery import Discovery
 
 
 class NodeService(App):
     __actions__ = []
     
-    def __init__(self):
+    def __init__(self, api_port=5000):
         super().__init__()
+        self.api_port = api_port
 
         nodemodel = Node.select().first()
         if not nodemodel:
@@ -53,7 +60,7 @@ class NodeService(App):
         self.settings = self.config._make_overlay()
         self.settings.load_dict(self.model.settings)
 
-        self.discovery = Interface(self)
+        self.discovery = Discovery(self)
 
 
         self.settings._add_change_listener(
@@ -82,24 +89,12 @@ class NodeService(App):
         self.publisher = ZMQStream(publisher)
         
 
-        # self.event_stream = self.ctx.socket(zmq.SUB)
-        # self.event_stream.connect("ipc://publisher")
-        # self.event_stream = ZMQStream(self.event_stream)
-        # self.event_stream.on_recv(self.event_message)
-
         collector = self.ctx.socket(zmq.PULL)
         collector.bind("ipc://collector.ipc")
         collector.setsockopt( zmq.LINGER, 1 )
         self.collector = ZMQStream(collector)
         self.collector.on_recv(self.handle_collect)
 
-        
-        # for base in cls.__bases__:
-        #     if hasattr(base, 'get_event'):
-        #         res = base.get_event(base, name)
-        #         if res:
-        #           return res
-        
         
         self.file_service = None
         self.layerkeep_service = None
@@ -111,51 +106,20 @@ class NodeService(App):
         post_save.connect(self.post_save_handler, name=f'service_model', sender=Service)
         post_save.connect(self.post_save_node_handler, name=f'node_model', sender=Node)
         post_delete.connect(self.post_delete_camera_handler, name=f'camera_model', sender=Camera)
-        # post_delete.connect(self.post_delete_camera_recording_handler, name=f'camera_recording_model', sender=CameraRecording)
 
-        # atexit.register(self.cleanup)
-        # self.pipe, peer = zpipe(self.ctx)        
-        # self.agent = threading.Thread(target=self.run_server, args=(self.ctx,peer))
-        # self.agent.daemon = True
-        # self.agent.name = f"Node{self.name}"
-        # self.agent.start()
-        # time.sleep(0.5) # Allow connection to come up
-
-
-        # print(f'DEVICE NAME = {name}', flush=True)  
-        # if type(name) == bytes:
-        #   self.identity = name
-        #   self.name = name.decode('utf-8')
-        # else:
-        #   self.name = name
-        #   self.identity = name.encode('ascii')
-        # self.data_handlers = []
-        # self.task_queue = Queue()
-        # self.current_task = {}
-        # self.state = {}
-        # self.events = []
-
-        # self.data_stream.stop_on_recv()
 
     def cleanup(self):
+      print('Clean Up Node and Services')
       for s in self._mounts:
         s.cleanup()
       self._mounts = []
-      print("CLEANUP MOUNTS")
-      self.discovery.stop()
-      print('Cleaned Up Discovery')
+      self.discovery.stop()      
       self.file_service = None
       self.layerkeep_service = None
       self.zmq_router.close()
-      self.collector.close()
+      self.collector.close(linger=1)
       self.publisher.close(linger=1)
-      
-        
-      print(f"CLEANUP SELF.CTX {self.ctx}")
       self.ctx.destroy()         
-      
-
-      
 
 
     def list_actions(self, *args):
@@ -169,7 +133,6 @@ class NodeService(App):
         __import__(module[:-3], locals(), globals())
 
     def mount_service(self, model):
-      # print("INSIDE MOUNT SERVICE")
       prefix = model.api_prefix #f"/services/{model.kind}/{model.id}/"
       res = next((item for item in self._mounts if item.config['_mount.prefix'] == prefix), None)
       if res:
@@ -186,9 +149,7 @@ class NodeService(App):
       services = Service.select().from_(Service, sc).where(sc.c.Key.startswith(oldname))[:]      
       for s in services:
         evhandlers = {}
-        print(f"EVTservice= {s.json}", flush=True)
         for (k, v) in s.event_listeners.items():
-          # print(f"EVT lISTNER: {k}")
           if k.startswith(oldname + "."):
             newkey = newname + k[len(oldname):]
             evhandlers[newkey] = v
@@ -200,10 +161,8 @@ class NodeService(App):
     # services = Service.update(Service.settings["event_handlers"].update(evhandlers)).where
     # .from_(Service, sc).where(sc.c.Key.startswith(oldname))[:]      
     def settings_changed(self, event, oldval, key, newval):
-      print(f'Event = {event}')
-      print(f'key= {key}  OldVal = {oldval}  NewVal: {newval}')
+      # print(f'evt: {event} key= {key}  OldVal = {oldval}  NewVal: {newval}')
       if key == "discovery":
-        # newval == True:
         self.discovery.run(newval)
       elif key == "discoverable":
         self.discovery.make_discoverable(newval)
@@ -211,18 +170,15 @@ class NodeService(App):
 
     def post_save_node_handler(self, sender, instance, *args, **kwargs):
       print(f"Post save Node handler {sender}", flush=True)
-      print(f"model = {self.model.json}")
-      print(f"instance = {instance.json}", flush=True)
       if self.model.name != self.name:
-        print(f'Change instance name')
         self.name = instance.name
         self.discovery.update_name(self.name)
       
       old_settings = self.settings.to_json()
       new_settings = ConfigDict().load_dict(self.model.settings).to_json() 
       if old_settings != new_settings:
-        print(f"OldSet = {old_settings}", flush=True)
-        print(f"NEWSet = {new_settings}", flush=True)
+        # print(f"OldSet = {old_settings}", flush=True)
+        # print(f"NEWSet = {new_settings}", flush=True)
         self.settings.update(new_settings)
         oldkeys = old_settings.keys()
         newkeys = new_settings.keys()
@@ -242,14 +198,10 @@ class NodeService(App):
       if model:
         oldmodel = model
         srv = next((item for item in self._mounts if item.model.id == instance.id), None)
-        # cur_settings = json.dumps(model.settings)
-        # cur_events = json.dumps(model.event_listeners)
-        # print(f"POST SAVE SERVICE= args= {args} {srv}", flush=True)
-        # print(f"OldMod = {model.to_json()}", flush=True)
-        # print(f"NewMod = {instance.to_json()}", flush=True)
+
         oldname = model.name
         model = instance
-        print(f"PostSaveHandler OLDName = {oldname}, instan= {instance.name}", flush=True)
+        # print(f"PostSaveHandler OLDName = {oldname}, instan= {instance.name}", flush=True)
         if oldname != instance.name:
           self.handle_service_name_change(oldname, instance.name)
           
@@ -270,63 +222,50 @@ class NodeService(App):
           
 
           if old_config != new_config:
-            print(f"OldConfig = {old_config}", flush=True)
-            print(f"NEWConfig = {new_config}", flush=True)  
-            print(f"ConfVke {srv.config._virtual_keys}", flush=True)
+            # print(f"OldConfig = {old_config}", flush=True)
+            # print(f"NEWConfig = {new_config}", flush=True)  
+            # print(f"ConfVke {srv.config._virtual_keys}", flush=True)
             srv.config.update(new_config)
             oldkeys = old_config.keys()
             newkeys = new_config.keys()
             for key in oldkeys - newkeys:
               if key not in srv.config._virtual_keys:                
                 del srv.config[key]
+
           if old_settings != new_settings:
-            print(f"OldSet = {old_settings}", flush=True)
-            print(f"NEWSet = {new_settings}", flush=True)
+            # print(f"OldSet = {old_settings}", flush=True)
+            # print(f"NEWSet = {new_settings}", flush=True)
             srv.settings.update(new_settings)
             oldkeys = old_settings.keys()
             newkeys = new_settings.keys()
             for key in oldkeys - newkeys:
               if key not in srv.settings._virtual_keys:
                 del srv.settings[key]
-          if old_event_listeners != new_event_listeners:
-            
-            
-            srv.event_handlers.update(new_event_listeners)
-            # srv.event_handlers.update(srv.model.event_listeners)
 
-            # print(f"NEWListeners = {srv.event_handlers.to_json()}", flush=True)
-            print(f"OldListeners = {old_event_listeners}", flush=True)
-            print(f"NEWListeners = {new_event_listeners}", flush=True)
+          if old_event_listeners != new_event_listeners:            
+            srv.event_handlers.update(new_event_listeners)
+
+            # print(f"OldListeners = {old_event_listeners}", flush=True)
+            # print(f"NEWListeners = {new_event_listeners}", flush=True)
             oldkeys = old_event_listeners.keys()            
             newkeys = new_event_listeners.keys()
             for key in oldkeys - newkeys:
               if key not in srv.settings._virtual_keys:
                 del srv.event_handlers[key]
-              # del srv.event_handlers[t]
-              # self.event_stream.setsockopt(zmq.UNSUBSCRIBE, t.encode('ascii'))
-            # for t in newkeys - oldkeys:
-            # print(f"OldListeners = {oldevt}", flush=True)
-            # srv.settings.update(srv.model.settings)
-      #     self.fire_event(self.event_class.settings_changed, self.settings)
+
 
     def post_delete_camera_recording_handler(self, sender, instance, *args, **kwargs):
       print(f"Post Delete of Camera Recording {sender} {instance}")
       # self.delete_recording(instance)
 
     def post_delete_camera_handler(self, sender, instance, *args, **kwargs):
-      print(f"Post Delete of Camera {sender} {instance}")
-      print(f'recordings = {instance.recordings[:]}')
       service_id = instance.service_id
       cam_path = "/".join([Env.ancilla, "services", f"service{instance.service_id}"])
       if os.path.exists(cam_path):
           shutil.rmtree(cam_path)
-      
+
 
     def init_services(self):
-      # Service.select().where(Service.settings['event_handlers']['y1'] == 'z1')
-      # self.service_models = {"printers": {}, "cameras": {"id": 1}, "files": {}}
-      # res = [c for c in Camera.select()]
-      # for c in Camera.select():
       LayerkeepCls = getattr(importlib.import_module("ancilla.foundation.node.plugins"), "LayerkeepPlugin")    
       self.install(LayerkeepCls())
       lkmodel = Service.select().where(Service.kind == "layerkeep").first()
@@ -336,7 +275,6 @@ class NodeService(App):
       filemodel = Service.select().where(Service.kind == "file").first()
       if not filemodel:
         self.__create_file_service()
-      
       
 
       for s in Service.select():
@@ -361,7 +299,6 @@ class NodeService(App):
     def delete_service(self, service):
       self._services = [item for item in self._services if item.id != service.id]
       srv = next((item for item in self._mounts if item.model.id == service.id), None)
-      print(f"Del Srv = {srv}", flush=True)
       if srv:
         self.unmount(srv)
 
@@ -392,7 +329,6 @@ class NodeService(App):
 
     def stop_service(self, service):
       srv = next((item for item in self._mounts if item.model.id == service.id), None)
-      print(f"Srv = {srv}", flush=True)
       if srv:
         self.unmount(srv)
 
@@ -401,8 +337,7 @@ class NodeService(App):
       curmounts.remove(app)
       self.reset_app()
       self.api.setup()
-      print("reseting app", flush=True)
-      print(f"CurMounts = {curmounts}", flush=True)
+      print("reseting app ", flush=True)
       app.cleanup()
       self.remount_apps(curmounts)
         
@@ -422,13 +357,13 @@ class NodeService(App):
       return res
 
     def run_action(self, action, payload, target = None, **kwargs):      
-      print(f'Actions= {action}, payload={payload} and target ={target}')
+      
       if not target:
         target = self
       else:
         target = next((item for item in self._mounts if item.name == target), self)
       
-      print(f"target= {target} ", flush=True)
+      # print(f'Actions= {action}, payload={payload} and target ={target}')
       try:
         if action in target.list_actions():
           method = getattr(target, action)
@@ -451,10 +386,8 @@ class NodeService(App):
             # future.add_done_callback(onfinish)
 
           else:
-            print(f"Node THE RESP here = {res}", flush=True)
             return res  
 
-          
         else:
           return {"status": "error", "message": "Action Doesnt Exist"}
       except Exception as e:
@@ -463,7 +396,7 @@ class NodeService(App):
 
     def sendto(self, action):
       node_identity, request_id, device_identity, action, *msgparts = msg
-      print("Unpack here", flush=True)
+
       # msg = msg[2]
       # if len(msg) > 2:
       #   subtree = msg[2]
@@ -471,7 +404,6 @@ class NodeService(App):
       if len(msgparts) > 0:
         message = msgparts[0]
 
-      print("DEVICE IDENTITY here", flush=True)
       response = {"request_id": request_id.decode('utf-8'), "action": action.decode('utf-8')}
 
       if device_identity:
@@ -499,11 +431,10 @@ class NodeService(App):
       environ = {"REQUEST_METHOD": method.upper(), "PATH": path, "params": params}
       res = self._handle(environ)
       # print(typing.co, flush=True)
-      # if isinstance(res, CoroutineType):
+
       if yields(res):
         future = asyncio.run_coroutine_threadsafe(res, asyncio.get_running_loop())
         
-        print("FUTURE = ", future)
         zmqrouter = self.zmq_router
         def onfinish(fut):
           newres = fut.result(1)
@@ -515,7 +446,6 @@ class NodeService(App):
         future.add_done_callback(onfinish)
 
       else:
-        print(f"THE RESP here = {res}", flush=True)
         status = b'success'
         if "error" in res:
           status = b'error'
@@ -535,15 +465,9 @@ class NodeService(App):
           # topic, device, payload, *other = msg
           if topic.startswith(b'events.'):
               # print(f"INSIDE HERE, {topic} and {device}", flush=True)
-              # np = [device + b'.' + topic, device]
-              # print(f"INSIDE HERE, {np}", flush=True)
               self.publisher.send_multipart([service + b'.' + topic, service] + other)
       pass
 
-
-    def event_message(self, msg):
-      print("event message")
-      pass
 
     def service_change(self, *args):
       tree = Service.settings["event_handlers"].tree().alias('tree')

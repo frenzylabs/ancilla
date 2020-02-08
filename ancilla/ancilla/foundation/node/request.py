@@ -1,5 +1,14 @@
+'''
+ request.py
+ ancilla
+
+ Created by Kevin Musselman (kevin@frenzylabs.com) on 01/28/20
+ Copyright 2019 FrenzyLabs, LLC.
+'''
+
+
 import functools
-from ..utils.dict import HeaderDict, HeaderProperty, DictProperty, _hkey, _hval
+from ..utils.dict import HeaderDict, DictProperty
 from ..utils import fullpath
 import json
 
@@ -187,7 +196,6 @@ class BaseRequest(object):
 
 
     def encode(self, *args):
-      print(f'encode request = {self.environ}')
       enviro = self.environ
       del enviro['bottle.request']
 

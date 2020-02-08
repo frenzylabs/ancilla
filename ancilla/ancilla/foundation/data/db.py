@@ -23,10 +23,8 @@ class Database(object):
     ('foreign_keys', 1),
     ('threadlocals', True)))
   # conn = SqliteExtDatabase(path, {'foreign_keys' : 1, 'threadlocals': True, 'journal_mode': 'wal'})
-  # conn = None
+
   router = None
-  
-  # router = Router(conn, migrate_dir=DEFAULT_MIGRATE_DIR)
 
   @staticmethod
   def connect():    

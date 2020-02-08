@@ -1,3 +1,11 @@
+'''
+ file.py
+ ancilla
+
+ Created by Kevin Musselman (kevin@frenzylabs.com) on 01/08/20
+ Copyright 2019 FrenzyLabs, LLC.
+'''
+
 import time
 
 import os, random, string
@@ -66,8 +74,7 @@ class FileApi(Api):
 
 
   async def post(self, request, layerkeep, *args):
-    print("INSIDE FiLE POST")
-    print(request.params, flush=True)
+
     # print(request.files, flush=True)
     name = request.params.get("name") or ""
     rootname, ext       = os.path.splitext(name)
@@ -106,7 +113,6 @@ class FileApi(Api):
     
     self.service.fire_event(FileEvent.created, print_slice.json)
     return {"file": print_slice.json}
-    # self.finish({"file": sf.json})
 
   def list_files(self, request, *args):
     page = int(request.params.get("page") or 1)
@@ -125,7 +131,6 @@ class FileApi(Api):
     print_slice  = PrintSlice.get_by_id(file_id)
     
     if request.params.get('download'):
-      # request.response.set_header()
       request.response.set_header('Content-Type', 'application/force-download')
       request.response.set_header('Content-Disposition', 'attachment; filename=%s' % print_slice.name)
     return {"file": print_slice.json}
@@ -146,15 +151,6 @@ class FileApi(Api):
     return "{}/{}".format(self.service.root_path, filename)
 
 
-  async def hello(self, request, *args, **kwargs):
-    print("INSIDE HELLO")
-    print(self)
-    await asyncio.sleep(2)
-    print("Hello AFter first sleep", flush=True)
-    await asyncio.sleep(5)
-    print("Hello AFter 2 sleep", flush=True)
-    return "hello"
-
   def connect(self, *args):
     return self.service.connect()
   
@@ -165,7 +161,6 @@ class FileApi(Api):
 
   
   async def sync_from_layerkeep(self, request, layerkeep, *args):
-    print(f"sync layerkeep {request.params}", flush=True)
     layerkeep_id = request.params.get("attributes").get("id")
     localsf = PrintSlice.select().where(PrintSlice.layerkeep_id == layerkeep_id).first()
     if localsf:
@@ -192,7 +187,6 @@ class FileApi(Api):
     return {"file": sf.json}
 
   async def sync_to_layerkeep(self, request, layerkeep, file_id, *args):
-    print(f"sync layerkeep {request.params}", flush=True)
     print_slice  = PrintSlice.get_by_id(file_id)
     if print_slice.layerkeep_id:
       return {"data": print_slice.json}

@@ -1,3 +1,11 @@
+'''
+ event_pack.py
+ ancilla
+
+ Created by Kevin Musselman (kevin@frenzylabs.com) on 01/08/20
+ Copyright 2019 FrenzyLabs, LLC.
+'''
+
 class EventPack(object):
   def __init__(self, name, sender, data, *args, **kwargs):
     super().__init__(*args, **kwargs)

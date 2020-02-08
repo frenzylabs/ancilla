@@ -35,8 +35,7 @@ clean-ui:
 	@rm -rf ancilla/ui
 
 clean-all:
-	@rm -rf publisher \
-	&& rm -rf collector \
+	@rm -rf *.ipc \
 	&& rm -rf dist \
 	&& rm -rf __pycache__ \
 	&& rm -rf ancilla-ui/dist \
