@@ -247,48 +247,15 @@ class App(object):
         app.config['_mount.prefix'] = prefix
         app.config['_mount.app'] = self
 
-        # print(f"App= {app}", flush=True)
-        
-        # def check_authorization(f):
-        #     def wrapper(self, *args, **kwargs):
-        #         print(f'Authusername = {self.settings.get("auth.user.username")}', flush=True)
-        #         print(f'Settings = {self.settings}', flush=True)
-        #         if not self.settings.get("auth.user.username"):
-        #         raise AncillaError(status= 401, body={"error": "Not Signed In"})
-        #         return f(self, *args, **kwargs)
-        #     return wrapper
-        tada = self
 
         async def mountpoint_wrapper(request, *args, **kwargs):
-            # print("INSIDE MOUNTPOINT WRAPPER", flush=True)
-            # rs = AncillaResponse()
-            # print(f"TAD= {tada}", flush=True)
-            # print(f"RS= {rs}", flush=True)
-            # print(f"App= {app}", flush=True)
-            # return app({})
-            # return {"success": True}
             try:
                 # request.path_shift(path_depth)
                 # print(f"Path dep {path_depth}", flush=True)
                 request.environ["PATH"] = "/" + request.path[len(prefix):]
-                # print("INSIDE MOUNTPOINT WRAPPER", flush=True)
-                # print(f"PATH= {request.path}", flush=True)
-                # print(f"ARGS MOUNTPOINT= {args} kwargs= {kwargs}", flush=True)
-                # print(f"Request= {request.environ}", flush=True)
 
                 rs = request.response
-                # rs = AncillaResponse()
-                # print(f'Response = {rs}', flush=True)
-                # print(f"App= {dir(app)}", flush=True)
 
-                # def start_response(status, headerlist, exc_info=None):
-                #     if exc_info:
-                #         _raise(*exc_info)
-                #     rs.status = status
-                #     for name, value in headerlist:
-                #         rs.add_header(name, value)
-                #     return rs.body.append
-                
                 
                 body = await app(request.environ, rs)
                 # print(f"BODY = {body}", flush=True)
@@ -298,10 +265,7 @@ class App(object):
                 else:
                     rs.body = body
                     return rs
-                
-                # rs.body = body
-                # # rs.body = itertools.chain(rs.body, body) if rs.body else body
-                # return rs
+
             finally:
                 pass
                 # print("mountpoint finall")
