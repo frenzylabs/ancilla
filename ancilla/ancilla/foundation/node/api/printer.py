@@ -183,7 +183,7 @@ class PrinterApi(Api):
             },
             "asset": {
                 "name": r.task_name + ".mp4",
-                "path": r.video_path + "/output.mp4"
+                "path": r.video_path
             }
           }
         response = await layerkeep.upload_print_asset({"data": data})

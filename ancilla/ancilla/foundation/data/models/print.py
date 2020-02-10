@@ -31,7 +31,8 @@ class Print(BaseModel):
   print_slice    = ForeignKeyField(PrintSlice, on_delete="SET NULL", null=True, backref='prints')
 
   description = CharField(null=True)
-  
+  duration  = IntegerField(default=0)
+
   layerkeep_id  = IntegerField(null=True)
 
   @property
@@ -42,6 +43,7 @@ class Print(BaseModel):
       'status':  self.status,
       'state':  self.state,
       'settings':  self.settings,
+      'duration': self.duration,
       'description': self.description
     }
 

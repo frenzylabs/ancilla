@@ -31,7 +31,6 @@ class FileResource(NodeApiHandler):
       self.environ["PATH"] = service.api_prefix + path 
 
   async def get(self, *args):
-    print(f"FIEL GET {self.environ}", flush=True)
     try:
       resp = await self.node(self.environ)
       self.set_resp_headers(resp)

@@ -33,43 +33,25 @@ except ImportError:
 
 SQL = pw.SQL
 
-from ancilla.foundation.data.models import Printer, Print, PrinterCommand
+from ancilla.foundation.data.models import Print
 
 def migrate(migrator, database, fake=False, **kwargs):
     """Write your migrations here."""
     # database.drop_tables([Printer])
-    database.create_tables([
-        Printer,
-        Print,
-        PrinterCommand
-    ])
 
+    # migrator.add_index(ServiceAttachment, "parent_id", "attachment_id", unique=True)
     # migrator.add_index(PrinterCommand, "", "device_type", unique=True)
-    # migrator.add_fields(Printer, device=pw.ForeignKeyField(Device, backref='specific'))
+    print(f"PRINT TABLEANME= {database.get_columns(Print._meta.table_name)}")
+    res = next((c for c in database.get_columns(Print._meta.table_name) if c.name == "duration" ), None)
+    print(f"migrate = {res}")
+    if not res:
+        f = pw.IntegerField(default=0)
+        migrator.add_fields(Print, duration=f)
 
 
 
 def rollback(migrator, database, fake=False, **kwargs):
     """Write your rollback migrations here."""
-    database.drop_tables([
-        Printer,
-        Print,
-        PrinterCommand
-    ])
+    migrator.remove_fields(Print, ["duration"])
+    
 
-
-# from ancilla.foundation.data.models import *
-# from ancilla.foundation.env import Env
-# from playhouse.sqlite_ext import SqliteExtDatabase
-# from peewee_migrate import Router
-# path = "/".join([Env.ancilla, ".a_store"])
-# conn = SqliteExtDatabase(path, regexp_function=True, timeout=3, pragmas=(
-#     ('journal_mode', 'wal'),  # Use WAL-mode (you should always use this!).
-#     ('foreign_keys', 1),
-#     ('threadlocals', True)))
-# import os
-# migrate_dir = os.path.join(os.getcwd(), 'ancilla/migrations')
-# migrate_dir = os.path.join(os.getcwd(), 'ancilla/ancilla/migrations')
-# router = Router(conn, migrate_dir=migrate_dir)
-# # router.rollback("002_create_printer")
-# # router.rollback("006_create_node")

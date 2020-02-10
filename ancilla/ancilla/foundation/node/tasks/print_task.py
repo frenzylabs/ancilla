@@ -244,7 +244,7 @@ class PrintTask(AncillaTask):
         current_pos = self.service.current_print.state.get("pos", 0)
         fp.seek(current_pos)
         line = fp.readline()
-        start_time = time.time()
+        self.start_time = time.time()
         while self.state.status == "running":
 
           cmd_start_time = time.time()
@@ -357,6 +357,10 @@ class PrintTask(AncillaTask):
 
   def get_state(self):
     st = self.state.to_json()
+    newtime = time.time()
+    duration = newtime - self.start_time
+    self.service.current_print.duration += duration
+    self.start_time = newtime
     self.state.model = self.service.current_print.to_json(extra_attrs=["print_slice"])
     # if st != self.state.to_json():
     self.service.fire_event(Printer.print.state.changed, self.state)

@@ -178,12 +178,15 @@ class CameraRecordTask(AncillaTask):
       width, height = video_settings.get("size") or [640, 480]
       self.video_size = (width, height)
       self.video_format = video_settings.get("format") or "avc1" #"X264"
+      self.video_path = self.video_path + "/output.mp4"
+      
 
-      self.video_writer = cv2.VideoWriter(self.video_path + "/output.mp4", cv2.VideoWriter_fourcc(*self.video_format), self.video_fps, self.video_size)
+      self.video_writer = cv2.VideoWriter(self.video_path, cv2.VideoWriter_fourcc(*self.video_format), self.video_fps, self.video_size)
 
 
       self.state.status = "recording"
       self.recording.status = self.state.status
+      self.recording.video_path = self.video_path
       self.recording.save()
       self.state.model = self.recording
       self.state.id = self.recording.id

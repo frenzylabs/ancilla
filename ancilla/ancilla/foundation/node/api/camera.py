@@ -99,7 +99,7 @@ class CameraApi(Api):
 
   def get_video(self, request, recording_id, *args):
     rcd = CameraRecording.get_by_id(recording_id)
-    path = rcd.video_path + "/output.mp4"    
+    path = rcd.video_path
     fp = open(path, "rb")
     
     request.response.set_header('Content-Disposition', 'filename=%s' % "output.mp4")
