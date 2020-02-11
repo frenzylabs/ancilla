@@ -259,7 +259,7 @@ class Discovery(object):
 # Asynchronous part, works in the background
 
 PING_PORT_NUMBER    = 9999
-PING_INTERVAL       = 2.0  # Once every 2 seconds
+PING_INTERVAL       = 1.0  # Once every 2 seconds
 PEER_EXPIRY         = 10.0  # Ten seconds and it's gone
 UUID_BYTES          = 32
 
@@ -347,7 +347,7 @@ class DiscoveryAgent(object):
         self.stream.on_recv(self.control_message)
         self.pingpc = PeriodicCallback(self.send_ping, PING_INTERVAL * 3000, 0.1)
         self.pingpc.start()
-        self.reappc = PeriodicCallback(self.reap_peers, PING_INTERVAL * 3000, 0.1)
+        self.reappc = PeriodicCallback(self.reap_peers, PING_INTERVAL * 5000, 0.1)
         self.reappc.start()
         loop.start()
 
