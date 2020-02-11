@@ -15,6 +15,7 @@
   },
   "system": {
     "reboot": 0,
-    "restart_ancilla": 0
+    "restart_ancilla": 0,
+    "wifion": true
   }
 }

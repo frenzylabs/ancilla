@@ -12,6 +12,7 @@ from tornado import gen
 from tornado.ioloop import IOLoop
 from tornado.web    import Application, RequestHandler, StaticFileHandler
 
+import socket
 
 import asyncio
 import atexit
@@ -63,7 +64,7 @@ class ZMQNodePubSub(object):
         self.context = zmq.Context()
         self.socket = self.context.socket(zmq.ROUTER)
 
-        self.socket.connect('tcp://127.0.0.1:5556')
+        self.socket.connect(self.node.router_address)
 
         self.stream = ZMQStream(self.socket)
         self.stream.setsockopt( zmq.LINGER, 0 )
@@ -257,12 +258,32 @@ class APIServer(object):
 
     return _app
 
+
+
   def start(self):
     print("Starting api server...", flush=True)
     if not IOLoop.current(instance=False):
       loop = IOLoop().initialize(make_current=True)  
 
-    self.app.listen(self.node_server.api_port, **{'max_buffer_size': 10485760000})
+    trybind = 30
+    bound = False
+    while not bound and trybind > 0:
+      try:
+        print(f'Node Service api port = {self.node_server.api_port}')
+        self.app.listen(self.node_server.api_port, **{'max_buffer_size': 10485760000})
+
+        print(f"Bound to {self.node_server.api_port}")
+        bound = True
+      except OSError as e:
+        trybind -= 1
+        self.node_server.api_port += 1
+
+      except Exception as e:
+        print(f'Start Exception = {str(e)}')
+        trybind -= 1
+        self.node_server.api_port += 1
+
+    # self.app.listen(self.node_server.api_port, **{'max_buffer_size': 10485760000})
     IOLoop.current().start()
 
   def stop(self):

@@ -33,17 +33,27 @@ load_config_vars() {
   NEWNODE=$(jq '.node' <<< $NEW_CONFIG)
   NEWWIFI=$(jq '.wifi' <<< $NEW_CONFIG)
   NEWSYSTEM=$(jq '.system' <<< $NEW_CONFIG)
+  NETWORKON=$(jq '.wifion' <<< $NEWSYSTEM)
 }
 
 load_config_vars
 
-if ping -q -c 1 -W 1 8.8.8.8 >/dev/null; then
-  echo "IPv4 is up"
-  NETWORK_CONNECTED=true
-else
-  echo "IPv4 is down"
-  NETWORK_CONNECTED=false
-fi
+check_network() {
+  if ping -q -c 1 -W 1 8.8.8.8 >/dev/null; then
+    echo "IPv4 is up"
+    NETWORK_CONNECTED=true
+  else
+    if nc -zw1 google.com 80; then
+      echo "we are connected"
+      NETWORK_CONNECTED=true
+    else
+      echo "not connected"
+      NETWORK_CONNECTED=false
+    fi
+    # echo "IPv4 is down"
+    # NETWORK_CONNECTED=false
+  fi
+}
 
 update_node() {
   NODE_DOCKER_IMAGE=$(jq -r '.image' <<< $NEWNODE)
@@ -170,7 +180,7 @@ run_wifi() {
 
   echo "WIFI IMAGE = $WIFI_DOCKER_IMAGE"
 
-  NETWORKON=$(jq '.on' <<< $NEWWIFI)
+  # NETWORKON=$(jq '.on' <<< $NEWWIFI)
 
   current_ssid=$(jq -r '.host_apd_cfg.ssid' <<< $WIFI_CONFIG)
   ssid=$(jq -r '.host_apd_cfg.ssid' <<< $NEW_WIFI_CONFIG)
@@ -243,11 +253,14 @@ handle_wifi_container() {
       then
         return
       else
-        docker stop $WIFI_CONTAINER_NAME
+        if [ "$NETWORK_CONNECTED" = "true" ];
+        then
+          docker stop $WIFI_CONTAINER_NAME
+        fi
       fi
       
     else
-      if [ ! -z "$NETWORKON" ] && [ $NETWORKON = "true" ] 
+      if [ ! -z "$NETWORKON" ] && [ $NETWORKON = "true" ] || [ "$NETWORK_CONNECTED" != "true" ]
       then
         if [ -z "$WIFI_CONTAINER_EXIST" ]
         then
@@ -262,6 +275,16 @@ handle_wifi_container() {
 
 
 run_system() {
+  NETWORKON=$(jq '.wifion' <<< $SYSTEM)
+  NEW_NETWORKON=$(jq '.wifion' <<< $NEWSYSTEM)
+  if [ "$NETWORKON" != "$NEW_NETWORKON" ]
+  then
+    echo "rerun wifi"
+    NETWORKON=$NEW_NETWORKON
+    run_wifi
+  fi
+
+
   REBOOT_TIME=$(jq '.reboot' <<< $SYSTEM)
   NEW_REBOOT_TIME=$(jq '.reboot' <<< $NEWSYSTEM)
   if [ "$REBOOT_TIME" != "$NEW_REBOOT_TIME" ]
@@ -280,6 +303,7 @@ run_system() {
   fi
 }
 
+check_network
 run_wifi
 run_ancilla
 
@@ -313,5 +337,11 @@ do
     LWIFITIME=`stat -c %Z $WIFI_CONFIG_FILE`
   fi
    sleep 5
+   OLD_NETWORK_CONNECTED="$NETWORK_CONNECTED"
+   check_network
+   if [ "$OLD_NETWORK_CONNECTED" != "$NETWORK_CONNECTED" ]
+   then
+      run_wifi
+   fi 
 done
 

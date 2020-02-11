@@ -60,8 +60,8 @@ class ServiceProcess():
         self.setup()
 
         self.ctx = zmq.Context.instance()
-        self.port = 5556
-        self.pub_port = 5557
+        self.port = 5557
+        self.pub_port = 5558
 
         self.setup_router()
         self.zmq_router = ZMQStream(self.zrouter, self.loop)

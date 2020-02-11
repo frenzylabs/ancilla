@@ -38,10 +38,13 @@ from .discovery.discovery import Discovery
 
 class NodeService(App):
     __actions__ = []
-    
+    # _api_port = 5000
+
+
     def __init__(self, api_port=5000):
         super().__init__()
-        self.api_port = api_port
+        # self.api_port = api_port
+        self.__api_port = api_port
 
         nodemodel = Node.select().first()
         if not nodemodel:
@@ -60,6 +63,10 @@ class NodeService(App):
         self.settings = self.config._make_overlay()
         self.settings.load_dict(self.model.settings)
 
+        self.ctx = zmq.Context.instance()
+
+        self.setup_router()
+
         self.discovery = Discovery(self)
 
 
@@ -68,16 +75,7 @@ class NodeService(App):
         
 
         # self.ctx = Context()
-        self.ctx = zmq.Context.instance()
-        self.bind_address = "tcp://*:5556"
-        self.router_address = "tcp://127.0.0.1:5556"
-
-        zrouter = self.ctx.socket(zmq.ROUTER)
-        zrouter.identity = self.identity
-        zrouter.bind(self.bind_address)
-        self.zmq_router = ZMQStream(zrouter, IOLoop.current())
-        self.zmq_router.on_recv(self.router_message)
-        self.zmq_router.on_send(self.router_message_sent)
+        
 
         # self.pubsocket = self.ctx.socket(zmq.PUB)
         # self.pubsocket.bind("ipc://publisher")
@@ -107,7 +105,6 @@ class NodeService(App):
         post_save.connect(self.post_save_node_handler, name=f'node_model', sender=Node)
         post_delete.connect(self.post_delete_camera_handler, name=f'camera_model', sender=Camera)
 
-
     def cleanup(self):
       print('Clean Up Node and Services')
       for s in self._mounts:
@@ -119,7 +116,45 @@ class NodeService(App):
       self.zmq_router.close()
       self.collector.close(linger=1)
       self.publisher.close(linger=1)
-      self.ctx.destroy()         
+      self.ctx.destroy()
+
+
+    @property
+    def api_port(self):
+        return self.__api_port
+
+    @api_port.setter
+    def api_port(self, value):
+      self.discovery.update_port(value)
+      self.__api_port = value
+    
+
+    def setup_router(self):
+      trybind = 30
+      bound = False
+      self.router_port = 5556
+      self.bind_address = "tcp://*:5556"
+      self.router_address = "tcp://127.0.0.1:5556"
+
+      zrouter = self.ctx.socket(zmq.ROUTER)
+      zrouter.identity = self.identity
+
+      while not bound and trybind > 0:
+        try:
+          self.bind_address = f"tcp://*:{self.router_port}"
+          
+          zrouter.bind(self.bind_address)
+          self.router_address = f"tcp://127.0.0.1:{self.router_port}"
+          print(f"Node Bound to {self.bind_address}")
+          bound = True
+        except zmq.error.ZMQError:
+          trybind -= 1
+          self.router_port += 1
+      
+
+      self.zmq_router = ZMQStream(zrouter, IOLoop.current())
+      self.zmq_router.on_recv(self.router_message)
+      self.zmq_router.on_send(self.router_message_sent)
 
 
     def list_actions(self, *args):

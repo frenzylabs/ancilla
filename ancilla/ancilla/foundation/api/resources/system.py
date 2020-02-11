@@ -23,12 +23,16 @@ class SystemResource(BaseHandler):
     self.node = node
 
   async def post(self, *args):
+    print(f'System reques parms = {self.params.get("wifi")}')
     newconfig = {}
     if (len(args) > 0):
       if args[0] == "/restart":
           newconfig["restart_ancilla"] = int(time.time())
       elif args[0] == "/reboot":
           newconfig["reboot"] = int(time.time())
+      elif args[0] == "/wifi":
+          if "wifi" in self.params:
+            newconfig["wifion"] = self.params.get("wifi")
 
     configdata = None
     config_path = "/".join([Env.ancilla, "config.json"])

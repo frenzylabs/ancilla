@@ -41,9 +41,10 @@ class MyListener:
 
     def add_service(self, zeroconf, type, name):
         info = zeroconf.get_service_info(type, name)
-        addresses = [("%s" % socket.inet_ntoa(a)) for a in info.addresses]
-        nm = name.split(info.type)[0].rstrip(".")
-        self.myservices[f"{nm}"] = {"addresses": addresses, "port": info.port, "server": info.server.rstrip("."), "type": info.type}
+        if info:
+          addresses = [("%s" % socket.inet_ntoa(a)) for a in info.addresses]
+          nm = name.split(info.type)[0].rstrip(".")
+          self.myservices[f"{nm}"] = {"addresses": addresses, "port": info.port, "server": info.server.rstrip("."), "type": info.type}
 
     def update_service(self, zeroconf, type, name):
         info = zeroconf.get_service_info(type, name)

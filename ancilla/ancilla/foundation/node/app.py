@@ -666,9 +666,9 @@ class App(object):
     # def __exit__(self, exc_type, exc_value, traceback):
     #     default_app.pop()
 
-    def __setattr__(self, name, value):
-        # if name in self.__dict__:
-        #     raise AttributeError("Attribute %s already defined. Plugin conflict?" % name)
-        self.__dict__[name] = value
+    # def __setattr__(self, name, value):
+    #     # if name in self.__dict__:
+    #     #     raise AttributeError("Attribute %s already defined. Plugin conflict?" % name)
+    #     self.__dict__[name] = value
 
 

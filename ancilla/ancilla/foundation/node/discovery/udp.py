@@ -29,8 +29,16 @@ class UDP(object):
         # Ask operating system to let us do broadcasts from socket
         self.handle.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
 
-        # Bind UDP socket to local port so we can receive pings
-        self.handle.bind(('0.0.0.0', port))
+        self.handle.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        try:
+            self.handle.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+        except Exception as e:
+            pass
+
+        try:
+            self.handle.bind(('', self.port))
+        except Exception as e:
+            print(f'UDP BIND Exception {str(e)}')
 
 
     @property
@@ -61,9 +69,8 @@ class UDP(object):
         # print(f"SEND BROAD CAST to #{self.broadcast}", flush=True)
         self.handle.sendto(buf, 0, (self.broadcast, self.port))
 
-        # handle.sendto(b'hithered', 0, (broadcast, port))
     def recv(self, n):
         buf, addrinfo = self.handle.recvfrom(n)
         # if addrinfo[0] != self.address:
-        # print("Found peer %s:%d" % addrinfo)
+        # print(f"Found peer buf= {buf} {addrinfo}") #%s:%d" % buf, addrinfo)
         return (buf, addrinfo[0])

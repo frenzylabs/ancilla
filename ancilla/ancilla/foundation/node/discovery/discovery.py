@@ -127,7 +127,12 @@ class Discovery(object):
             self.requestpipe = p2
             self.nodecb.start()     
             self.networkcb.start()       
-            
+
+    def update_port(self, port):
+        if self.beacon.port != port:
+            self.beacon.port = port
+            if self.node.settings.discoverable == True:
+                self.beacon.update()
 
     def update_name(self, name):
         self.beacon.update_name(name)
@@ -260,7 +265,7 @@ class Discovery(object):
 
 PING_PORT_NUMBER    = 9999
 PING_INTERVAL       = 1.0  # Once every 2 seconds
-PEER_EXPIRY         = 10.0  # Ten seconds and it's gone
+PEER_EXPIRY         = 11.0  # 11 seconds and it's gone
 UUID_BYTES          = 32
 
 class Peer(object):
@@ -345,7 +350,7 @@ class DiscoveryAgent(object):
         loop.add_handler(self.udp.handle.fileno(), self.handle_beacon, loop.READ)
         self.stream = ZMQStream(self.request, loop)
         self.stream.on_recv(self.control_message)
-        self.pingpc = PeriodicCallback(self.send_ping, PING_INTERVAL * 3000, 0.1)
+        self.pingpc = PeriodicCallback(self.send_ping, PING_INTERVAL * 4000, 0.1)
         self.pingpc.start()
         self.reappc = PeriodicCallback(self.reap_peers, PING_INTERVAL * 5000, 0.1)
         self.reappc.start()
