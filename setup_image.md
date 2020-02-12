@@ -1,0 +1,98 @@
+### 
+Should use a 4GB SD card to minimize the size and time
+
+## INSTALL DOCKER
+
+sudo apt update
+sudo apt install -y \
+     apt-transport-https \
+     ca-certificates \
+     curl \
+     gnupg2 \
+     software-properties-common
+
+# Get the Docker signing key for packages
+curl -fsSL https://download.docker.com/linux/$(. /etc/os-release; echo "$ID")/gpg | sudo apt-key add -
+
+# Add the Docker official repos
+echo "deb [arch=armhf] https://download.docker.com/linux/$(. /etc/os-release; echo "$ID") \
+     $(lsb_release -cs) stable" | \
+    sudo tee /etc/apt/sources.list.d/docker.list
+
+# Install Docker
+# The aufs package, part of the "recommended" packages, won't install on Buster just yet, because of missing pre-compiled kernel modules.
+# We can work around that issue by using "--no-install-recommends"
+sudo apt update
+sudo apt install -y --no-install-recommends \
+    docker-ce \
+    cgroupfs-mount
+
+
+sudo usermod -aG docker pi
+
+reboot (or use sudo to run docker for right now)
+
+
+apt install netcat 
+
+# For Parsing Config files
+apt install jq
+
+
+mkdir /home/pi/.ancilla
+
+
+To use the wifi docker image we need to disable the main wpa_supplicant.
+`sudo systemctl mask wpa_supplicant.service`
+`sudo pkill wpa_supplicant`
+
+
+From Local Device: Copy ancilla.service, ancilla.sh, wificfg.json, config.json to image
+
+scp -r /path/to/ancilla/ancilla.service pi@192.XXX.XXX.XXX:/home/pi/ancilla.service
+scp -r /path/to/ancilla/ancilla.sh pi@192.XXX.XXX.XXX:/home/pi/ancilla.sh
+
+scp -r /path/to/ancilla/ancilla/wificfg.json pi@192.XXX.XXX.XXX:/home/pi/.ancilla/wificfg.json
+scp -r /path/to/ancilla/ancilla/config.json pi@192.XXX.XXX.XXX:/home/pi/.ancilla/config.json
+
+On Remote:
+
+sudo mv ancilla.service /lib/systemd/system/ancilla.service
+sudo systemctl enable ancilla
+sudo systemctl daemon-reload
+
+
+Make sure you're connected to network first time and then run:
+`sudo systemctl start ancilla`
+This will pull down the wifi and ancilla images
+
+
+validate that both images are running 
+`docker ps`
+
+also check to see if ancilla-setup-xxxxx wifi network appeared
+
+Then we can stop and remove the containers (not the images)
+
+docker stop wifi
+docker rm wifi
+docker stop ancilla
+docker rm ancilla
+
+We want the wifi ssid to be generated and since we just ran it we need to update the wificfg.json file to have an empty ssid
+
+turn off the pi take the sd card and mount it on your computer
+On Mac can use disk utility
+  Select the external disk you just mounted (select the parent and not the boot partition)
+  Right click on it and select "Image from 'device name'"
+  Change format to cd/dvr
+  and create the image
+  
+  When finished you can rename it .iso instead of .cdr
+  Then you can use etcher to flash it to another memory card
+
+
+
+
+
+

@@ -1,6 +1,8 @@
 Ancilla
 =======
 
+An application to be able to manage all your 3D printers, cameras and files from one place.   
+
 # Dev
 
 ## Setup: (Mac, linux unsure)
@@ -59,6 +61,13 @@ $ make
 $ make package
 ```
 
+# docker cleanup
+docker rm $(docker ps -a -q)
+docker rmi $(docker images | grep "<none>" | awk '{print $3}')
+docker rmi $(docker images | awk '{print $3}')
+
+sudo mv ancilla.service /lib/systemd/system/ancilla.service
+
 sudo vi /lib/systemd/system/ancilla.service
 sudo systemctl enable ancilla
 sudo systemctl daemon-reload
@@ -79,3 +88,5 @@ docker run -d --restart=unless-stopped --privileged --net host -v $HOME/wificfg.
 
 
 docker run -d --restart=unless-stopped --privileged --net host -v $HOME/wifinohost.json:/cfg/wificfg.json cjimti/iotwifi  
+
+

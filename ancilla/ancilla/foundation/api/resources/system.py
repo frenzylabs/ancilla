@@ -54,9 +54,26 @@ class SystemResource(BaseHandler):
       self.write({"errors": [str(resp.exception())] }) 
 
   async def get(self, *args):
+    # if (len(args) > 0):
+    #   if args[0] == "/network_connected":
+    #     self.write(self.network_connected())
+    #     return
+
     config_path = "/".join([Env.ancilla, "config.json"])
     configdata = {}
     with open(config_path, "r") as f:
         configdata = json.load(f)
     self.write({"data": configdata})
+
+
+
+  # def network_connected(self):
+  #   import subprocess
+  #   try:
+  #     res = subprocess.check_output(['ping', '-c', '1', '-W', '1',  '8.8.8.8'])
+  #     if res:
+  #       return {"status": True}
+  #   except Exception as e:
+  #     print(f"Network Excepton = {str(e)}")
+  #   return {"status": False}
 

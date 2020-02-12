@@ -40,20 +40,24 @@ load_config_vars
 
 check_network() {
   if ping -q -c 1 -W 1 8.8.8.8 >/dev/null; then
-    echo "IPv4 is up"
     NETWORK_CONNECTED=true
   else
     if nc -zw1 google.com 80; then
-      echo "we are connected"
       NETWORK_CONNECTED=true
     else
-      echo "not connected"
       NETWORK_CONNECTED=false
     fi
-    # echo "IPv4 is down"
-    # NETWORK_CONNECTED=false
   fi
 }
+
+cleanup_images() {
+  imgs=$(docker images | grep "<none>" | awk '{print $3}')
+  if [ ! -z "$imgs" ]
+  then
+    docker rmi $imgs
+  fi
+}
+
 
 update_node() {
   NODE_DOCKER_IMAGE=$(jq -r '.image' <<< $NEWNODE)
@@ -64,6 +68,7 @@ update_node() {
   then
     NODE_LATEST_IMAGE_DIGEST=`docker pull $NODE_DOCKER_IMAGE:$NODE_DOCKER_IMAGE_TAG | grep Digest | awk {'print $2'}`
     echo "NODE LatestIMAGEDIGEST = $NODE_LATEST_IMAGE_DIGEST"
+    cleanup_images
   fi
   
   if [ ! -z "$NODE_LATEST_IMAGE_DIGEST" ]
@@ -143,6 +148,7 @@ update_wifi() {
   then
     WIFI_LATEST_IMAGE_DIGEST=`docker pull $WIFI_DOCKER_IMAGE:$WIFI_DOCKER_IMAGE_TAG | grep Digest | awk {'print $2'}`
     echo "WIFI Latest IMAGEDIGEST = $WIFI_LATEST_IMAGE_DIGEST"
+    cleanup_images
   fi
   
   if [ ! -z "$WIFI_LATEST_IMAGE_DIGEST" ]
@@ -306,6 +312,7 @@ run_system() {
 check_network
 run_wifi
 run_ancilla
+
 
 LCONFIGTIME=`stat -c %Z $CONFIG_FILE`
 LWIFITIME=`stat -c %Z $WIFI_CONFIG_FILE`
