@@ -40,7 +40,7 @@ class WifiResource(BaseHandler):
     except Exception as e:
       print(f"HandleExcept = {str(e)}")
 
-  async def make_request(self, req, content_type = 'json', auth = True, options = {"verify": False, "timeout": 5.001}):
+  async def make_request(self, req, content_type = 'json', auth = True, options = {"verify": False, "timeout": 25.001}):
       prepped = self.session.prepare_request(req)
       if not auth:
         del prepped.headers['Authorization']

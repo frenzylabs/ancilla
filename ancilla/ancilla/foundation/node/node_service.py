@@ -74,9 +74,6 @@ class NodeService(App):
             functools.partial(self.settings_changed, 'settings'))
         
 
-        # self.ctx = Context()
-        
-
         # self.pubsocket = self.ctx.socket(zmq.PUB)
         # self.pubsocket.bind("ipc://publisher")
         # self.publisher = ZMQStream(self.pubsocket)

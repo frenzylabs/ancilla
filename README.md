@@ -65,6 +65,9 @@ sudo systemctl daemon-reload
 <!-- systemctl enable ancilla -->
 
 
+sudo iptables -t nat -I PREROUTING -p tcp --dport 80 -j REDIRECT --to-port 5000
+sudo iptables -I INPUT -p tcp --dport 5000 -j ACCEPT
+
 docker run --name=ancilla -d --restart=unless-stopped --privileged --net host -v "$HOME/.ancilla":"$HOME/.ancilla" layerkeep/ancilla:staging-972ea36
 
 docker run --name=ancilla -d --restart=unless-stopped --privileged --net host -v "$HOME/.ancilla":"/root/.ancilla" layerkeep/ancilla:staging-972ea36

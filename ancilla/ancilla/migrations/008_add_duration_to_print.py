@@ -37,11 +37,8 @@ from ancilla.foundation.data.models import Print
 
 def migrate(migrator, database, fake=False, **kwargs):
     """Write your migrations here."""
-    # database.drop_tables([Printer])
 
-    # migrator.add_index(ServiceAttachment, "parent_id", "attachment_id", unique=True)
-    # migrator.add_index(PrinterCommand, "", "device_type", unique=True)
-    print(f"PRINT TABLEANME= {database.get_columns(Print._meta.table_name)}")
+    # print(f"PRINT TABLEANME= {database.get_columns(Print._meta.table_name)}")
     res = next((c for c in database.get_columns(Print._meta.table_name) if c.name == "duration" ), None)
     print(f"migrate = {res}")
     if not res:
