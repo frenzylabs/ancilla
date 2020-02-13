@@ -317,7 +317,7 @@ class PrintTask(AncillaTask):
           # await sleep(0)
           self.current_commands.append((pos, command))
 
-          while len(current_commands) > 10:            
+          while len(self.current_commands) > 10:            
             IOLoop().current().add_callback(self.handle_current_commands)
             await sleep(0.02)
             # current_commands = self.handle_current_commands(current_commands)
