@@ -191,10 +191,10 @@ class PrintTask(AncillaTask):
       is_comment = cmd.startswith(";")
       self.curcommand = self.service.add_command(self.task_id, cnt, cmd, is_comment, print_id=self.service.current_print.id)
       # current_command = service.add_command(self.task_id, cnt, cmd.encode('ascii'))
-      await sleep(0.1)
-
-      # while self.command_active(self.curcommand):
-      #   await sleep(0.01)
+      # await sleep(0.1)
+      
+      while self.command_active(self.curcommand):
+        await sleep(0.1)
 
       if self.curcommand.status == "finished" and len(self.curcommand.response) > 0:
         self.service.current_print.state["temp"] = self.curcommand.response[0]
@@ -290,6 +290,7 @@ class PrintTask(AncillaTask):
           # cmd_data = self.current_command.__data__
           # print(f"CurCmd: {self.current_command.command}", flush=True)
           current_commands = self.handle_current_commands(current_commands)
+          print(f'CurCmds: {len(self.service.command_queue.current_commands)} Queu: {len(self.service.command_queue.queue)} Current Commands: {current_commands}', flush=True)
           # await sleep(0)
           current_commands.append((pos, command))
 
