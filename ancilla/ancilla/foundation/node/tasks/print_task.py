@@ -166,6 +166,23 @@ class PrintTask(AncillaTask):
   def command_active(self, cmd):
     return (self.state.status == "running" and (cmd.status == "pending" or cmd.status == "busy" or cmd.status == "running"))
         
+  def handle_current_commands(self, current_commands):
+    new_command_list = []
+    for (cmdpos, cmd) in current_commands:
+      if self.command_active(cmd):
+        new_command_list.append((cmdpos, cmd))
+      else:
+        if cmd.status == "error":
+          self.service.current_print.status = "failed"
+          self.state.status = "failed"
+          self.state.reason = "Could Not Execute Command: " + cmd.command
+          
+        elif cmd.status == "finished":
+          self.service.current_print.state["pos"] = cmdpos
+
+
+        self.parent_conn.send(("cmd", self.service.current_print, cmd))
+    return new_command_list
 
   async def get_temp(self, payload):
     cnt = 0
@@ -245,6 +262,8 @@ class PrintTask(AncillaTask):
         fp.seek(current_pos)
         line = fp.readline()
         self.start_time = time.time()
+        current_commands = []
+
         while self.state.status == "running":
 
           cmd_start_time = time.time()
@@ -264,44 +283,58 @@ class PrintTask(AncillaTask):
           # print("Line {}, POS: {} : {}".format(cnt, pos, line))    
 
           is_comment = line.startswith(";")
-          self.current_command = self.service.add_command(self.task_id, cnt, line, is_comment, print_id=self.service.current_print.id)
+          # self.current_command = self.service.add_command(self.task_id, cnt, line, is_comment, print_id=self.service.current_print.id)
+          command = self.service.add_command(self.task_id, cnt, line, is_comment, print_id=self.service.current_print.id)
           # cmd_data = self.current_command.__data__
           # print(f"CurCmd: {self.current_command.command}", flush=True)
+          current_commands = self.handle_current_commands(current_commands)
+          await sleep(0)
+          current_commands.append((pos, command))
+
+          while len(current_commands) > 10:
+            await sleep(0.05)
+            current_commands = self.handle_current_commands(current_commands)
+
+          # if len(current_commands) < 10:
+          line = fp.readline()
+          cnt += 1
+
+
           
-          while (self.current_command.status == "pending" or 
-                self.current_command.status == "running" or 
-                self.current_command.status == "busy"):
+          # while (self.current_command.status == "pending" or 
+          #       self.current_command.status == "running" or 
+          #       self.current_command.status == "busy"):
 
-            await sleep(0.01)
-            if self.state.status != "running":
-              self.current_command.status = self.state.status
-              break
+          #   await sleep(0.01)
+          #   if self.state.status != "running":
+          #     self.current_command.status = self.state.status
+          #     break
           
-          # cmd_data["status"] = self.current_command.status
-          # cmd_data["response"] = self.current_command.response
-          # self.parent_conn.send_multipart([b'cmd', f'{pos}'.encode('ascii'),  json.dumps(cmd_data).encode('ascii')], copy=False)
-          # self.parent_conn.send_pyobj(("cmd", pos, self.current_command))
+          # # cmd_data["status"] = self.current_command.status
+          # # cmd_data["response"] = self.current_command.response
+          # # self.parent_conn.send_multipart([b'cmd', f'{pos}'.encode('ascii'),  json.dumps(cmd_data).encode('ascii')], copy=False)
+          # # self.parent_conn.send_pyobj(("cmd", pos, self.current_command))
 
-          # r = self.parent_conn.recv()          
-          # print(f"COMMAND cnt: {cnt} {time.time()} {self.current_command.command} FINISHED {time.time() - cmd_start_time}")
-          # IOLoop().current().add_callback(functools.partial(self.save_command, self.current_command))
+          # # r = self.parent_conn.recv()          
+          # # print(f"COMMAND cnt: {cnt} {time.time()} {self.current_command.command} FINISHED {time.time() - cmd_start_time}")
+          # # IOLoop().current().add_callback(functools.partial(self.save_command, self.current_command))
           
-          # print(f'InsidePrintTask curcmd= {self.current_command}', flush=True)
-          if self.current_command.status == "error":
-            self.service.current_print.status = "failed"
-            self.state.status = "failed"
-            self.state.reason = "Could Not Execute Command: " + self.current_command.command
-            self.parent_conn.send(("cmd", self.service.current_print, self.current_command))
-            break
+          # # print(f'InsidePrintTask curcmd= {self.current_command}', flush=True)
+          # if self.current_command.status == "error":
+          #   self.service.current_print.status = "failed"
+          #   self.state.status = "failed"
+          #   self.state.reason = "Could Not Execute Command: " + self.current_command.command
+          #   self.parent_conn.send(("cmd", self.service.current_print, self.current_command))
+          #   break
 
-          if self.current_command.status == "finished":
-            self.service.current_print.state["pos"] = pos
-            # self.service.current_print.save()
-            line = fp.readline()
-            cnt += 1
-            cmd_end_time = time.time()
+          # if self.current_command.status == "finished":
+          #   self.service.current_print.state["pos"] = pos
+          #   # self.service.current_print.save()
+          #   line = fp.readline()
+          #   cnt += 1
+          #   cmd_end_time = time.time()
 
-          self.parent_conn.send(("cmd", self.service.current_print, self.current_command))
+          # self.parent_conn.send(("cmd", self.service.current_print, self.current_command))
 
         
     except Exception as e:

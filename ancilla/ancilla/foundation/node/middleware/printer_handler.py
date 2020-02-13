@@ -50,9 +50,9 @@ class PrinterHandler(DataHandler):
         newmsg = decodedmsg
 
       
-      cmd = self.device.command_queue.current_command
+      cmd = self.device.command_queue.get_active_command()
       
-      if cmd:        
+      if cmd:
         # identifier = identifier + b'.printer.log'
         # print(f"INSIDE CMD on data {cmd.command}", flush=True)
         cmdstatus = None
@@ -60,21 +60,21 @@ class PrinterHandler(DataHandler):
 
         if status == b'error':
           cmdstatus = "error"
-          self.device.command_queue.finish_command(status="error")
+          self.device.command_queue.finish_current_command(status="error")
         else:
           if newmsg.startswith("busy:"):
             cmdstatus = "busy"
             self.device.command_queue.update_expiry()
           elif newmsg.startswith("Error:"):
             cmdstatus = "error"
-            self.device.command_queue.finish_command(status="error")
+            self.device.command_queue.finish_current_command(status="error")
           else:
             cmdstatus = "running"
             cmd.response.append(newmsg)
 
           if newmsg.startswith("ok") or newmsg == "k\n":
             cmdstatus = "finished"
-            self.device.command_queue.finish_command()
+            self.device.command_queue.finish_current_command()
 
         payload = {"status": cmdstatus, "sequence": cmd.sequence, "command": cmd.command, "resp": newmsg, "req_id": cmd.parent_id}
         cmd = None
