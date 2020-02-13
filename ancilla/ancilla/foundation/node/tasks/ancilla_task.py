@@ -54,7 +54,7 @@ class PeriodicTask(AncillaTask):
       self.run_timeout = self.io_loop.add_timeout(self._next_timeout, partial(self.run_task, args))
       self.state = "pending"
       while self.state != "finished":
-        await sleep(5)
+        await sleep(2)
       
       if self.run_timeout:
         self.run_timeout.cancel()
@@ -70,7 +70,7 @@ class PeriodicTask(AncillaTask):
     #   self.state = "pending"
     # el
     if self.state == "running":
-      pass
+      return
     elif self.state == "pending":
       self.run_count += 1
       self.state = "running"

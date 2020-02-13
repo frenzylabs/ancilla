@@ -191,8 +191,10 @@ class PrintTask(AncillaTask):
       is_comment = cmd.startswith(";")
       self.curcommand = self.service.add_command(self.task_id, cnt, cmd, is_comment, print_id=self.service.current_print.id)
       # current_command = service.add_command(self.task_id, cnt, cmd.encode('ascii'))
-      while self.command_active(self.curcommand):
-        await sleep(0.001)
+      await sleep(0.1)
+
+      # while self.command_active(self.curcommand):
+      #   await sleep(0.01)
 
       if self.curcommand.status == "finished" and len(self.curcommand.response) > 0:
         self.service.current_print.state["temp"] = self.curcommand.response[0]
@@ -226,13 +228,13 @@ class PrintTask(AncillaTask):
       self.service.fire_event(Printer.print.failed, {"status": "failed", "reason": str(e)})
       return
 
-    self.state_callback = PeriodicCallback(self.get_state, 4000, 0.1)
+    self.state_callback = PeriodicCallback(self.get_state, 3000, 0.1)
     self.state_callback.start()
 
     data = {
       "command": "M105"
     }
-    self.temp_task = PeriodicTask(f"temp-{self.service.current_print.name}", self.service, data, interval=5000)
+    self.temp_task = PeriodicTask(f"temp-{self.service.current_print.name}", self.service, data, interval=6000)
     self.temp_task.run_callback = self.get_temp
     self.service.process.add_task(self.temp_task)
 
@@ -288,7 +290,7 @@ class PrintTask(AncillaTask):
           # cmd_data = self.current_command.__data__
           # print(f"CurCmd: {self.current_command.command}", flush=True)
           current_commands = self.handle_current_commands(current_commands)
-          await sleep(0)
+          # await sleep(0)
           current_commands.append((pos, command))
 
           while len(current_commands) > 10:
