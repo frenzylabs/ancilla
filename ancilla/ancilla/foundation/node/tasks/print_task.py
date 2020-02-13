@@ -175,7 +175,7 @@ class PrintTask(AncillaTask):
       self.curcommand = self.service.add_command(self.task_id, cnt, cmd, is_comment, print_id=self.service.current_print.id)
       # current_command = service.add_command(self.task_id, cnt, cmd.encode('ascii'))
       while self.command_active(self.curcommand):
-        await sleep(0.001)
+        await sleep(0.01)
 
       if self.curcommand.status == "finished" and len(self.curcommand.response) > 0:
         self.service.current_print.state["temp"] = self.curcommand.response[0]
@@ -217,7 +217,7 @@ class PrintTask(AncillaTask):
     }
     self.temp_task = PeriodicTask(f"temp-{self.service.current_print.name}", self.service, data, interval=5000)
     self.temp_task.run_callback = self.get_temp
-    self.service.process.add_task(self.temp_task)
+    # self.service.process.add_task(self.temp_task)
 
 
     ctx = mp.get_context('spawn')
@@ -272,7 +272,7 @@ class PrintTask(AncillaTask):
                 self.current_command.status == "running" or 
                 self.current_command.status == "busy"):
 
-            await sleep(0.001)
+            await sleep(0.01)
             if self.state.status != "running":
               self.current_command.status = self.state.status
               break

@@ -211,7 +211,7 @@ class ServiceProcess():
               time.sleep(2)
               self.running = False              
               break
-        await asyncio.sleep(1)
+        await asyncio.sleep(2)
 
 
     def run(self):

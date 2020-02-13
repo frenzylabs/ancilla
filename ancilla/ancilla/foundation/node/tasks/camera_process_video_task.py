@@ -110,7 +110,7 @@ class CameraProcessVideoTask(AncillaTask):
     
 
     while self.state.status == "running":
-        await sleep(0.1)
+        await sleep(0.2)
 
     print("FINISHED PROCESSING", flush=True)
     self.running = False

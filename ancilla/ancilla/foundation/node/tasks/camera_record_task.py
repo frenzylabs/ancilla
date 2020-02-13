@@ -211,7 +211,7 @@ class CameraRecordTask(AncillaTask):
 
     # self.state.status = "running"
     while self.state.status == "recording":
-      await sleep(0.1)
+      await sleep(0.5)
 
 
     return self.cleanup()
