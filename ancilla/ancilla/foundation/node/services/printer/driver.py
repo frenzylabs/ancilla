@@ -73,9 +73,9 @@ class SerialConnector(object):
       while self.alive:
           try:
               # print("INSIDE RADER THREAD LOOP", flush=True)
-              data = self.serial.read_until(b'\n')
+              data += self.serial.read_until() #b'\n')
               # data += self.serial.read()
-              print(f"INSIDE READER {data}")
+              # print(f"INSIDE READER {data}")
               if b'\n' in data:
                   publisher.send_multipart([self.identity+ b'.data_received', b'resp', data])
                   data = b''

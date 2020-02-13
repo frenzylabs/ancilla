@@ -217,7 +217,7 @@ class PrintTask(AncillaTask):
     }
     self.temp_task = PeriodicTask(f"temp-{self.service.current_print.name}", self.service, data, interval=5000)
     self.temp_task.run_callback = self.get_temp
-    # self.service.process.add_task(self.temp_task)
+    self.service.process.add_task(self.temp_task)
 
 
     ctx = mp.get_context('spawn')
