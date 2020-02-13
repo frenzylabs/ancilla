@@ -210,7 +210,7 @@ class PrintTask(AncillaTask):
       self.curcommand = self.service.add_command(self.task_id, cnt, cmd, is_comment, print_id=self.service.current_print.id)
       # current_command = service.add_command(self.task_id, cnt, cmd.encode('ascii'))
       # await sleep(0.1)
-      
+      print(f"TEMP Before = {self.curcommand}", flush=True)
       
       while self.command_active(self.curcommand):
         await sleep(0.1)
@@ -372,7 +372,7 @@ class PrintTask(AncillaTask):
       print(f"Print Exception: {str(e)}", flush=True)
     
     self.service.command_queue.queue.clear()
-    self.current_commands = [x for x in self.current_commands if x.status != "pending"]
+    self.current_commands = [(pos, cmd) for (pos, cmd) in self.current_commands if cmd.status != "pending"]
     
     timeout = time.time()
     while len(self.current_commands) > 0:
