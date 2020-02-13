@@ -1,6 +1,33 @@
 ### 
 Should use a 4GB SD card to minimize the size and time
 
+## Get the Base OS
+I used raspbian-buster-lite
+
+Flash the Image to an SD card (using etcher or whatever)
+Once flashed remount it and open up the root directory.
+Add an empty file named ssh.  This will allow you to ssh into it using:
+pi@XXX.XXX.XXX.XXX
+password:  raspberry
+
+If you don't have ethernet available then you'll need to setup wpa_supplicant
+
+Inside the same root diretory add a file named "wpa_supplicant.conf"
+
+Add your wifi connection details:
+```
+country=us
+update_config=1
+
+network={
+ scan_ssid=1
+ ssid="MyNetworkSSID"
+ psk="Pa55w0rd1234"
+}
+```
+
+
+
 ## INSTALL DOCKER
 
 sudo apt update
@@ -72,14 +99,27 @@ validate that both images are running
 
 also check to see if ancilla-setup-xxxxx wifi network appeared
 
+
+## Cleanup before creating image
+If you added wpa_supplicant file then you'll want to remove your creds before creating the image:
+Edit /etc/wpa_supplicant/wpa_supplicant.conf and delete the network information. 
+
+
 Then we can stop and remove the containers (not the images)
+
 
 docker stop wifi
 docker rm wifi
 docker stop ancilla
 docker rm ancilla
 
-We want the wifi ssid to be generated and since we just ran it we need to update the wificfg.json file to have an empty ssid
+## Update Wifi SSID to be empty
+sudo systemctl stop ancilla (otherwise when we edit the wificfg.json file it will get regenerated)
+
+Update the ssid field in wificfg.json file to be an empty string.
+
+This will allow the ancilla script to generate a new one. 
+
 
 turn off the pi take the sd card and mount it on your computer
 On Mac can use disk utility

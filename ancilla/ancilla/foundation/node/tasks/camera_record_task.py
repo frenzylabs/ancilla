@@ -11,15 +11,16 @@ import sys
 import os
 import zmq
 from zmq.eventloop.zmqstream import ZMQStream
-import zmq.asyncio
+# import zmq.asyncio
 import json
 
-from tornado.ioloop import IOLoop
-from zmq.eventloop.ioloop import PeriodicCallback
+from tornado.ioloop import IOLoop, PeriodicCallback
+# from zmq.eventloop.ioloop import PeriodicCallback
 from ..zhelpers import zpipe
 from ...data.models import PrintSlice, CameraRecording
 # from .devices import *
-from tornado.gen        import sleep
+# from tornado.gen        import sleep
+from asyncio import sleep
 from .ancilla_task import AncillaTask
 
 from ...env import Env
@@ -198,7 +199,7 @@ class CameraRecordTask(AncillaTask):
         # self.timelapse = 1000      
         flush_frame_check = int(1000 / self.video_fps)
 
-      self.flush_callback = PeriodicCallback(self.flush_camera_frame, flush_frame_check)
+      self.flush_callback = PeriodicCallback(self.flush_camera_frame, flush_frame_check, 0.1)
       self.flush_callback.start()
       # num_commands = file_len(sf.path)
     except Exception as e:

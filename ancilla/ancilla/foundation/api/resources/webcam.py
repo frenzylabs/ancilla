@@ -130,7 +130,7 @@ class WebcamHandler(RequestHandler):
         self.pubsub.connect(stream)
 
         while self.running:
-          await asyncio.sleep(0.5)
+          await asyncio.sleep(0.05)
 
     def set_resp_headers(self, resp):
       [self.set_header(k, v) for (k, v) in resp.headers.items()]   

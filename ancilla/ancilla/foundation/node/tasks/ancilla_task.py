@@ -9,9 +9,10 @@
 import time
 
 from tornado.ioloop import IOLoop
-from tornado.gen        import sleep
+# from tornado.gen        import sleep
 from functools import partial
 
+from asyncio import sleep
 
 from ...utils.dict import ConfigDict
 
@@ -46,14 +47,29 @@ class PeriodicTask(AncillaTask):
     self.run_count = 0
     self.run_timeout = None
     
-    
   async def run(self, *args):
     # print(f"RUN PERIODIC TASK {self.name}", flush=True)
     if self.state == "initialized":
       self._next_timeout = time.time() + self.interval / 1000.0
-      self.run_timeout = self.io_loop.add_timeout(self._next_timeout, partial(self.run, args))
+      self.run_timeout = self.io_loop.add_timeout(self._next_timeout, partial(self.run_task, args))
       self.state = "pending"
-    elif self.state == "running":
+      while self.state != "finished":
+        await sleep(5)
+      
+      if self.run_timeout:
+        self.run_timeout.cancel()
+      return {"state": self.state}
+    else:
+      return {"error": "Not initialized"}
+
+  async def run_task(self, *args):
+    # print(f"RUN PERIODIC TASK {self.name}", flush=True)
+    # if self.state == "initialized":
+    #   self._next_timeout = time.time() + self.interval / 1000.0
+    #   self.run_timeout = self.io_loop.add_timeout(self._next_timeout, partial(self.run_task, args))
+    #   self.state = "pending"
+    # el
+    if self.state == "running":
       pass
     elif self.state == "pending":
       self.run_count += 1
@@ -64,7 +80,7 @@ class PeriodicTask(AncillaTask):
       if self.state != "finished":
         self.state = "pending"
         self._next_timeout = time.time() + self.interval / 1000.0
-        self.run_timeout = self.io_loop.add_timeout(self._next_timeout, partial(self.run, args))
+        self.run_timeout = self.io_loop.add_timeout(self._next_timeout, partial(self.run_task, args))
     else:
       self.run_timeout.cancel()
     return "task"

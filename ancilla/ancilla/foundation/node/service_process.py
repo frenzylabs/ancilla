@@ -193,7 +193,7 @@ class ServiceProcess():
 
       child_conn = self.child_conn
       while self.running:
-        res = child_conn.poll(0.01)
+        res = child_conn.poll(0)
         if res:
           try:
             payload = child_conn.recv()
@@ -326,5 +326,5 @@ class ServiceProcess():
         self.zmq_pub.send_multipart([self.identity+b'.task', b'finished', rj])
 
         del self.current_tasks[dtask.name]
-        print(f"PROCESS TASK DONE= {res}", flush=True)
+        print(f"PROCESS TASK {self.identity} DONE= {res}", flush=True)
 

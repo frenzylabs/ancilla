@@ -68,7 +68,6 @@ update_node() {
   then
     NODE_LATEST_IMAGE_DIGEST=`docker pull $NODE_DOCKER_IMAGE:$NODE_DOCKER_IMAGE_TAG | grep Digest | awk {'print $2'}`
     echo "NODE LatestIMAGEDIGEST = $NODE_LATEST_IMAGE_DIGEST"
-    cleanup_images
   fi
   
   if [ ! -z "$NODE_LATEST_IMAGE_DIGEST" ]
@@ -137,6 +136,7 @@ run_ancilla() {
       docker run --name=$NODE_CONTAINER_NAME -d --restart=on-failure --privileged --net host -v "$HOME/.ancilla":"$HOME/.ancilla" $NODE_DOCKER_IMAGE@$NODE_NEW_IMAGE_DIGEST
     fi
   fi
+  cleanup_images
 }
 
 
@@ -148,7 +148,6 @@ update_wifi() {
   then
     WIFI_LATEST_IMAGE_DIGEST=`docker pull $WIFI_DOCKER_IMAGE:$WIFI_DOCKER_IMAGE_TAG | grep Digest | awk {'print $2'}`
     echo "WIFI Latest IMAGEDIGEST = $WIFI_LATEST_IMAGE_DIGEST"
-    cleanup_images
   fi
   
   if [ ! -z "$WIFI_LATEST_IMAGE_DIGEST" ]
@@ -277,6 +276,7 @@ handle_wifi_container() {
       fi
     fi
   fi
+  cleanup_images
 }
 
 

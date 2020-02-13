@@ -12,11 +12,11 @@ import sys
 import os
 import zmq
 from zmq.eventloop.zmqstream import ZMQStream
-import zmq.asyncio
+# import zmq.asyncio
 import json
 
-from tornado.ioloop import IOLoop
-from zmq.eventloop.ioloop import PeriodicCallback
+from tornado.ioloop import IOLoop, PeriodicCallback
+# from zmq.eventloop.ioloop import PeriodicCallback
 
 import functools
 from functools import partial
@@ -209,13 +209,13 @@ class PrintTask(AncillaTask):
       self.service.fire_event(Printer.print.failed, {"status": "failed", "reason": str(e)})
       return
 
-    self.state_callback = PeriodicCallback(self.get_state, 3000)
+    self.state_callback = PeriodicCallback(self.get_state, 4000, 0.1)
     self.state_callback.start()
 
     data = {
       "command": "M105"
     }
-    self.temp_task = PeriodicTask(f"temp-{self.service.current_print.name}", self.service, data)
+    self.temp_task = PeriodicTask(f"temp-{self.service.current_print.name}", self.service, data, interval=5000)
     self.temp_task.run_callback = self.get_temp
     self.service.process.add_task(self.temp_task)
 
@@ -272,7 +272,7 @@ class PrintTask(AncillaTask):
                 self.current_command.status == "running" or 
                 self.current_command.status == "busy"):
 
-            await sleep(0.005)
+            await sleep(0.001)
             if self.state.status != "running":
               self.current_command.status = self.state.status
               break

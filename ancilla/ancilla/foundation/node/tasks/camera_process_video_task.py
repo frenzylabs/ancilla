@@ -13,15 +13,16 @@ import os
 import zmq
 from zmq.eventloop.zmqstream import ZMQStream
 import zmq.utils.monitor
-import zmq.asyncio
+# import zmq.asyncio
 import json
 
 from tornado.ioloop import IOLoop
-from zmq.eventloop.ioloop import PeriodicCallback
+# from zmq.eventloop.ioloop import PeriodicCallback
 from ..zhelpers import zpipe
 from ...data.models import PrintSlice, CameraRecording
 # from .devices import *
-from tornado.gen        import sleep
+from asyncio import sleep
+# from tornado.gen        import sleep
 from .ancilla_task import AncillaTask
 
 from ...env import Env
