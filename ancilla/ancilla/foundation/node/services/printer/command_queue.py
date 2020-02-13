@@ -58,7 +58,7 @@ class CommandQueue(object):
       if len(self.queue) > 0 and len(self.current_commands) < self.max_send_queue_length:
         cid, cmd = self.queue.popitem(False)
         self.current_commands[cid] = cmd
-      return cmd
+        return cmd
 
     def get_active_command(self):
       if not self.current_command and len(self.current_commands) > 0:
