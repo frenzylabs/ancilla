@@ -272,7 +272,7 @@ class PrintTask(AncillaTask):
                 self.current_command.status == "running" or 
                 self.current_command.status == "busy"):
 
-            await sleep(0.002)
+            await sleep(0.01)
             if self.state.status != "running":
               self.current_command.status = self.state.status
               break
