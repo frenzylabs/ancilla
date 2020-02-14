@@ -54,7 +54,7 @@ class PrinterHandler(DataHandler):
       
       if cmd:
         # identifier = identifier + b'.printer.log'
-        # print(f"INSIDE CMD on data {cmd.command}", flush=True)
+        print(f"INSIDE CMD on data {cmd.command}:  {newmsg}", flush=True)
         cmdstatus = None
 
 

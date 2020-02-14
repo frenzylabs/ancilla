@@ -113,12 +113,12 @@ def run_save_command(task_id, current_print, cmd_queue):
               break
 
             # if respcommand["status"] == "finished":
-            if respcommand.status == "finished":
-              # current_print.state["pos"] = pos
-              # current_print.save()
-              prnt.save()
-              respcommand.save()
-              # cmd_queue.send(('done', respcommand.id))
+            # if respcommand.status == "finished":
+            #   # current_print.state["pos"] = pos
+            #   # current_print.save()
+            #   prnt.save()
+            #   respcommand.save()
+            #   # cmd_queue.send(('done', respcommand.id))
         elif key == "close":
           running = False
 
