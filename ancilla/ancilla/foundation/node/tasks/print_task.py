@@ -32,6 +32,7 @@ from queue import Empty as QueueEmpty
 import multiprocessing as mp
 import pickle
 
+
 def pr(l, log):
   l.acquire()
   try:
@@ -64,13 +65,17 @@ def run_save_command(task_id, current_print, cmd_queue):
   import zmq
   Env.setup()
   conn = SqliteExtDatabase(Database.path, pragmas=(
-    # ('cache_size', -1024 * 64),  # 64MB page-cache.
+    ('cache_size', -1024 * 64),  # 64MB page-cache.
     ('journal_mode', 'wal'),  # Use WAL-mode (you should always use this!).
     ('foreign_keys', 1),
     ('threadlocals', True)))
     # {'foreign_keys' : 1, 'threadlocals': True})
   conn.connect()
-
+  res = conn.execute_sql("PRAGMA wal_autocheckpoint=0;").fetchall()
+  res = conn.execute_sql("PRAGMA wal_checkpoint(TRUNCATE);").fetchall()
+  print(f'INITIAL WALL CHECKPOINT = {res}')
+  # res = conn.execute_sql("PRAGMA wal_autocheckpoint;").fetchall()
+  
   from ...data.models import Print, PrintSlice, PrinterCommand
   PrinterCommand._meta.database = conn
 
@@ -126,6 +131,10 @@ def run_save_command(task_id, current_print, cmd_queue):
       print(f"RES READ EXCEPTION {type(e).__name__}, {str(e)}", flush=True)
       # cmd_queue.put(("state", {"status": "error", "reason": str(e)}))
       cmd_queue.send(("state", {"status": "error", "reason": str(e)}))
+
+  res = conn.execute_sql("PRAGMA wal_checkpoint(TRUNCATE);").fetchall()
+  print(f'WALL CHECKPOINT = {res}')
+  res = conn.execute_sql("PRAGMA wal_autocheckpoint=2000;").fetchall()
 
 
 
