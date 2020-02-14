@@ -61,14 +61,14 @@ class PrinterHandler(DataHandler):
       else:
         newmsg = decodedmsg
 
-      # if self.printer_temp():
+      # if self.printer_temp(newmsg):
       #   return
       # next((item for item in d.keys() if item.startswith("M1")), None)
 
       cmd = self.service.command_queue.get_active_command()
       
       
-      if not self.printer_temp() and cmd:
+      if not self.printer_temp(newmsg) and cmd:
         # identifier = identifier + b'.printer.log'
         print(f"INSIDE CMD on data {cmd.command}:  {newmsg}", flush=True)
         cmdstatus = None
