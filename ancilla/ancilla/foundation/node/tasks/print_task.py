@@ -261,6 +261,8 @@ class PrintTask(AncillaTask):
       self.service.fire_event(Printer.print.failed, {"status": "failed", "reason": str(e)})
       return
 
+    self.start_time = time.time()  
+
     self.state_callback = PeriodicCallback(self.get_state, 3000, 0.1)
     self.state_callback.start()
 
@@ -280,8 +282,8 @@ class PrintTask(AncillaTask):
     self.p.daemon = True
     self.p.start()
 
-    res = Print.__meta.database.execute_sql("PRAGMA wal_autocheckpoint=-1;").fetchall()
-    res = Print.__meta.database.execute_sql("PRAGMA wal_checkpoint(TRUNCATE);").fetchall()
+    res = Print._meta.database.execute_sql("PRAGMA wal_autocheckpoint=-1;").fetchall()
+    res = Print._meta.database.execute_sql("PRAGMA wal_checkpoint(TRUNCATE);").fetchall()
     print(f'INITIAL WALL CHECKPOINT = {res}', flush=True)
 
     # self.parent_conn = self.service.ctx.socket(zmq.PUSH)
@@ -300,7 +302,7 @@ class PrintTask(AncillaTask):
         current_pos = self.service.current_print.state.get("pos", 0)
         fp.seek(current_pos)
         line = fp.readline()
-        self.start_time = time.time()
+        
         self.current_commands = []
 
         while self.state.status == "running":
@@ -403,8 +405,8 @@ class PrintTask(AncillaTask):
           self.service.command_queue.clear()
           break
 
-    res = Print.__meta.database.execute_sql("PRAGMA wal_autocheckpoint=2000;").fetchall()
-    res = Print.__meta.database.execute_sql("PRAGMA wal_checkpoint(TRUNCATE);").fetchall()
+    res = Print._meta.database.execute_sql("PRAGMA wal_autocheckpoint=2000;").fetchall()
+    res = Print._meta.database.execute_sql("PRAGMA wal_checkpoint(TRUNCATE);").fetchall()
     print(f'Final WALL CHECKPOINT = {res}', flush=True)
     return self.cleanup()
 
