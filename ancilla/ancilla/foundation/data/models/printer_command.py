@@ -38,7 +38,8 @@ class PrinterCommand(BaseModel):
 
 
   def identifier(self):
-    return f'{self.id}:{self.created_at}:{self.parent_id}:{self.command}'
+    cmd = self.command.strip("\n")
+    return f'{cmd}:{self.created_at}'
 
   
   @property

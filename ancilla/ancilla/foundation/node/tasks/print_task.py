@@ -113,12 +113,12 @@ def run_save_command(task_id, current_print, cmd_queue):
               break
 
             # if respcommand["status"] == "finished":
-            # if respcommand.status == "finished":
-            #   # current_print.state["pos"] = pos
-            #   # current_print.save()
-            #   prnt.save()
-            #   respcommand.save()
-            #   # cmd_queue.send(('done', respcommand.id))
+            if respcommand.status == "finished":
+              # current_print.state["pos"] = pos
+              # current_print.save()
+              prnt.save()
+              respcommand.save()
+              # cmd_queue.send(('done', respcommand.id))
         elif key == "close":
           running = False
 
@@ -207,19 +207,21 @@ class PrintTask(AncillaTask):
     try:
       cmd = payload.get("command")
       is_comment = cmd.startswith(";")
-      self.curcommand = self.service.add_command(self.task_id, cnt, cmd, is_comment, print_id=self.service.current_print.id)
+      self.service.add_command(self.task_id, cnt, cmd, is_comment, skip_queue=True, print_id=self.service.current_print.id)
+      # self.curcommand = self.service.add_command(self.task_id, cnt, cmd, is_comment, print_id=self.service.current_print.id)
       # current_command = service.add_command(self.task_id, cnt, cmd.encode('ascii'))
-      # await sleep(0.1)
+      await sleep(0.1)
+      return {"status": "sent"}
       # print(f"TEMP Before = {self.curcommand}", flush=True)
       
-      while self.command_active(self.curcommand):
-        await sleep(0.1)
+      # while self.command_active(self.curcommand):
+      #   await sleep(0.1)
       
-      print(f"TEMP= {self.curcommand.status} {self.curcommand.response}", flush=True)
+      # print(f"TEMP= {self.curcommand.status} {self.curcommand.response}", flush=True)
 
-      if self.curcommand.status == "finished" and len(self.curcommand.response) > 0:
-        self.service.current_print.state["temp"] = self.curcommand.response[0]
-      return {"status": self.curcommand.status}
+      # if self.curcommand.status == "finished" and len(self.curcommand.response) > 0:
+      #   self.service.current_print.state["temp"] = self.curcommand.response[0]
+      # return {"status": self.curcommand.status}
 
     except Exception as e:
       print(f"Couldnot run task {self.name}: {str(e)}")
