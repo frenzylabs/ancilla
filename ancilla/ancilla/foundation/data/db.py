@@ -18,7 +18,7 @@ DEFAULT_MIGRATE_DIR = os.path.join(os.path.abspath(os.path.dirname(__file__)), '
 class Database(object):
   path = "/".join([Env.ancilla, ".a_store"])
   conn = SqliteExtDatabase(path, pragmas=(
-    # ('cache_size', -1024 * 64),  # 64MB page-cache.
+    ('cache_size', -1024 * 64),  # 64MB page-cache.
     ('journal_mode', 'wal'),  # Use WAL-mode (you should always use this!).
     ('foreign_keys', 1),
     ('threadlocals', True)))

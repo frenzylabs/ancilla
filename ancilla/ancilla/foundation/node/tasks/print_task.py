@@ -71,13 +71,14 @@ def run_save_command(task_id, current_print, cmd_queue):
     ('threadlocals', True)))
     # {'foreign_keys' : 1, 'threadlocals': True})
   conn.connect()
-  res = conn.execute_sql("PRAGMA wal_autocheckpoint=0;").fetchall()
+  res = conn.execute_sql("PRAGMA wal_autocheckpoint=-1;").fetchall()
   res = conn.execute_sql("PRAGMA wal_checkpoint(TRUNCATE);").fetchall()
-  print(f'INITIAL WALL CHECKPOINT = {res}')
+  print(f'INITIAL WALL CHECKPOINT = {res}', flush=True)
   # res = conn.execute_sql("PRAGMA wal_autocheckpoint;").fetchall()
   
-  from ...data.models import Print, PrintSlice, PrinterCommand
-  PrinterCommand._meta.database = conn
+  # from ...data.models import Print, PrintSlice, PrinterCommand
+  # PrinterCommand._meta.database = conn
+  # Print._meta.database = conn
 
 
 
@@ -279,6 +280,10 @@ class PrintTask(AncillaTask):
     self.p.daemon = True
     self.p.start()
 
+    res = Print.__meta.database.execute_sql("PRAGMA wal_autocheckpoint=-1;").fetchall()
+    res = Print.__meta.database.execute_sql("PRAGMA wal_checkpoint(TRUNCATE);").fetchall()
+    print(f'INITIAL WALL CHECKPOINT = {res}', flush=True)
+
     # self.parent_conn = self.service.ctx.socket(zmq.PUSH)
     # self.parent_conn.bind("tcp://127.0.0.1:5557")
     # self.p = ctx.Process(target=run_save_command, args=(self.task_id, self.service.current_print,))
@@ -398,6 +403,9 @@ class PrintTask(AncillaTask):
           self.service.command_queue.clear()
           break
 
+    res = Print.__meta.database.execute_sql("PRAGMA wal_autocheckpoint=2000;").fetchall()
+    res = Print.__meta.database.execute_sql("PRAGMA wal_checkpoint(TRUNCATE);").fetchall()
+    print(f'Final WALL CHECKPOINT = {res}', flush=True)
     return self.cleanup()
 
 
