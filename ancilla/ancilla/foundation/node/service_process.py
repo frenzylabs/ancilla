@@ -17,8 +17,9 @@ import importlib
 import os
 
 import json
+from playhouse.signals import Signal, post_save, post_delete
 
-
+from ..data.models import Service
 from ..utils.service_json_encoder import ServiceJsonEncoder
 
 from functools import partial
@@ -45,9 +46,10 @@ from ..utils.dict import ConfigDict
 class ServiceProcess():
 
 
-    def __init__(self, identity, child_conn, handler, **kwargs): 
+    def __init__(self, identity, service_id, child_conn, handler, **kwargs): 
 
         self.identity = identity
+        self.model = Service.get(Service.id == service_id)
         self.child_conn = child_conn
         self.data_handlers = []      
         self.handler = handler(self)
@@ -75,8 +77,8 @@ class ServiceProcess():
 
     
     @classmethod
-    def start_process(cls, identity, child_conn, handler):
-      inst = cls(identity, child_conn, handler)
+    def start_process(cls, identity, service_id, child_conn, handler):
+      inst = cls(identity, service_id, child_conn, handler)
       inst.run()
 
     def setup(self):
@@ -84,11 +86,10 @@ class ServiceProcess():
       from ..data.db import Database
       from playhouse.sqlite_ext import SqliteExtDatabase
       import zmq
-      import cv2
       Env.setup()
       
       conn = SqliteExtDatabase(Database.path, pragmas=(
-        # ('cache_size', -1024 * 64),  # 64MB page-cache.
+        ('cache_size', -1024 * 64),  # 64MB page-cache.
         ('journal_mode', 'wal'),  # Use WAL-mode (you should always use this!).
         ('foreign_keys', 1),
         ('threadlocals', True)))
@@ -101,6 +102,15 @@ class ServiceProcess():
       self.task_queue = Queue()
       self.current_tasks = {}
       self.video_processor = None
+
+    def model_updated(self):
+      print(f"ServiceProcess POST SAVE HANDLER")
+      # if self.model.id != instance.id:
+      #   return
+      
+      self.model = Service.get_by_id(self.model.id)
+      if hasattr(self.handler, "model_updated"):
+        self.handler.model_updated()
 
     def setup_event_loop(self):
       self.evtloop = asyncio.new_event_loop()
@@ -205,6 +215,8 @@ class ServiceProcess():
               child_conn.send((key, self.router_address))
             elif key == "pubsub_address":
               child_conn.send((key, self.pubsub_address))
+            elif key == "model_updated":
+              self.model_updated()
             elif key == "stop":
               self.stop_process()              
               child_conn.send((key, "success"))

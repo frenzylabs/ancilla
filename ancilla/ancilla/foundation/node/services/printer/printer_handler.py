@@ -46,12 +46,13 @@ class PrinterHandler():
 
     def __init__(self, process, **kwargs): 
       self.process = process
-      self.printer_data_handler = PrinterDataHandler(self)
-      self.process.register_data_handlers(self.printer_data_handler)
+      self.data_handler = PrinterDataHandler(self)
+      self.process.register_data_handlers(self.data_handler)
       self.command_queue = CommandQueue()
         
     
     state = DelegatedAttribute('process', 'state')
+    model = DelegatedAttribute('process', 'model')
     identity = DelegatedAttribute('process', 'identity')
     fire_event = DelegatedAttribute('process', 'fire_event')
 
@@ -61,6 +62,11 @@ class PrinterHandler():
 
       self.process.fire_event(PrinterEvent.connection.closed, {"status": "success"})
     
+    def model_updated(self):
+      print(f"Handler Model update HANDLER")
+      
+      if hasattr(self.data_handler, "model_updated"):
+        self.data_handler.model_updated()
 
     def connect(self, data):
       printer = data.get("printer")
@@ -75,6 +81,8 @@ class PrinterHandler():
       self.process.state.connected = True
       self.fire_event(PrinterEvent.connection.opened, {"status": "success"})
       return {"status": "connected"}
+
+
 
 
     def process_commands(self):

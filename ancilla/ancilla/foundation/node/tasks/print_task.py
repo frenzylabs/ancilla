@@ -26,6 +26,7 @@ from .ancilla_task import AncillaTask, PeriodicTask
 from ..events.printer import Printer
 from ...data.models import Print, PrintSlice, PrinterCommand
 
+from ...data.db import Database
 
 from multiprocessing import Process, Queue, Lock, Pipe
 from queue import Empty as QueueEmpty
@@ -71,14 +72,15 @@ def run_save_command(task_id, current_print, cmd_queue):
     ('threadlocals', True)))
     # {'foreign_keys' : 1, 'threadlocals': True})
   conn.connect()
-  res = conn.execute_sql("PRAGMA wal_autocheckpoint=-1;").fetchall()
+  # res = conn.execute_sql("PRAGMA journal_size_limit = -1;").fetchall()
+  # res = conn.execute_sql("PRAGMA wal_autocheckpoint = -1;").fetchall()
   res = conn.execute_sql("PRAGMA wal_checkpoint(TRUNCATE);").fetchall()
-  print(f'INITIAL WALL CHECKPOINT = {res}', flush=True)
+  print(f'PROCESS INITIAL WALL CHECKPOINT = {res}', flush=True)
   # res = conn.execute_sql("PRAGMA wal_autocheckpoint;").fetchall()
   
   # from ...data.models import Print, PrintSlice, PrinterCommand
-  # PrinterCommand._meta.database = conn
-  # Print._meta.database = conn
+  PrinterCommand._meta.database = conn
+  Print._meta.database = conn
 
 
 
@@ -122,8 +124,9 @@ def run_save_command(task_id, current_print, cmd_queue):
             if respcommand.status == "finished":
               # current_print.state["pos"] = pos
               # current_print.save()
-              prnt.save()
-              respcommand.save()
+              # prnt.save()
+              Print.update(state=prnt.state).where(Print.id == prnt.id).execute()
+              # respcommand.save()
               # cmd_queue.send(('done', respcommand.id))
         elif key == "close":
           running = False
@@ -135,7 +138,7 @@ def run_save_command(task_id, current_print, cmd_queue):
 
   res = conn.execute_sql("PRAGMA wal_checkpoint(TRUNCATE);").fetchall()
   print(f'WALL CHECKPOINT = {res}')
-  res = conn.execute_sql("PRAGMA wal_autocheckpoint=2000;").fetchall()
+  # res = conn.execute_sql("PRAGMA wal_autocheckpoint=2000;").fetchall()
 
 
 
@@ -174,7 +177,8 @@ class PrintTask(AncillaTask):
     # ["wessender", "start_print", {"name": "printit", "file_id": 1}]
 
   def command_active(self, cmd):
-    return (self.state.status == "running" and (cmd.status == "pending" or cmd.status == "busy" or cmd.status == "running"))
+    return (cmd.status == "pending" or cmd.status == "busy" or cmd.status == "running")
+    # return (self.state.status == "running" and (cmd.status == "pending" or cmd.status == "busy" or cmd.status == "running"))
 
   def handle_current_commands(self):
     new_command_list = []
@@ -281,9 +285,11 @@ class PrintTask(AncillaTask):
     self.p = ctx.Process(target=run_save_command, args=(self.task_id, self.service.current_print, child_conn,))
     self.p.daemon = True
     self.p.start()
-
-    res = Print._meta.database.execute_sql("PRAGMA wal_autocheckpoint=-1;").fetchall()
-    res = Print._meta.database.execute_sql("PRAGMA wal_checkpoint(TRUNCATE);").fetchall()
+    
+    
+    # res = Database.conn.execute_sql("PRAGMA journal_size_limit = -1;").fetchall()
+    # res = Database.conn.execute_sql("PRAGMA wal_autocheckpoint = -1;").fetchall()
+    res = Database.conn.execute_sql("PRAGMA wal_checkpoint(TRUNCATE);").fetchall()
     print(f'INITIAL WALL CHECKPOINT = {res}', flush=True)
 
     # self.parent_conn = self.service.ctx.socket(zmq.PUSH)
@@ -332,7 +338,8 @@ class PrintTask(AncillaTask):
           self.handle_current_commands()
 
           # self.current_commands = self.handle_current_commands(current_commands)
-          print(f'CurCmds: {len(self.service.command_queue.current_commands)} Queu: {len(self.service.command_queue.queue)} Current Commands: {self.service.command_queue.current_commands}', flush=True)
+          # print(f'CurCmds: {len(self.service.command_queue.current_commands)} Queu: {len(self.service.command_queue.queue)}')
+          # print(f'CurCmds: {len(self.service.command_queue.current_commands)} Queu: {len(self.service.command_queue.queue)} Current Commands: {self.service.command_queue.current_commands}', flush=True)
           # await sleep(0)
           self.current_commands.append((pos, command))
 
@@ -343,6 +350,9 @@ class PrintTask(AncillaTask):
             # IOLoop().current().add_callback(self.handle_current_commands)
             await sleep(0.01)
             self.handle_current_commands()
+            # if self.state.status != "running":
+            #   self.current_command.status = self.state.status
+            #   break
             # current_commands = self.handle_current_commands(current_commands)
 
           # if len(current_commands) < 10:
@@ -394,8 +404,12 @@ class PrintTask(AncillaTask):
       self.state.reason = str(e)
       print(f"Print Exception: {str(e)}", flush=True)
     
+    print(f'Stop Print Task', flush=True)
+    print(f'Current Queue = {self.service.command_queue.queue}')
     self.service.command_queue.queue.clear()
     self.current_commands = [(pos, cmd) for (pos, cmd) in self.current_commands if cmd.status != "pending"]
+
+    print(f'Current Commands = {self.service.command_queue.queue}')
     
     timeout = time.time()
     while len(self.current_commands) > 0:
@@ -404,10 +418,11 @@ class PrintTask(AncillaTask):
         if time.time() - timeout > 10:
           self.service.command_queue.clear()
           break
-
-    res = Print._meta.database.execute_sql("PRAGMA wal_autocheckpoint=2000;").fetchall()
-    res = Print._meta.database.execute_sql("PRAGMA wal_checkpoint(TRUNCATE);").fetchall()
-    print(f'Final WALL CHECKPOINT = {res}', flush=True)
+    # self.service.command_queue.clear()
+    
+    # res = Database.conn.execute_sql("PRAGMA wal_autocheckpoint=2000;").fetchall()
+    # res = Database.conn.execute_sql("PRAGMA wal_checkpoint(TRUNCATE);").fetchall()
+    # print(f'Final WALL CHECKPOINT = {res}', flush=True)
     return self.cleanup()
 
 

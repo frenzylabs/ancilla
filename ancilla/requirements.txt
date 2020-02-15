@@ -56,4 +56,5 @@ whichcraft==0.6.1
 zeroconf==0.23.0
 zmq==0.0.0
 netifaces>=0.10.9
+python-json-logger
 # pybluez>=0.0.0

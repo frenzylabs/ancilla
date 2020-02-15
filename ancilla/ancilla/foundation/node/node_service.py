@@ -99,6 +99,7 @@ class NodeService(App):
         self.api = NodeApi(self)
 
         post_save.connect(self.post_save_handler, name=f'service_model', sender=Service)
+        post_delete.connect(self.post_delete_service_handler, name=f'camera_model', sender=Service)
         post_save.connect(self.post_save_node_handler, name=f'node_model', sender=Node)
         post_delete.connect(self.post_delete_camera_handler, name=f'camera_model', sender=Camera)
 
@@ -286,9 +287,12 @@ class NodeService(App):
                 del srv.event_handlers[key]
 
 
-    def post_delete_camera_recording_handler(self, sender, instance, *args, **kwargs):
-      print(f"Post Delete of Camera Recording {sender} {instance}")
+    def post_delete_service_handler(self, sender, instance, *args, **kwargs):
+      service_path = "/".join([Env.ancilla, "services", f"service{instance.id}"])
+      if os.path.exists(service_path):
+          shutil.rmtree(service_path)
       # self.delete_recording(instance)
+
 
     def post_delete_camera_handler(self, sender, instance, *args, **kwargs):
       service_id = instance.service_id

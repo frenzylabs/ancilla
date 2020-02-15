@@ -8,14 +8,17 @@
 
 from .data_handler import DataHandler
 from ..events.printer import Printer
-import json
-import re
+import json, time, re, os
+import logging
+from logging.handlers import RotatingFileHandler
+
+from ...env import Env
 
 class PrinterHandler(DataHandler):
   def __init__(self, service, *args):
-      self.service = service
+      super().__init__(service, *args)
 
-      
+
       ## Test if data is a temperature result
       self.temp_regex = re.compile('(?:ok\s)*([T|B|C]\d*:[^\s\/]+\s*\/.*)')
 
@@ -61,43 +64,69 @@ class PrinterHandler(DataHandler):
       else:
         newmsg = decodedmsg
 
-      # if self.printer_temp(newmsg):
+      status = status.decode('utf-8')
+
+      cmd = None
+      if self.printer_temp(newmsg):
       #   return
-      # next((item for item in d.keys() if item.startswith("M1")), None)
+        active_commands = self.service.command_queue.current_commands.keys()
+        cmdkey = next((item for item in active_commands if item.startswith("M105")), None)
+        if cmdkey:
+          cmd = self.service.command_queue.current_commands[cmdkey]
+      else:
+        cmd = self.service.command_queue.get_active_command()
+      
+      # if self.service.current_print and not self.logfp:
+        
+      #   logdir = "/".join([Env.ancilla, 'prints'])
+      #   logpath = "/".join([logdir, f'{self.service.current_print.id}.log'])
+      #   if not os.path.exists(logdir):
+      #     os.makedirs(logdir)
+      #   self.logfp = open(logpath, 'a')
+      
+      log_level = logging.INFO
+      cmdstatus = None
+      
 
-      cmd = self.service.command_queue.get_active_command()
-      
-      
-      if not self.printer_temp(newmsg) and cmd:
+      if status == 'error':
+        cmdstatus = "error"
+        log_level = logging.ERROR
+
+
+      if cmd:
         # identifier = identifier + b'.printer.log'
-        print(f"INSIDE CMD on data {cmd.command}:  {newmsg}", flush=True)
-        cmdstatus = None
+        # print(f"INSIDE CMD on data {cmd.command}:  {newmsg}", flush=True)
+        self.logger.debug(f"INSIDE CMD ON DATA = {cmd.command}: {newmsg}")
+        
 
-
-        if status == b'error':
+        if status == 'error':
           cmdstatus = "error"
-          self.service.command_queue.finish_current_command(status="error")
+          log_level = logging.ERROR
+          self.service.command_queue.finish_command(cmd, status="error")
         else:
           if newmsg.startswith("busy:"):
             cmdstatus = "busy"
+            log_level = logging.DEBUG
             self.service.command_queue.update_expiry()
           elif newmsg.startswith("Error:"):
             cmdstatus = "error"
-            self.service.command_queue.finish_current_command(status="error")
+            log_level = logging.ERROR
+            self.service.command_queue.finish_command(cmd, status="error")
           else:
             cmdstatus = "running"
+            log_level = logging.INFO
             cmd.response.append(newmsg)
 
           if newmsg.startswith("ok") or newmsg == "k\n":
             cmdstatus = "finished"
-            self.service.command_queue.finish_current_command()
-
+            log_level = logging.INFO
+            self.service.command_queue.finish_command(cmd)
+          
         payload = {"status": cmdstatus, "sequence": cmd.sequence, "command": cmd.command, "resp": newmsg, "req_id": cmd.parent_id}
-        cmd = None
       else:
-        payload = {"status": status.decode('utf-8'), "resp": newmsg}
+        payload = {"status": status, "resp": newmsg}
 
-      
+      self.log_printer_output(log_level, payload)
       return [eventkind, identifier, json.dumps(payload).encode('ascii')]
 
 
@@ -110,4 +139,13 @@ class PrinterHandler(DataHandler):
       self.service.state.temp = tempstr
       return True
     return False
+
+  def log_printer_output(self, level, msg):
+    d = {"message": json.dumps(msg)}
+    if self.service.current_print:
+      d.update({ "print_id": self.service.current_print.id })
+    self.logger.log(level, d)
+
+
+
 

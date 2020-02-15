@@ -77,7 +77,7 @@ class SerialConnector(object):
               # data += self.serial.read()
               # print(f"INSIDE READER {data}")
               if b'\n' in data:
-                  publisher.send_multipart([self.identity+ b'.data_received', b'resp', data])
+                  publisher.send_multipart([self.identity+ b'.data_received', b'', data])
                   data = b''
           except Exception as e:
               # except socket.error as msg: 

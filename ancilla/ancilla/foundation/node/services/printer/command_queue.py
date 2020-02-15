@@ -73,6 +73,16 @@ class CommandQueue(object):
       if cb:
           res = cb(cmd.__data__)
       self.current_commands.pop(cmd.identifier(), None)
+      if self.current_command and self.current_command.identifier() == cmd.identifier():
+        self.current_command = None
+        self.current_expiry = None
+
+      # else:        
+      #   print("FINISHE COMMAND NOT Same")
+      #   cm = "None"
+      #   if self.current_command:
+      #     cm = self.current_command.json
+      #   print(f"CMD = {cmd.json} and CurCommand= {cm}")
       
 
 

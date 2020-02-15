@@ -25,6 +25,7 @@ from .app import App
 from ..utils.service_json_encoder import ServiceJsonEncoder
 from ..utils import yields
 from ..utils.dict import ConfigDict
+from .response import AncillaResponse
 
 from playhouse.signals import Signal, post_save
 
@@ -34,8 +35,10 @@ class BaseService(App):
         "get_state",
         "log_stuff"
       ]
+    
     def __init__(self, model, **kwargs):
         super().__init__()
+        self.connector = None
 
         self.model = model
         self.load_config(model.configuration)
@@ -103,6 +106,22 @@ class BaseService(App):
       self.model = service_model
       self.name = service_model.name
       self.encoded_name = self.name.encode('ascii')
+      if self.connector:
+        # request = Request({"action": "update_", "body": msg})
+        self.connector.update_model()
+        # if yields(res):
+        #   future = asyncio.run_coroutine_threadsafe(res, asyncio.get_running_loop())
+          
+        #   # zmqrouter = self.zmq_router
+        #   def onfinish(fut):
+        #     # res = b''
+        #     try:
+        #       newres = fut.result(1)     
+        #     except Exception as a:
+        #       # res = ar.encode()
+        #       print(f'Event Handle Error {str(e)}')
+
+        #   future.add_done_callback(onfinish)
 
     def load_config(self, dic):
       self.config.load_dict(dic)

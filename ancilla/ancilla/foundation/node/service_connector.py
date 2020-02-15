@@ -61,7 +61,7 @@ class ServiceConnector():
         self.ctx = zmq.Context()
         
         self.rpc, self.child_conn = mp.Pipe()
-        self.p = processCtx.Process(target=ServiceProcess.start_process, args=(self.identity, self.child_conn, handler))
+        self.p = processCtx.Process(target=ServiceProcess.start_process, args=(self.identity, self.service.model.id, self.child_conn, handler))
         
         
     def start(self, *args):
@@ -131,6 +131,12 @@ class ServiceConnector():
       (key, val) = self.rpc.recv()
       self.pubsub_address = val
       return self.pubsub_address
+    
+    def update_model(self):
+      self.rpc.send(("model_updated", ""))
+      # (key, val) = self.rpc.recv()
+      # self.pubsub_address = val
+      # return self.pubsub_address
       
     def on_process_event(self, msg):
       # print(f"CAM PUBSUB Msg = {msg}", flush=True)

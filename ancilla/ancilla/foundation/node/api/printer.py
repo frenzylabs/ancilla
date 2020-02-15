@@ -253,15 +253,15 @@ class PrinterApi(Api):
     per_page = int(request.params.get("per_page") or 5)
     if request.params.get("print_id"):
       prnt = Print.get_by_id(request.params.get("print_id"))
-      q = prnt.commands.order_by(PrinterCommand.created_at.desc())
+      q = prnt.commands #.order_by(PrinterCommand.created_at.desc())
     else:
-      q = self.service.printer.commands.order_by(PrinterCommand.created_at.desc())
+      q = self.service.printer.commands #.order_by(PrinterCommand.created_at.desc())
 
     if request.params.get("q[command]"):
       q = q.where(PrinterCommand.command % (request.params.get("q[command]")+"*"))
     
     # prnt = Print.get_by_id(print_id)
-    # q = prnt.commands.order_by(PrinterCommand.created_at.desc())
+    q = q.order_by(PrinterCommand.id.desc())
     cnt = q.count()
     num_pages = math.ceil(cnt / per_page)
     return {"data": [p.to_json(recurse=False) for p in q.paginate(page, per_page)], "meta": {"current_page": page, "last_page": num_pages, "total": cnt}}
