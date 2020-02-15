@@ -30,6 +30,9 @@ push_staging:
 all: run
 
 
+clean-docker:
+	docker rm $(shell docker ps -a -q)
+	docker rmi $(shell docker images | grep '^<none>' | awk '{print $$3}')
 
 clean-ui:
 	@rm -rf ancilla/ui

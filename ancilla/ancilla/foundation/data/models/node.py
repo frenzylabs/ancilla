@@ -24,9 +24,9 @@ class Node(BaseModel):
   original_name    = CharField()
   uuid             = CharField()
   description      = CharField(null=True)
-  configuration    = JSONField(default={})
-  settings         = JSONField(default={})
-  event_listeners  = JSONField(default={})
+  configuration    = JSONField(default=dict)
+  settings         = JSONField(default=dict)
+  event_listeners  = JSONField(default=dict)
 
   @property
   def node_name(self):

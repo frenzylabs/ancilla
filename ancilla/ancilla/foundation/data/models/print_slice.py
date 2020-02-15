@@ -23,7 +23,7 @@ class PrintSlice(BaseModel):
   path            = CharField(unique=True)
   source          = CharField(default="local")
   description     = CharField(null=True)
-  properties      = JSONField(default={})
+  properties      = JSONField(default=dict)
   layerkeep_id    = IntegerField(null=True)
 
   @property

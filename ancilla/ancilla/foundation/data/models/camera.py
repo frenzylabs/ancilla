@@ -24,7 +24,7 @@ class Camera(BaseModel):
   endpoint  = CharField(unique=True)
   # baud_rate = CharField()
   service    = ForeignKeyField(Service, null=True, default=None, on_delete="SET NULL", backref="camera")
-  settings   = JSONField(default={})
+  settings   = JSONField(default=dict)
   # service_id = IntegerField(null=True)
 
   @property

@@ -23,10 +23,10 @@ from playhouse.sqlite_ext import JSONField
 class Print(BaseModel):
   name      = CharField(null=True)
   status    = CharField(null=True)
-  state     = JSONField(default={})
-  settings  = JSONField(default={})
+  state     = JSONField(default=dict)
+  settings  = JSONField(default=dict)
 
-  printer_snapshot = JSONField(default={})
+  printer_snapshot = JSONField(default=dict)
   printer    = ForeignKeyField(Printer, on_delete="CASCADE", backref='prints')
   print_slice    = ForeignKeyField(PrintSlice, on_delete="SET NULL", null=True, backref='prints')
 

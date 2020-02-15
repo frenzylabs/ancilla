@@ -22,9 +22,9 @@ class Service(BaseModel):
   name             = CharField()
   kind             = CharField()
   class_name       = CharField()
-  configuration    = JSONField(default={})
-  settings         = JSONField(default={})
-  event_listeners  = JSONField(default={})
+  configuration    = JSONField(default=dict)
+  settings         = JSONField(default=dict)
+  event_listeners  = JSONField(default=dict)
 
   @property
   def service_name(self):

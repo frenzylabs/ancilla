@@ -20,8 +20,8 @@ from peewee import (
 from playhouse.sqlite_ext import JSONField
 
 class ServiceAttachment(BaseModel):    
-  settings     = JSONField(default={})
-  listeners    = JSONField(default={})
+  settings     = JSONField(default=dict)
+  listeners    = JSONField(default=dict)
   parent       = ForeignKeyField(Service, on_delete="CASCADE", column_name='parent_id', index=True, null=False, backref="service_attachments")
   attachment   = ForeignKeyField(Service, on_delete="CASCADE", column_name='attachment_id', index=True, null=False, backref="attached_to")
 
