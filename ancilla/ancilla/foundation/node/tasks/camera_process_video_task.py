@@ -67,7 +67,7 @@ class CameraProcessVideoTask(AncillaTask):
 
     
     image_collector = self.service.ctx.socket(zmq.SUB)
-    image_collector.setsockopt(zmq.RCVHWM, 100)
+    # image_collector.setsockopt(zmq.RCVHWM, 100)
     # image_collector.setsockopt(zmq.CONFLATE, 1)
     # image_collector.setsockopt(zmq.RCVBUF, 2*1024)
 
@@ -131,7 +131,7 @@ class CameraProcessVideoTask(AncillaTask):
     # print(f"RUN Camera Image Processor SERVER: {self.processed_stream}", flush=True)
 
     self.publish_data = ctx.socket(zmq.XPUB)
-    self.publish_data.setsockopt(zmq.SNDHWM, 10)
+    # self.publish_data.setsockopt(zmq.SNDHWM, 100)
     # self.publish_data.setsockopt(zmq.SNDBUF, 2*1024)
     self.publish_data.bind(self.processed_stream)
 
