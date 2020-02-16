@@ -41,6 +41,8 @@ from .request import Request
 from ..utils import yields
 from ..utils.dict import ConfigDict
 
+import resource, gc, signal
+import psutil
 
 
 class ServiceProcess():
@@ -74,12 +76,30 @@ class ServiceProcess():
 
         self.setup_data()
 
+        
+        self.limit_memory()
+        soft, hard = resource.getrlimit(resource.RLIMIT_AS) 
+        print(f'MEM limit NOW = {soft}, {hard}')
+
 
     
     @classmethod
-    def start_process(cls, identity, service_id, child_conn, handler):
+    def start_process(cls, identity, service_id, child_conn, handler):      
       inst = cls(identity, service_id, child_conn, handler)
       inst.run()
+
+  
+    def _hangle_sig_memory(self, signum, stack):
+      print("handle memory sig")
+      gc.collect()
+
+    def limit_memory(self): 
+      maxhard = psutil.virtual_memory().available
+      maxsoft = maxhard / 2
+      soft, hard = resource.getrlimit(resource.RLIMIT_AS) 
+      print(f'Service MEM limit Before = {soft}, {hard}')
+      resource.setrlimit(resource.RLIMIT_AS, (maxsoft, maxhard))
+      self._old_usr1_hdlr = signal.signal(signal.SIGUSR1, self._hangle_sig_memory)
 
     def setup(self):
       from ..env import Env

@@ -81,12 +81,14 @@ class CameraRecordTask(AncillaTask):
     self.current_frame = None
 
     event_socket = self.service.ctx.socket(zmq.SUB)
+    event_socket.setsockopt(zmq.RCVHWM, 1)
+    event_socket.setsockopt(zmq.RCVBUF, 1*1024)
     event_socket.connect(processor.get("stream"))    
     
 
     self.event_stream = ZMQStream(event_socket)
     self.event_stream.linger = 0
-    self.event_stream.on_recv(self.on_data, copy=True)
+    self.event_stream.on_recv(self.on_data, copy=False)
     event_socket.setsockopt(zmq.SUBSCRIBE, self.name.encode('ascii'))
     event_socket.setsockopt(zmq.SUBSCRIBE, b'')
 
@@ -99,10 +101,16 @@ class CameraRecordTask(AncillaTask):
   def on_data(self, data):
     # identity, identifier, frm_num, frame = data
     if len(data) == 3:
-      topic, framenum, imgdata = data
+      
     # print("CR Task, ON DATA", flush=True)
       # gc.collect()
-      self.current_frame = imgdata
+      # self.current_frame = imgdata
+      if  not self.current_frame:
+        topic, framenum, imgdata = data
+        # self.current_frame = imgdata
+        self.current_frame = imgdata.bytes
+      # else:
+      #   print(f'Received but no processing')
     else:
       print("CONNECTINO CLOSED")
       if data[0].endswith(b'connection.closed'):

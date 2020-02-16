@@ -27,6 +27,8 @@ from ...request import Request
 
 from ....utils.delegate import DelegatedAttribute
 
+import resource
+
 class CameraHandler():
     __actions__ = [
       "start_recording",
@@ -43,6 +45,7 @@ class CameraHandler():
       self.process = process
       self.camera_data_handler = CameraDataHandler(self)
       self.process.register_data_handlers(self.camera_data_handler)
+    
 
     state = DelegatedAttribute('process', 'state')
     identity = DelegatedAttribute('process', 'identity')

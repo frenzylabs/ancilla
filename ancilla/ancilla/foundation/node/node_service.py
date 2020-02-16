@@ -26,6 +26,8 @@ from zmq.eventloop.future import Context
 from playhouse.signals import Signal, post_save, post_delete
 import atexit
 
+import resource, psutil, signal, gc
+
 from .app import App
 from ..utils import yields
 from ..utils.dict import ConfigDict
@@ -43,6 +45,7 @@ class NodeService(App):
 
     def __init__(self, api_port=5000):
         super().__init__()
+        self.limit_memory()
         # self.api_port = api_port
         self.__api_port = api_port
 
@@ -102,6 +105,21 @@ class NodeService(App):
         post_delete.connect(self.post_delete_service_handler, name=f'camera_model', sender=Service)
         post_save.connect(self.post_save_node_handler, name=f'node_model', sender=Node)
         post_delete.connect(self.post_delete_camera_handler, name=f'camera_model', sender=Camera)
+
+        
+
+
+    def _hangle_sig_memory(self, signum, stack):
+      print("node service handle memory sig")
+      gc.collect()
+
+    def limit_memory(self): 
+      maxhard = psutil.virtual_memory().available
+      maxsoft = maxhard / 2
+      soft, hard = resource.getrlimit(resource.RLIMIT_AS) 
+      print(f'Node MEM limit = {soft}, {hard}')
+      resource.setrlimit(resource.RLIMIT_AS, (maxsoft, maxhard))
+      self._old_usr1_hdlr = signal.signal(signal.SIGUSR1, self._hangle_sig_memory)
 
     def cleanup(self):
       print('Clean Up Node and Services')

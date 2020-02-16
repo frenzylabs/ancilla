@@ -48,11 +48,14 @@ class ZMQCameraPubSub(object):
     def connect(self, stream):
         self.context = zmq.Context()
         self.subscriber = self.context.socket(zmq.SUB)
+        self.subscriber.setsockopt(zmq.RCVHWM, 1)
+        self.subscriber.setsockopt(zmq.RCVBUF, 1*1024)
+        self.subscriber.setsockopt( zmq.LINGER, 0 )
         self.subscriber.connect(stream)
         self.subscriber = ZMQStream(self.subscriber)
         self.subscriber.on_recv(self.callback, copy=False)
         
-        self.subscriber.setsockopt( zmq.LINGER, 0 )
+        
         # self.request.linger = 0
         self.subscriber.setsockopt(zmq.SUBSCRIBE, b"")
         self.subscriber.setsockopt(zmq.SUBSCRIBE, self.name.encode('ascii'))

@@ -38,10 +38,12 @@ import gc
 
 
 class CameraProcessVideoTask(AncillaTask):
-  current_frame = None
+
   def __init__(self, name, service, payload, *args):
     super().__init__(name, *args)
     # self.request_id = request_id
+    self.current_frame = None
+    self.current_framenum = None
     self.payload = payload
     self.task_settings = self.payload.get("settings") or {}
     self.settings = self.task_settings.get("settings") or {"size": [640, 480]}
@@ -64,6 +66,9 @@ class CameraProcessVideoTask(AncillaTask):
     self.current_frame = None
 
     image_collector = self.service.ctx.socket(zmq.SUB)
+    image_collector.setsockopt(zmq.RCVHWM, 2)
+    image_collector.setsockopt(zmq.RCVBUF, 2*1024)
+
     image_collector.connect(self.service.pubsub_address)
     
     
@@ -92,7 +97,8 @@ class CameraProcessVideoTask(AncillaTask):
         return
     else:
       topic, identifier, framenum, imgdata = msg
-
+      fnum = int(framenum.decode('utf-8'))
+      self.current_framenum = fnum
       self.current_frame = [topic, framenum, imgdata]
 
 
@@ -110,7 +116,7 @@ class CameraProcessVideoTask(AncillaTask):
     
 
     while self.state.status == "running":
-        await sleep(0.2)
+        await sleep(1)
 
     print("FINISHED PROCESSING", flush=True)
     self.running = False
@@ -122,6 +128,8 @@ class CameraProcessVideoTask(AncillaTask):
     # print(f"RUN Camera Image Processor SERVER: {self.processed_stream}", flush=True)
 
     self.publish_data = ctx.socket(zmq.XPUB)
+    self.publish_data.setsockopt(zmq.SNDHWM, 2)
+    self.publish_data.setsockopt(zmq.SNDBUF, 2*1024)
     self.publish_data.bind(self.processed_stream)
 
     # self._mon_socket = self.publish_data.get_monitor_socket(zmq.EVENT_CONNECTED | zmq.EVENT_DISCONNECTED)
@@ -139,6 +147,7 @@ class CameraProcessVideoTask(AncillaTask):
     
     self.subscribers = {}
     
+    framenum = 0
     while self.running:
       try:
         if len(self.subscribers.keys()) == 0 and (time.time() - self.subsription_time) > 10:
@@ -146,12 +155,15 @@ class CameraProcessVideoTask(AncillaTask):
           break
           
         try:
-            items = dict(poller.poll(10))
+            items = dict(poller.poll(1))
         except:
             break           # Interrupted4
 
-        if self.current_frame:
+        if framenum != self.current_framenum and self.current_frame:
+          if self.current_framenum - framenum > 1:
+            print(f'Frame: l: {framenum}, cur: {self.current_framenum}')
           self.process_img(self.current_frame)
+          framenum = self.current_framenum 
 
         if self.publish_data in items:
           

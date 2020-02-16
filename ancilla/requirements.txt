@@ -57,4 +57,5 @@ zeroconf==0.23.0
 zmq==0.0.0
 netifaces>=0.10.9
 python-json-logger
+psutil
 # pybluez>=0.0.0
