@@ -67,7 +67,7 @@ class CameraProcessVideoTask(AncillaTask):
 
     
     image_collector = self.service.ctx.socket(zmq.SUB)
-    image_collector.setsockopt(zmq.RCVHWM, 1)
+    image_collector.setsockopt(zmq.RCVHWM, 100)
     # image_collector.setsockopt(zmq.CONFLATE, 1)
     # image_collector.setsockopt(zmq.RCVBUF, 2*1024)
 

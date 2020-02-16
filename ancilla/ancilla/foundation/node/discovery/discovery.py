@@ -247,13 +247,17 @@ class Discovery(object):
             self.agent.udp.broadcast = self.broadcast 
             
         if self.current_address != adr or (self.beacon and self.beacon.address != adr):
-            self.current_address = adr
+            
             if self.beacon:
                 self.beacon.close()
                 self.beacon = None
             if self.current_address:
-                self.beacon = Beacon(self.node.name, address=self.current_address)           
-                self.beacon.update_network(self.node.settings.discovery, self.node.settings.discoverable)
+                try:
+                    self.beacon = Beacon(self.node.name, address=adr)
+                    self.beacon.update_network(self.node.settings.discovery, self.node.settings.discoverable)
+                    self.current_address = adr
+                except Exception as e:
+                    print(f'BeaconUpdate Exception: {str(e)}')
         
         
 
