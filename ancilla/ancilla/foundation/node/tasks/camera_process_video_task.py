@@ -65,9 +65,11 @@ class CameraProcessVideoTask(AncillaTask):
     self.running = False
     self.current_frame = None
 
+    
     image_collector = self.service.ctx.socket(zmq.SUB)
-    image_collector.setsockopt(zmq.RCVHWM, 2)
-    image_collector.setsockopt(zmq.RCVBUF, 2*1024)
+    image_collector.setsockopt(zmq.RCVHWM, 1)
+    # image_collector.setsockopt(zmq.CONFLATE, 1)
+    # image_collector.setsockopt(zmq.RCVBUF, 2*1024)
 
     image_collector.connect(self.service.pubsub_address)
     
@@ -98,6 +100,7 @@ class CameraProcessVideoTask(AncillaTask):
     else:
       topic, identifier, framenum, imgdata = msg
       fnum = int(framenum.decode('utf-8'))
+      # print(f"DATA = {topic}", flush=True)
       self.current_framenum = fnum
       self.current_frame = [topic, framenum, imgdata]
 
@@ -128,8 +131,8 @@ class CameraProcessVideoTask(AncillaTask):
     # print(f"RUN Camera Image Processor SERVER: {self.processed_stream}", flush=True)
 
     self.publish_data = ctx.socket(zmq.XPUB)
-    self.publish_data.setsockopt(zmq.SNDHWM, 2)
-    self.publish_data.setsockopt(zmq.SNDBUF, 2*1024)
+    self.publish_data.setsockopt(zmq.SNDHWM, 10)
+    # self.publish_data.setsockopt(zmq.SNDBUF, 2*1024)
     self.publish_data.bind(self.processed_stream)
 
     # self._mon_socket = self.publish_data.get_monitor_socket(zmq.EVENT_CONNECTED | zmq.EVENT_DISCONNECTED)
@@ -223,8 +226,11 @@ class CameraProcessVideoTask(AncillaTask):
 
       ebytes = encodedImage.tobytes()
       
-      
-      self.publish_data.send_multipart([self.service.identity + b'.data', framenum, ebytes], copy=False)
+      try:
+        self.publish_data.send_multipart([self.service.identity + b'.data', framenum, ebytes], copy=False)
+      except Exception as e:
+        print(f'Publish Exception {str(e)}', flush=True)
+        # pass
       self.ready = True
 
 

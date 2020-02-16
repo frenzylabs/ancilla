@@ -97,14 +97,17 @@ class ServiceProcess():
       maxhard = psutil.virtual_memory().available
       maxsoft = maxhard / 2
       p = psutil.Process(pid=os.getpid())
+      soft, hard = resource.getrlimit(resource.RLIMIT_AS) 
+      h = min([maxhard, hard])
       if hasattr(p, 'rlimit'):
-        soft, hard = p.rlimit(resource.RLIMIT_AS) 
-        print(f'Node MEM limit = {soft}, {hard}')
-        p.rlimit(resource.RLIMIT_AS, (maxsoft, maxhard))
+        # soft, hard = p.rlimit(resource.RLIMIT_AS) 
+        print(f'Service MEM limit = {soft}, {hard}: {h}')
+        
+        p.rlimit(resource.RLIMIT_AS, (maxsoft, h))
       else:
-        soft, hard = resource.getrlimit(resource.RLIMIT_AS) 
-        print(f'Node MEM limit = {soft}, {hard}')
-        resource.setrlimit(resource.RLIMIT_AS, (maxsoft, maxhard))
+        
+        print(f'Service MEM limit = {soft}, {hard}:  {h}')
+        resource.setrlimit(resource.RLIMIT_AS, (maxsoft, h))
       self._old_usr1_hdlr = signal.signal(signal.SIGUSR1, self._hangle_sig_memory)
 
     def setup(self):

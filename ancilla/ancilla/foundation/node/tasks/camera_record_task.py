@@ -81,9 +81,10 @@ class CameraRecordTask(AncillaTask):
     self.current_frame = None
 
     event_socket = self.service.ctx.socket(zmq.SUB)
-    event_socket.setsockopt(zmq.RCVHWM, 1)
-    event_socket.setsockopt(zmq.RCVBUF, 1*1024)
-    event_socket.connect(processor.get("stream"))    
+    event_socket.setsockopt(zmq.RCVHWM, 2)
+    
+    # event_socket.setsockopt(zmq.RCVBUF, 1*1024)
+    event_socket.connect(processor.get("stream"))
     
 
     self.event_stream = ZMQStream(event_socket)
