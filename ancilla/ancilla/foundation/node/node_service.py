@@ -105,7 +105,7 @@ class NodeService(App):
         post_save.connect(self.post_save_node_handler, name=f'node_model', sender=Node)
         post_delete.connect(self.post_delete_camera_handler, name=f'camera_model', sender=Camera)
 
-        self.limit_memory()
+        # self.limit_memory()
         soft, hard = resource.getrlimit(resource.RLIMIT_AS) 
         print(f'MEM limit NOW = {soft}, {hard}')
         
