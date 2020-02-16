@@ -113,9 +113,12 @@ class CameraRecordTask(AncillaTask):
       #   print(f'Received but no processing')
     else:
       print("CONNECTINO CLOSED")
-      if data[0].endswith(b'connection.closed'):
+      if data[0].bytes.endswith(b'connection.closed'):
         self.state.status = "finished"
         self.state.reason = "Connection Disconnected"
+      # if data[0].endswith(b'connection.closed'):
+      #   self.state.status = "finished"
+      #   self.state.reason = "Connection Disconnected"
 
   def flush_camera_frame(self):
     try:
