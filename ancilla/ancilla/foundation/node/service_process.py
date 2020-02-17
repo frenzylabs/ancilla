@@ -77,9 +77,9 @@ class ServiceProcess():
         self.setup_data()
 
         
-        self.limit_memory()
-        soft, hard = resource.getrlimit(resource.RLIMIT_AS) 
-        print(f'MEM limit NOW = {soft}, {hard}')
+        # self.limit_memory()
+        # soft, hard = resource.getrlimit(resource.RLIMIT_AS) 
+        # print(f'MEM limit NOW = {soft}, {hard}')
 
 
     
