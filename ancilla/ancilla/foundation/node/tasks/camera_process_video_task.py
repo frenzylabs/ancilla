@@ -67,7 +67,7 @@ class CameraProcessVideoTask(AncillaTask):
 
     
     image_collector = self.service.ctx.socket(zmq.SUB)
-    # image_collector.setsockopt(zmq.RCVHWM, 100)
+    image_collector.setsockopt(zmq.RCVHWM, 10)
     # image_collector.setsockopt(zmq.CONFLATE, 1)
     # image_collector.setsockopt(zmq.RCVBUF, 2*1024)
 
@@ -163,8 +163,8 @@ class CameraProcessVideoTask(AncillaTask):
             break           # Interrupted4
 
         if framenum != self.current_framenum and self.current_frame:
-          if self.current_framenum - framenum > 1:
-            print(f'Frame: l: {framenum}, cur: {self.current_framenum}')
+          # if self.current_framenum - framenum > 1:
+          #   print(f'Frame: l: {framenum}, cur: {self.current_framenum}')
           self.process_img(self.current_frame)
           framenum = self.current_framenum 
 
@@ -229,7 +229,7 @@ class CameraProcessVideoTask(AncillaTask):
       try:
         self.publish_data.send_multipart([self.service.identity + b'.data', framenum, ebytes], copy=False)
       except Exception as e:
-        print(f'Publish Exception {str(e)}', flush=True)
+        print(f'Publish CamPV Exception {str(e)}', flush=True)
         # pass
       self.ready = True
 

@@ -105,9 +105,9 @@ class NodeService(App):
         post_save.connect(self.post_save_node_handler, name=f'node_model', sender=Node)
         post_delete.connect(self.post_delete_camera_handler, name=f'camera_model', sender=Camera)
 
-        # self.limit_memory()
+        self.limit_memory()
         soft, hard = resource.getrlimit(resource.RLIMIT_AS) 
-        print(f'MEM limit NOW = {soft}, {hard}')
+        print(f'Node MEM limit NOW = {soft}, {hard}')
         
 
 
@@ -115,19 +115,33 @@ class NodeService(App):
       print("node service handle memory sig")
       gc.collect()
 
+
     def limit_memory(self): 
       maxhard = psutil.virtual_memory().available
-      maxsoft = maxhard / 2
+      maxsoft = maxhard
       p = psutil.Process(pid=os.getpid())
-      if hasattr(p, 'rlimit'):
-        soft, hard = p.rlimit(resource.RLIMIT_AS) 
-        print(f'Node MEM limit = {soft}, {hard}')
-        p.rlimit(resource.RLIMIT_AS, (maxsoft, maxhard))
+      soft, hard = resource.getrlimit(resource.RLIMIT_AS) 
+      if hard > 0:
+        h = min([maxhard, hard])
       else:
-        soft, hard = resource.getrlimit(resource.RLIMIT_AS) 
-        print(f'Node MEM limit = {soft}, {hard}')
-        resource.setrlimit(resource.RLIMIT_AS, (maxsoft, maxhard))
+        h = maxhard
+      if h > 0:
+        s = min([maxsoft, h])
+      else:
+        s = maxsoft
+
+      if hasattr(p, 'rlimit'):
+        # soft, hard = p.rlimit(resource.RLIMIT_AS) 
+        print(f'Node MEM limit = {soft}, {hard}: {h}')
+        
+        p.rlimit(resource.RLIMIT_AS, (s, h))
+      else:
+        
+        print(f'Node MEM limit = {soft}, {hard}:  {h}')
+        resource.setrlimit(resource.RLIMIT_AS, (s, h))
       self._old_usr1_hdlr = signal.signal(signal.SIGUSR1, self._hangle_sig_memory)
+
+    
 
     def cleanup(self):
       print('Clean Up Node and Services')
