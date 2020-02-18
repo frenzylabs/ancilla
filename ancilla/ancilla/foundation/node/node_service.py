@@ -103,7 +103,7 @@ class NodeService(App):
         post_save.connect(self.post_save_handler, name=f'service_model', sender=Service)
         post_delete.connect(self.post_delete_service_handler, name=f'camera_model', sender=Service)
         post_save.connect(self.post_save_node_handler, name=f'node_model', sender=Node)
-        post_delete.connect(self.post_delete_camera_handler, name=f'camera_model', sender=Camera)
+        # post_delete.connect(self.post_delete_camera_handler, name=f'camera_model', sender=Camera)
 
         self.limit_memory()
         soft, hard = resource.getrlimit(resource.RLIMIT_AS) 
@@ -214,6 +214,7 @@ class NodeService(App):
       ServiceCls = getattr(importlib.import_module("ancilla.foundation.node.services"), model.class_name)  
       service = ServiceCls(model)
       service.install(LayerkeepCls())
+      self._services.append(model)
       self.mount(prefix, service)
       return ["created", service]
 
@@ -271,7 +272,7 @@ class NodeService(App):
       if model:
         oldmodel = model
         srv = next((item for item in self._mounts if item.model.id == instance.id), None)
-
+        print(f'srv = {srv}')
         oldname = model.name
         model = instance
         # print(f"PostSaveHandler OLDName = {oldname}, instan= {instance.name}", flush=True)
@@ -281,11 +282,13 @@ class NodeService(App):
         if srv:
           srv.update_model(model)
 
-          old_config = oldmodel.configuration          
+          old_config = ConfigDict().load_dict(oldmodel.configuration).to_json() 
+          # old_config = oldmodel.configuration
           old_settings = srv.settings.to_json()
           old_event_listeners = srv.event_handlers.to_json()
           
 
+          
           # print(f"NEWListeners = {json.dumps(srv.model.event_listeners)}", flush=True)
           # print(f"OldListeners = {json.dumps(oldmodel.event_listeners)}", flush=True)
           new_config = ConfigDict().load_dict(srv.model.configuration).to_json() 
@@ -308,6 +311,7 @@ class NodeService(App):
           if old_settings != new_settings:
             # print(f"OldSet = {old_settings}", flush=True)
             # print(f"NEWSet = {new_settings}", flush=True)
+            # print(f"SettingsVke {srv.settings._virtual_keys}", flush=True)
             srv.settings.update(new_settings)
             oldkeys = old_settings.keys()
             newkeys = new_settings.keys()
@@ -328,17 +332,17 @@ class NodeService(App):
 
 
     def post_delete_service_handler(self, sender, instance, *args, **kwargs):
-      service_path = "/".join([Env.ancilla, "services", f"service{instance.id}"])
-      if os.path.exists(service_path):
-          shutil.rmtree(service_path)
+      # service_path = "/".join([Env.ancilla, "services", f"service{instance.id}"])
+      if os.path.exists(instance.directory):
+          shutil.rmtree(instance.directory)
       # self.delete_recording(instance)
 
 
-    def post_delete_camera_handler(self, sender, instance, *args, **kwargs):
-      service_id = instance.service_id
-      cam_path = "/".join([Env.ancilla, "services", f"service{instance.service_id}"])
-      if os.path.exists(cam_path):
-          shutil.rmtree(cam_path)
+    # def post_delete_camera_handler(self, sender, instance, *args, **kwargs):
+    #   service_id = instance.service_id
+    #   cam_path = "/".join([Env.ancilla, "services", f"service{instance.service_id}"])
+    #   if os.path.exists(cam_path):
+    #       shutil.rmtree(cam_path)
 
 
     def init_services(self):

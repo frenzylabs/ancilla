@@ -7,6 +7,7 @@
 '''
 
 from .base import BaseModel
+from ...env import Env
 import re
 
 from peewee import (
@@ -63,6 +64,9 @@ class Service(BaseModel):
       return f"/api/services/{self.kind}/{self.id}/"
     return "/"
 
+  @property
+  def directory(self):
+    return "/".join([Env.ancilla, "services", f"{self.kind}-S{self.id}"])
 
   def __repr__(self):
     return "{}, {}, {}".format(

@@ -130,6 +130,8 @@ class Printer(BaseService):
     async def close(self, *args):
       await self.stop(args)
 
+    def update_model(self, service_model):
+        return super().update_model(service_model)
 
     def cancel(self, task_id, *args):
       if self.current_task["print"]:
@@ -207,5 +209,7 @@ class Printer(BaseService):
         raise e
       except Exception as e:
         raise AncillaError(400, {"error": f"Cant Start Print task {str(e)}"})
+
+
 
               

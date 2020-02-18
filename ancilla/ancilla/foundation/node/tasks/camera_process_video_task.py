@@ -66,12 +66,12 @@ class CameraProcessVideoTask(AncillaTask):
     self.current_frame = None
 
     
-    image_collector = self.service.ctx.socket(zmq.SUB)
+    image_collector = self.service.process.ctx.socket(zmq.SUB)
     image_collector.setsockopt(zmq.RCVHWM, 10)
     # image_collector.setsockopt(zmq.CONFLATE, 1)
     # image_collector.setsockopt(zmq.RCVBUF, 2*1024)
 
-    image_collector.connect(self.service.pubsub_address)
+    image_collector.connect(self.service.process.pubsub_address)
     
     
 
@@ -111,7 +111,7 @@ class CameraProcessVideoTask(AncillaTask):
     self.state.status = "running"
     
     if not self.processing_thread or not self.processing_thread.isAlive():
-        self.processing_thread = threading.Thread(target=self.process_images, args=(self.service.ctx,))
+        self.processing_thread = threading.Thread(target=self.process_images, args=(self.service.process.ctx,))
         self.processing_thread.daemon = True
         # self.thread_read.name = 'camera->reader'
         self.processing_thread.start()
@@ -269,6 +269,5 @@ class CameraProcessVideoTask(AncillaTask):
     # self.state.status = "paused"
 
   def get_state(self):
-    self.state.model = self.service.current_print.json
     self.service.fire_event(Camera.recording.state.changed, self.state)
 

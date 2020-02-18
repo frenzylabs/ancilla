@@ -18,7 +18,6 @@ class PrinterHandler(DataHandler):
   def __init__(self, service, *args):
       super().__init__(service, *args)
 
-
       ## Test if data is a temperature result
       self.temp_regex = re.compile('(?:ok\s)*([T|B|C]\d*:[^\s\/]+\s*\/.*)')
 

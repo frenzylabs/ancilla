@@ -28,36 +28,13 @@ from ...data.models import Print, PrintSlice, PrinterCommand
 
 from ...data.db import Database
 
+from ...env import Env
+
 from multiprocessing import Process, Queue, Lock, Pipe
 from queue import Empty as QueueEmpty
 import multiprocessing as mp
 import pickle
 
-
-def pr(l, log):
-  l.acquire()
-  try:
-    print(log, flush=True)
-  finally:
-      l.release()
-
-# def run_log_commands(task_id, current_print, cmd_queue):
-#   from ...env import Env
-#   from ...data.db import Database
-#   from playhouse.sqlite_ext import SqliteExtDatabase
-#   import zmq
-#   Env.setup()
-#   conn = SqliteExtDatabase(Database.path, pragmas=(
-#     # ('cache_size', -1024 * 64),  # 64MB page-cache.
-#     ('journal_mode', 'wal'),  # Use WAL-mode (you should always use this!).
-#     ('foreign_keys', 1),
-#     ('threadlocals', True)))
-#     # {'foreign_keys' : 1, 'threadlocals': True})
-#   conn.connect()
-
-#   self.root_path = "/".join([Env.ancilla, "services", service.identity.decode('utf-8'), "recordings", self.name])
-#   if not os.path.exists(self.root_path):
-#       os.makedirs(self.root_path)
 
 def run_save_command(task_id, current_print, cmd_queue):
   from ...env import Env
@@ -70,7 +47,7 @@ def run_save_command(task_id, current_print, cmd_queue):
     ('journal_mode', 'wal'),  # Use WAL-mode (you should always use this!).
     ('foreign_keys', 1),
     ('threadlocals', True)))
-    # {'foreign_keys' : 1, 'threadlocals': True})
+
   conn.connect()
   # res = conn.execute_sql("PRAGMA journal_size_limit = -1;").fetchall()
   # res = conn.execute_sql("PRAGMA wal_autocheckpoint = -1;").fetchall()
@@ -78,7 +55,7 @@ def run_save_command(task_id, current_print, cmd_queue):
   print(f'PROCESS INITIAL WALL CHECKPOINT = {res}', flush=True)
   # res = conn.execute_sql("PRAGMA wal_autocheckpoint;").fetchall()
   
-  # from ...data.models import Print, PrintSlice, PrinterCommand
+
   PrinterCommand._meta.database = conn
   Print._meta.database = conn
 
@@ -116,8 +93,7 @@ def run_save_command(task_id, current_print, cmd_queue):
             # print(f"has resp command {respcommand._meta.database.__dict__}")
             if respcommand.status == "error":
             # if respcommand["status"] == "error":
-              respcommand.save()
-              
+              # respcommand.save()
               break
 
             # if respcommand["status"] == "finished":
@@ -150,9 +126,7 @@ class PrintTask(AncillaTask):
     self.payload = payload
     self.state.update({"name": name, "status": "pending", "model": {}})
 
-    # self.log_path = "/".join([Env.ancilla, "services", service.identity.decode('utf-8'), "prints", self.name])
-    # if not os.path.exists(self.log_path):
-    #   os.makedirs(self.log_path)
+
 
     # M105 // temp
     # M114 // cur position
@@ -360,42 +334,6 @@ class PrintTask(AncillaTask):
           cnt += 1
 
 
-          
-          # while (self.current_command.status == "pending" or 
-          #       self.current_command.status == "running" or 
-          #       self.current_command.status == "busy"):
-
-          #   await sleep(0.01)
-          #   if self.state.status != "running":
-          #     self.current_command.status = self.state.status
-          #     break
-          
-          # # cmd_data["status"] = self.current_command.status
-          # # cmd_data["response"] = self.current_command.response
-          # # self.parent_conn.send_multipart([b'cmd', f'{pos}'.encode('ascii'),  json.dumps(cmd_data).encode('ascii')], copy=False)
-          # # self.parent_conn.send_pyobj(("cmd", pos, self.current_command))
-
-          # # r = self.parent_conn.recv()          
-          # # print(f"COMMAND cnt: {cnt} {time.time()} {self.current_command.command} FINISHED {time.time() - cmd_start_time}")
-          # # IOLoop().current().add_callback(functools.partial(self.save_command, self.current_command))
-          
-          # # print(f'InsidePrintTask curcmd= {self.current_command}', flush=True)
-          # if self.current_command.status == "error":
-          #   self.service.current_print.status = "failed"
-          #   self.state.status = "failed"
-          #   self.state.reason = "Could Not Execute Command: " + self.current_command.command
-          #   self.parent_conn.send(("cmd", self.service.current_print, self.current_command))
-          #   break
-
-          # if self.current_command.status == "finished":
-          #   self.service.current_print.state["pos"] = pos
-          #   # self.service.current_print.save()
-          #   line = fp.readline()
-          #   cnt += 1
-          #   cmd_end_time = time.time()
-
-          # self.parent_conn.send(("cmd", self.service.current_print, self.current_command))
-
         
     except Exception as e:
       self.service.current_print.status = "failed"
@@ -423,6 +361,7 @@ class PrintTask(AncillaTask):
     # res = Database.conn.execute_sql("PRAGMA wal_autocheckpoint=2000;").fetchall()
     # res = Database.conn.execute_sql("PRAGMA wal_checkpoint(TRUNCATE);").fetchall()
     # print(f'Final WALL CHECKPOINT = {res}', flush=True)
+    self.service.create_print_log()
     return self.cleanup()
 
 
@@ -456,7 +395,8 @@ class PrintTask(AncillaTask):
     self.service.fire_event(Printer.state.changed, self.service.state)
     print(f"FINISHED PRINT {self.state}", flush=True)
     return {"state": self.state}
-
+                
+              
 
   def cancel(self, *args):
     self.state.status = "cancelled"

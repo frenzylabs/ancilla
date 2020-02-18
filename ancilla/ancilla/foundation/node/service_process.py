@@ -45,6 +45,8 @@ import resource, gc, signal
 import psutil
 
 
+from .service_process_logger import ServiceProcessLogger
+
 class ServiceProcess():
 
 
@@ -52,6 +54,11 @@ class ServiceProcess():
 
         self.identity = identity
         self.model = Service.get(Service.id == service_id)
+
+        logger_name = f"{self.model.name}"
+        self.logger = logging.getLogger(logger_name)
+        self.logger.setup_logger(self.model)
+
         self.child_conn = child_conn
         self.data_handlers = []      
         self.handler = handler(self)
@@ -79,7 +86,7 @@ class ServiceProcess():
         
         self.limit_memory()
         soft, hard = resource.getrlimit(resource.RLIMIT_AS) 
-        print(f'MEM limit NOW = {soft}, {hard}')
+        self.logger.debug(f'MEM limit NOW = {soft}, {hard}')
 
 
     
@@ -90,7 +97,7 @@ class ServiceProcess():
 
   
     def _hangle_sig_memory(self, signum, stack):
-      print("handle memory sig")
+      self.logger.debug("handle memory sig")
       gc.collect()
 
     def limit_memory(self): 
@@ -104,14 +111,11 @@ class ServiceProcess():
       else:
         s = maxsoft
 
+      self.logger.debug(f'Service MEM limit = {soft}, {hard}: {h}')
       if hasattr(p, 'rlimit'):
         # soft, hard = p.rlimit(resource.RLIMIT_AS) 
-        print(f'Service MEM limit = {soft}, {hard}: {h}')
-        
         p.rlimit(resource.RLIMIT_AS, (s, h))
       else:
-        
-        print(f'Service MEM limit = {soft}, {hard}:  {h}')
         resource.setrlimit(resource.RLIMIT_AS, (s, h))
       self._old_usr1_hdlr = signal.signal(signal.SIGUSR1, self._hangle_sig_memory)
 
@@ -138,13 +142,11 @@ class ServiceProcess():
       self.video_processor = None
 
     def model_updated(self):
-      print(f"ServiceProcess POST SAVE HANDLER")
-      # if self.model.id != instance.id:
-      #   return
+      self.logger.debug(f"ServiceProcess POST SAVE HANDLER")
       
       self.model = Service.get_by_id(self.model.id)
-      if hasattr(self.handler, "model_updated"):
-        self.handler.model_updated()
+      self.logger.setup_logger(self.model)
+
 
     def setup_event_loop(self):
       self.evtloop = asyncio.new_event_loop()
@@ -178,6 +180,7 @@ class ServiceProcess():
     def setup_router(self):
       self.zrouter = self.ctx.socket(zmq.ROUTER)
       self.zrouter.identity = self.identity
+      self.logger.debug(f"Setup Router {self.model.name}")
       trybind = 30
       bound = False
       while not bound and trybind > 0:
@@ -186,7 +189,9 @@ class ServiceProcess():
           
           self.zrouter.bind(self.bind_address)
           self.router_address = f"tcp://127.0.0.1:{self.port}"
-          print(f"Bound to {self.bind_address}")
+          # print(f"Bound to {self.bind_address}")
+          
+          self.logger.info(f"Router Bound to {self.bind_address}")
           bound = True
         except zmq.error.ZMQError:
           trybind -= 1
@@ -206,7 +211,7 @@ class ServiceProcess():
           
           self.zpub.bind(self.pub_bind_address)
           self.pubsub_address = f"tcp://127.0.0.1:{self.pub_port}"
-          print(f"Pub Bound to {self.pub_bind_address}")
+          self.logger.info(f"Publisher Bound to {self.pub_bind_address}")
           bound = True
         except zmq.error.ZMQError:
           trybind -= 1
@@ -268,7 +273,7 @@ class ServiceProcess():
         self.stop_process()              
         self.child_conn.send(("stop", "success"))
         self.running = False
-        print('\nProcessFinished (interrupted)')
+        self.logger.info('\nProcessFinished (interrupted)')
     
 
     def on_data(self, data):
@@ -342,7 +347,7 @@ class ServiceProcess():
         instance = MyClass(**req.get('data', {}))
         self.handle_route(replyto, seq_s, instance)
       except Exception as e:
-        print(f'PROCESS EXCEPTION {str(e)}')
+        self.logger.error(f'PROCESS EXCEPTION {str(e)}')
 
 
     def fire_event(self, evtname, payload):
@@ -372,5 +377,5 @@ class ServiceProcess():
         self.zmq_pub.send_multipart([self.identity+b'.task', b'finished', rj])
 
         del self.current_tasks[dtask.name]
-        print(f"PROCESS TASK {self.identity} DONE= {res}", flush=True)
+        self.logger.debug(f"PROCESS TASK {self.identity} DONE= {res}", flush=True)
 

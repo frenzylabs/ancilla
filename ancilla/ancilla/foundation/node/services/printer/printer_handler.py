@@ -28,6 +28,8 @@ from ...middleware.printer_handler import PrinterHandler as PrinterDataHandler
 from ...response import AncillaResponse, AncillaError
 
 from ....utils.delegate import DelegatedAttribute
+from ....utils.file_search import find_start_end
+from ....env import Env
 
 from .command_queue import CommandQueue
 
@@ -50,7 +52,7 @@ class PrinterHandler():
       self.process.register_data_handlers(self.data_handler)
       self.command_queue = CommandQueue()
         
-    
+    logger = DelegatedAttribute('process', 'logger')
     state = DelegatedAttribute('process', 'state')
     model = DelegatedAttribute('process', 'model')
     identity = DelegatedAttribute('process', 'identity')
@@ -61,12 +63,7 @@ class PrinterHandler():
         self.connector.close()
 
       self.process.fire_event(PrinterEvent.connection.closed, {"status": "success"})
-    
-    def model_updated(self):
-      print(f"Handler Model update HANDLER")
-      
-      if hasattr(self.data_handler, "model_updated"):
-        self.data_handler.model_updated()
+
 
     def connect(self, data):
       printer = data.get("printer")
@@ -221,6 +218,73 @@ class PrinterHandler():
       except Exception as e:
         raise AncillaError(400, {"error": f"Could not pause print {str(e)}"})
 
+    
+    def delete_print_log(self, msg, *args):
+      try:
+        payload = msg.get('data') or {}
+        print_id = payload.get("print_id")
+
+        log_path = "/".join([self.model.directory, "prints", f"{print_id}.log"])
+        if os.path.exists(log_path):
+          os.remove(log_path)
+          
+          return {"status": "success"}
+        else:
+          raise AncillaError(404, {"error": "Print Not Found"})
+
+      except AncillaResponse as e:
+        raise e
+      except Exception as e:
+        raise AncillaError(400, {"error": f"Could Not Delete Print Log {str(e)}"})
 
 
 
+    def create_print_log(self, msg={}, *args):
+      printer_log_path = "/".join([self.model.directory, "log"])
+      if not os.path.exists(printer_log_path):
+        raise AncillaError(404, {"error": "No Printer Logs Found"})
+
+      try:
+        payload = msg.get('data', {})
+        cur_print_id = None
+        if self.service.current_print:
+          cur_print_id = self.service.current_print.id
+        print_id = payload.get("print_id", cur_print_id)
+        
+        if not print_id:
+          raise AncillaError(404, {"error": "No Print Found"})
+
+        print_dir = "/".join([self.model.directory, "prints"])
+        if not os.path.exists(print_dir):
+          os.makedirs(print_dir)
+      
+      
+        print_log_path = f"{print_dir}/{print_id}.log"
+      
+        regexpattern = f'print_id":\s*({print_id})'
+        with open(print_log_path, "w") as print_log_fp:
+          for f in os.listdir(printer_log_path):
+            filepath = printer_log_path + "/" + f
+
+            with open(filepath, "r") as fp:
+                res = find_start_end(fp, regexpattern)
+                if not res:
+                    print("NO PRINT LOG")
+                    continue
+                else:
+                  print(f'PRINT StartEndPos = {res}')
+                  start, end = res
+                  fp.seek(start)
+                  while fp.tell() <= end:
+                    line = fp.readline()
+                    if not line.strip():
+                      continue
+                    if line:
+                      print_log_fp.write(line)
+
+        return {"print_log": print_log_path}
+      except AncillaResponse as e:
+        raise e
+      except Exception as e:
+        raise AncillaError(400, {"error": f"Could not create print log {str(e)}"})
+                  

@@ -42,7 +42,7 @@ def migrate(migrator, database, fake=False, **kwargs):
         Service        
     ])
 
-    migrator.add_index(Service, "name", "kind", unique=True)
+    migrator.add_index(Service, "name", unique=True)
     # migrator.add_index(PrinterCommand, "", "device_type", unique=True)
     # migrator.add_fields(Printer, device=pw.ForeignKeyField(Device, backref='specific'))
 

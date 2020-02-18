@@ -22,6 +22,7 @@ from ..data.models import Service
 
 from .app import App
 
+from ..env import Env
 from ..utils.service_json_encoder import ServiceJsonEncoder
 from ..utils import yields
 from ..utils.dict import ConfigDict
@@ -39,8 +40,18 @@ class BaseService(App):
     def __init__(self, model, **kwargs):
         super().__init__()
         self.connector = None
-
         self.model = model
+
+        # if not (self.config.logging and self.config.logging.directory):
+        logging_config = self.model.configuration.get("logging", {})
+        if not logging_config.get("directory"):
+          logging_config["directory"] = "/".join([self.model.directory, 'logs'])
+          self.model.configuration["logging"] = logging_config
+          self.model.save()
+          # self.config.update(self.model.configuration)
+        
+
+        
         self.load_config(model.configuration)
         self.config._add_change_listener(
             functools.partial(self.config_changed, 'config'))
@@ -107,21 +118,7 @@ class BaseService(App):
       self.name = service_model.name
       self.encoded_name = self.name.encode('ascii')
       if self.connector:
-        # request = Request({"action": "update_", "body": msg})
         self.connector.update_model()
-        # if yields(res):
-        #   future = asyncio.run_coroutine_threadsafe(res, asyncio.get_running_loop())
-          
-        #   # zmqrouter = self.zmq_router
-        #   def onfinish(fut):
-        #     # res = b''
-        #     try:
-        #       newres = fut.result(1)     
-        #     except Exception as a:
-        #       # res = ar.encode()
-        #       print(f'Event Handle Error {str(e)}')
-
-        #   future.add_done_callback(onfinish)
 
     def load_config(self, dic):
       self.config.load_dict(dic)

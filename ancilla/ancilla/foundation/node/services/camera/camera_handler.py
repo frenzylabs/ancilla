@@ -46,8 +46,9 @@ class CameraHandler():
       self.camera_data_handler = CameraDataHandler(self)
       self.process.register_data_handlers(self.camera_data_handler)
     
-
+    logger = DelegatedAttribute('process', 'logger')
     state = DelegatedAttribute('process', 'state')
+    model = DelegatedAttribute('process', 'model')
     identity = DelegatedAttribute('process', 'identity')
     fire_event = DelegatedAttribute('process', 'fire_event')
 
@@ -55,7 +56,7 @@ class CameraHandler():
       if self.connector:
         self.connector.close()
       if self.video_processor:
-        print(f"Close video processor")
+        self.logger.debug(f"Close video processor")
         self.video_processor.close()
       self.process.fire_event(CameraEvent.connection.closed, self.state)
     
@@ -86,7 +87,7 @@ class CameraHandler():
               # return v
 
       payload = {"settings": {}}
-      self.video_processor = CameraProcessVideoTask("process_video", self.process, payload)
+      self.video_processor = CameraProcessVideoTask("process_video", self, payload)
       self.process.add_task(self.video_processor)
 
       return {"stream": self.video_processor.processed_stream}
@@ -117,7 +118,7 @@ class CameraHandler():
         return None
 
       except Exception as e:
-        print(f"Cant get recording task {str(e)}", flush=True)
+        self.logger.error(f"Cant get recording task {str(e)}")
         return {"status": "error", "error": f"Could not cancel task {str(e)}"}
 
     def stop_recording(self, msg):
@@ -152,23 +153,22 @@ class CameraHandler():
           return {"status": "error", "error": "Task Not Found"}
 
       except Exception as e:
-        print(f"Cant resume recording task {str(e)}", flush=True)
+        self.logger.error(f"Cant resume recording task {str(e)}")
         return {"status": "error", "error": f"Could not resume task {str(e)}"}
 
     def start_recording(self, msg):
       try:
-
         payload = msg.get('data')
         name = "".join(random.choice(string.ascii_lowercase + string.digits) for x in range(6))
 
-        pt = CameraRecordTask(name, self.process, payload)
+        pt = CameraRecordTask(name, self, payload)
         self.process.add_task(pt)
         self.state.recording = True
 
         return {"status": "success", "task": name}
 
       except Exception as e:
-        print(f"Cant record task {str(e)}", flush=True)
+        self.logger.error(f"Cant record task {str(e)}")
         raise AncillaError(400, {"status": "error", "error": f"Could not record {str(e)}"}, exception=e)
         # return {"status": "error", "error": f"Could not record {str(e)}"}
 
