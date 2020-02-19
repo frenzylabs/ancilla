@@ -110,6 +110,9 @@ class ServiceProcessLogger(getLoggerClass()):
     keys = ["mode", "maxBytes", "backupCount", "encoding", "delay"]
     default = {"maxBytes": 128_000_000, "backupCount": 10}
     filedict = { akey: kwargs[akey] for akey in keys if kwargs.get(akey) }
+    # if filedict.get("maxBytes")
+    filedict['maxBytes'] = self.to_i(filedict.get("maxBytes")) or default['maxBytes']
+    filedict['backupCount'] = self.to_i(filedict.get("backupCount")) or default['backupCount']
     default.update(**filedict)
 
     file_level = self.get_int_level(kwargs.get("level", self.level))
@@ -133,6 +136,12 @@ class ServiceProcessLogger(getLoggerClass()):
           level = self.level
       return level
 
+  def to_i(self, val):
+    try:
+      return int(val)
+    except Exception as e:
+      return None
+    
 
 class LogFilter(logging.Filter):
     """Filters (lets through) all messages with level >= LEVEL"""
