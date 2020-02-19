@@ -41,10 +41,7 @@ class DataJsonFormatter(jsonlogger.JsonFormatter):
 class ServiceProcessLogger(getLoggerClass()):
 
   def __init__(self, name):
-        super().__init__(name)        
-
-        # addLevelName(logging.TRACE, "TRACE")
-        print("INIT SERVICE PROCESS LOGGER")
+        super().__init__(name)
         self.log_handlers = {}
         self.model = None
 
@@ -55,7 +52,7 @@ class ServiceProcessLogger(getLoggerClass()):
         return
     else:
       self.model = service_model
-    
+
 
     log_config = self.model.configuration.get("logging", {})
     log_dir     = log_config.get("directory", None) 
@@ -112,7 +109,8 @@ class ServiceProcessLogger(getLoggerClass()):
     """
     default = {"maxBytes": 128_000_000, "backupCount": 10}
     save_log_settings = kwargs.get("settings", {})
-    default.update(save_log_settings)
+    # default.update(save_log_settings)
+    default.update(**kwargs)
 
     file_level = self.get_int_level(kwargs.get("level", self.level))
     # add a rotating handler

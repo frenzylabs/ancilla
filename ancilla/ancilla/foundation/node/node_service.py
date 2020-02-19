@@ -272,7 +272,6 @@ class NodeService(App):
       if model:
         oldmodel = model
         srv = next((item for item in self._mounts if item.model.id == instance.id), None)
-        print(f'srv = {srv}')
         oldname = model.name
         model = instance
         # print(f"PostSaveHandler OLDName = {oldname}, instan= {instance.name}", flush=True)

@@ -9,6 +9,7 @@
 import time
 
 import math
+import os
 from .api import Api
 from ..events.printer import Printer as PrinterEvent
 from ...data.models import Print, Printer, Service, PrinterCommand, CameraRecording
@@ -36,6 +37,9 @@ class PrinterApi(Api):
     self.service.route('/prints/<print_id>', 'GET', self.get_print)
     self.service.route('/prints/<print_id>', 'DELETE', self.delete_print)
     self.service.route('/prints/<print_id>', 'PATCH', self.update_print)
+    self.service.route('/logs/<logname>', 'DELETE', self.delete_logfile)
+    self.service.route('/logs/<logname>', 'GET', self.logfile)
+    self.service.route('/logs', 'GET', self.logs)
     self.service.route('/', 'PATCH', self.update_service)
 
   async def update_service(self, request, layerkeep, *args):
@@ -277,6 +281,37 @@ class PrinterApi(Api):
     return {"success": True}
 
     
+  def logs(self, request, *args):
+      log_dir = self.service.config.get("logging.directory")
+      logarr = []
+      for f in os.listdir(log_dir):
+        fstat = os.stat(f"{log_dir}/{f}")        
+        # print(f"Fstat = {fstat}", flush=True)
+        logarr.append({"filename": f, "size": fstat.st_size, "mtime": fstat.st_mtime})
+      
+      return {"data": logarr}
+
+  def logfile(self, request, logname, *args):
+      log_dir = self.service.config.get("logging.directory")
+      logpath = f"{log_dir}/{logname}"
+      if not os.path.exists(logpath):
+        raise AncillaError(404, "Log File Does Not Exist")
+
+      if request.params.get('download'):
+        request.response.set_header('Content-Type', 'application/force-download')
+        request.response.set_header('Content-Disposition', 'attachment; filename=%s' % logname)
+
+      return open(logpath)
+
+  def delete_logfile(self, request, logname, *args):
+      log_dir = self.service.config.get("logging.directory")
+      logpath = f"{log_dir}/{logname}"
+      if not os.path.exists(logpath):
+        raise AncillaError(404, "Log File Does Not Exist")
+
+      os.remove(logpath)
+      return {"success": True}
+        
 
   # def start_print(self, *args):
   #   try:

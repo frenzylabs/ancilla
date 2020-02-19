@@ -66,7 +66,9 @@ class WSGIFileWrapper(object):
     async def fetch_data(self):
         buff, read = self.buffer_size, self.read
         part = read(buff)
-        if not part: return None
+        if not part: 
+            if hasattr(self, "close"): self.close()
+            return None
         return part
         
         # return part
