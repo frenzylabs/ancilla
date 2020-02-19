@@ -107,10 +107,10 @@ class ServiceProcessLogger(getLoggerClass()):
     """
     Creates a rotating log
     """
+    keys = ["mode", "maxBytes", "backupCount", "encoding", "delay"]
     default = {"maxBytes": 128_000_000, "backupCount": 10}
-    save_log_settings = kwargs.get("settings", {})
-    # default.update(save_log_settings)
-    default.update(**kwargs)
+    filedict = { akey: kwargs[akey] for akey in keys if kwargs.get(akey) }
+    default.update(**filedict)
 
     file_level = self.get_int_level(kwargs.get("level", self.level))
     # add a rotating handler
