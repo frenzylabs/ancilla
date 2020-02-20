@@ -361,7 +361,7 @@ class PrintTask(AncillaTask):
     # res = Database.conn.execute_sql("PRAGMA wal_autocheckpoint=2000;").fetchall()
     # res = Database.conn.execute_sql("PRAGMA wal_checkpoint(TRUNCATE);").fetchall()
     # print(f'Final WALL CHECKPOINT = {res}', flush=True)
-    self.service.create_print_log()
+    # self.service.create_print_log()
     return self.cleanup()
 
 
