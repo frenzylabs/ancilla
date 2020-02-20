@@ -72,6 +72,8 @@ mkdir /home/pi/.ancilla
 To use the wifi docker image we need to disable the main wpa_supplicant.
 `sudo systemctl mask wpa_supplicant.service`
 `sudo pkill wpa_supplicant`
+# rename wpa_supplicant on the host to ensure that it is not used.
+`sudo mv /sbin/wpa_supplicant /sbin/no_wpa_supplicant`
 
 
 From Local Device: Copy ancilla.service, ancilla.sh, wificfg.json, config.json to image

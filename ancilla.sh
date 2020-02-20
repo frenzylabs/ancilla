@@ -92,6 +92,13 @@ update_node() {
 
 }
 
+run_ancilla_docker() {
+  docker run --name=$NODE_CONTAINER_NAME -d --restart=on-failure --privileged --net host \
+  -v /dev:/dev \
+  -v "$HOME/.ancilla":"$HOME/.ancilla" \
+  $NODE_DOCKER_IMAGE@$NODE_NEW_IMAGE_DIGEST
+}
+
 
 run_ancilla() {
   NODE_CONTAINER_NAME=ancilla
@@ -126,14 +133,15 @@ run_ancilla() {
         echo "Removing container first" 
         docker rm $NODE_CONTAINER_NAME
     fi
-    docker run --name=$NODE_CONTAINER_NAME -d --restart=on-failure --privileged --net host -v "$HOME/.ancilla":"$HOME/.ancilla" $NODE_DOCKER_IMAGE@$NODE_NEW_IMAGE_DIGEST
+    run_ancilla_docker
   else
     if [ ! -z "$NODE_CONTAINER_EXIST" ]
     then
         echo "Start container" 
         docker start $NODE_CONTAINER_NAME
     else
-      docker run --name=$NODE_CONTAINER_NAME -d --restart=on-failure --privileged --net host -v "$HOME/.ancilla":"$HOME/.ancilla" $NODE_DOCKER_IMAGE@$NODE_NEW_IMAGE_DIGEST
+      run_ancilla_docker
+      
     fi
   fi
   cleanup_images

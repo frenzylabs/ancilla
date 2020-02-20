@@ -90,3 +90,6 @@ docker run -d --restart=unless-stopped --privileged --net host -v $HOME/wificfg.
 docker run -d --restart=unless-stopped --privileged --net host -v $HOME/wifinohost.json:/cfg/wificfg.json cjimti/iotwifi  
 
 
+Camera:
+
+v4l2-ctl -d /dev/video0 --list-formats

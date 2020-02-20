@@ -15,9 +15,15 @@ import serial
 import serial.rfc2217
 import zmq
 
+
 from cv2 import cv2, VideoCapture
 import imp
 import pickle 
+
+import os
+import ctypes
+
+
 
 class CameraConnector(object):
     endpoint = None         # Server identity/endpoint
@@ -38,11 +44,30 @@ class CameraConnector(object):
 
       self.ctx = ctx
       self.create_camera()
+
+      try:
+        self.redirect_stderr()
+      except:
+        pass
       
 
+    def redirect_stderr(self):
+      libc = ctypes.CDLL(None)
+      c_stderr = ctypes.c_void_p.in_dll(libc, 'stderr')
+      original_stderr_fd = sys.stderr.fileno()
+      f = open(os.devnull, 'w')
+      to_fd = f.fileno()
+      libc.fflush(c_stderr)
+      sys.stderr.close()
+      os.dup2(to_fd, original_stderr_fd)
+      sys.stderr = os.fdopen(original_stderr_fd)
+
+    
+              
     def create_camera(self):
       print("create camera", flush=True)
       self.video = VideoCapture(self.endpoint)
+      self.video.set(cv2.CAP_PROP_FOURCC,cv2.VideoWriter_fourcc('M','J','P','G'))
       time.sleep(0.5)
       if not self.video.isOpened():
         self.video.release()
