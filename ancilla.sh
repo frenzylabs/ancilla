@@ -315,6 +315,17 @@ run_system() {
     SYSTEM=$NEWSYSTEM
     docker restart ancilla
   fi
+
+  UPDATE_TIME=$(jq '.update_ancilla' <<< $SYSTEM)
+  NEW_UPDATE_TIME=$(jq '.update_ancilla' <<< $NEWSYSTEM)
+  if [ "$UPDATE_TIME" != "$NEW_UPDATE_TIME" ]
+  then
+    echo "restart ancilla"
+    SYSTEM=$NEWSYSTEM
+    update_node
+    docker stop ancilla
+    run_ancilla
+  fi
 }
 
 check_network
