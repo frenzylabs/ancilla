@@ -170,6 +170,8 @@ class Printer(BaseService):
     async def cancel_print(self, msg):
       # print(f"STOP RECORDING {msg}", flush=True)
       try:
+        if not self.connector:
+          self.state.printing = False
         request = Request({"action": "cancel_print", "body": msg})
         res =  await self.make_request(request)
         self.state.printing = False
@@ -183,6 +185,8 @@ class Printer(BaseService):
 
     async def pause_print(self, msg, *args):
       try:
+        if not self.connector:
+          self.state.printing = False
         request = Request({"action": "pause_print", "body": msg})
         res =  await self.make_request(request)
         self.state.printing = False
