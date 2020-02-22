@@ -91,11 +91,15 @@ class PrinterHandler(DataHandler):
         cmdstatus = "error"
         log_level = logging.ERROR
 
-
+      
+      self.logger.debug(f"CmdQueue = {self.service.command_queue.queue.keys()}")
+      self.logger.debug(f"CurrentCmdQueue = {self.service.command_queue.current_commands.keys()}")
       if cmd:
+        self.logger.debug(f"CmdRespMsg: {newmsg}")
+        self.logger.debug(f"CMD: {cmd.command}")
         # identifier = identifier + b'.printer.log'
         # print(f"INSIDE CMD on data {cmd.command}:  {newmsg}", flush=True)
-        self.logger.debug(f"INSIDE CMD ON DATA = {cmd.command}: {newmsg}")
+        
         
 
         if status == 'error':
@@ -123,6 +127,7 @@ class PrinterHandler(DataHandler):
           
         payload = {"status": cmdstatus, "sequence": cmd.sequence, "command": cmd.command, "resp": newmsg, "req_id": cmd.parent_id}
       else:
+        self.logger.debug(f"OnlyRespMsg: {newmsg}")
         payload = {"status": status, "resp": newmsg}
 
       self.log_printer_output(log_level, payload)

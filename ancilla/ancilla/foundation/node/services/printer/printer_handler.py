@@ -85,13 +85,15 @@ class PrinterHandler():
     def process_commands(self):
       cmd = self.command_queue.get_next_command()
       if not cmd:
-        # IOLoop.current().add_callback(self.process_commands)
+        if len(self.command_queue.queue) > 0:
+          IOLoop.current().add_callback(self.process_commands)
         return
 
       if cmd.status == "pending":
         cmd.status = "running"
         
         res = self.connector.write(cmd.command.encode('ascii'))
+        self.logger.debug(f"SendCommand: {cmd.command}:  SentResp: {res}")
         err = res.get("error")
         if err:
           cmd.status = "error"

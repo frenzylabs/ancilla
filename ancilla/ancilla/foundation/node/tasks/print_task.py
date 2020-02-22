@@ -290,11 +290,10 @@ class PrintTask(AncillaTask):
           cmd_start_time = time.time()
           pos = fp.tell()
           
-          # print("File POS: ", pos)
+          
           if pos == endfp:            
-            self.state.status = "finished"
-            self.service.current_print.status = "finished"
-            self.service.current_print.save()
+            # print("End File POS: ", pos)
+            self.state.status = "finished"            
             break
 
           if not line.strip():
@@ -342,13 +341,14 @@ class PrintTask(AncillaTask):
       self.state.reason = str(e)
       print(f"Print Exception: {str(e)}", flush=True)
     
-    
+    print(f'Stop Print Task', flush=True)
+
     while self.state.status == "finished" and len(self.current_commands) > 0:
         await sleep(0.1)
         self.handle_current_commands()
-        
-    print(f'Stop Print Task', flush=True)
-    print(f'Current Queue = {self.service.command_queue.queue}')
+
+    
+    print(f'PT: Current Queue = {self.service.command_queue.queue.keys()}')
     self.service.command_queue.queue.clear()
     self.current_commands = [(pos, cmd) for (pos, cmd) in self.current_commands if cmd.status != "pending"]
 

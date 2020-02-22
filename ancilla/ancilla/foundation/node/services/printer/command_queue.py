@@ -35,7 +35,7 @@ from collections import OrderedDict
 class CommandQueue(object):
 
     def __init__(self):
-        self.max_send_queue_length = 10
+        self.max_send_queue_length = 2
         self.queue = OrderedDict()
         self.current_command = None
         self.current_expiry = None
@@ -55,7 +55,7 @@ class CommandQueue(object):
     #   return self.current_command
 
     def get_next_command(self):
-      if len(self.queue) > 0 and len(self.current_commands) < self.max_send_queue_length:
+      if len(self.queue) > 0 and len(self.current_commands) <= self.max_send_queue_length:
         cid, cmd = self.queue.popitem(False)
         self.current_commands[cid] = cmd
         return cmd

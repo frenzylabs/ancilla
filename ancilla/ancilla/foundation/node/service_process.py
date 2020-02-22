@@ -366,16 +366,16 @@ class ServiceProcess():
     def add_task(self, task):
       self.task_queue.put(task)
       loop = IOLoop().current()
-      loop.add_callback(partial(self._process_tasks))
+      loop.add_callback(self._process_tasks)
 
     async def _process_tasks(self):
       async for dtask in self.task_queue:
-        # print('process task {}...'.format(dtask))
+        print(f'process task started {dtask.name} ')
         self.current_tasks[dtask.name] = dtask
         res = await dtask.run(self)
         rj = json.dumps(res, cls=ServiceJsonEncoder).encode('ascii')
         self.zmq_pub.send_multipart([self.identity+b'.task', b'finished', rj])
 
         del self.current_tasks[dtask.name]
-        self.logger.debug(f"PROCESS TASK {self.identity} DONE= {res}")
+        self.logger.debug(f"PROCESS TASK-{dtask.name} {self.identity} DONE= {res}")
 
