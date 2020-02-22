@@ -85,8 +85,8 @@ class PrinterHandler():
     def process_commands(self):
       cmd = self.command_queue.get_next_command()
       if not cmd:
-        if len(self.command_queue.queue) > 0:
-          IOLoop.current().add_callback(self.process_commands)
+        # if len(self.command_queue.queue) > 0:
+        #   IOLoop.current().add_callback(self.process_commands)
         return
 
       if cmd.status == "pending":
@@ -103,9 +103,9 @@ class PrinterHandler():
           self.command_queue.finish_command(cmd)
       elif cmd.status != "running":
         self.command_queue.finish_command(cmd, status=cmd.status)     
-      else:
+      # else:
         # print(f"CMD is Running {cmd.command}", flush=True)
-        IOLoop.current().add_callback(self.process_commands)
+        # IOLoop.current().add_callback(self.process_commands)
 
     def add_command(self, parent_id, num, data, nowait=False, skip_queue=False, print_id=None):
       if type(data) == bytes:

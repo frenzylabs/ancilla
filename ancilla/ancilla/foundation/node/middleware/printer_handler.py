@@ -12,6 +12,8 @@ import json, time, re, os
 import logging
 from logging.handlers import RotatingFileHandler
 
+from tornado.ioloop import IOLoop
+
 from ...env import Env
 
 class PrinterHandler(DataHandler):
@@ -115,6 +117,7 @@ class PrinterHandler(DataHandler):
             cmdstatus = "error"
             log_level = logging.ERROR
             self.service.command_queue.finish_command(cmd, status="error")
+            IOLoop.current().add_callback(self.service.process_commands)
           else:
             cmdstatus = "running"
             log_level = logging.INFO
@@ -124,6 +127,7 @@ class PrinterHandler(DataHandler):
             cmdstatus = "finished"
             log_level = logging.INFO
             self.service.command_queue.finish_command(cmd)
+            IOLoop.current().add_callback(self.service.process_commands)
           
         payload = {"status": cmdstatus, "sequence": cmd.sequence, "command": cmd.command, "resp": newmsg, "req_id": cmd.parent_id}
       else:
