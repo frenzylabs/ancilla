@@ -19,7 +19,7 @@ class PrinterHandler(DataHandler):
       super().__init__(service, *args)
 
       ## Test if data is a temperature result
-      self.temp_regex = re.compile('(?:ok\s)*([T|B|C]\d*:[^\s\/]+\s*\/.*)')
+      self.temp_regex = re.compile('(?:ok\s)*\s*([T|B|C]\d*:[^\s\/]+\s*\/.*)')
 
       # This will allow to get the different temperature into groups 
       # Ex. temp  = "ok T:20.2 /0.0 B:19.1 /0.0 T0:20.2 /0.0 @:0 B@:0 P:19.8 A:26.4"
@@ -132,7 +132,7 @@ class PrinterHandler(DataHandler):
   def printer_temp(self, msg):
     m = self.temp_regex.match(msg)
     if m and len(m.groups()) > 0:
-      tempstr = m.group(0)      
+      tempstr = m.group(1)
       if self.service.current_print:
         self.service.current_print.state["temp"] = tempstr
       self.service.state.temp = tempstr

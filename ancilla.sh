@@ -320,7 +320,7 @@ run_system() {
   NEW_UPDATE_TIME=$(jq '.update_ancilla' <<< $NEWSYSTEM)
   if [ "$UPDATE_TIME" != "$NEW_UPDATE_TIME" ]
   then
-    echo "restart ancilla"
+    echo "update ancilla"
     SYSTEM=$NEWSYSTEM
     update_node
     docker stop ancilla

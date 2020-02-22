@@ -377,5 +377,5 @@ class ServiceProcess():
         self.zmq_pub.send_multipart([self.identity+b'.task', b'finished', rj])
 
         del self.current_tasks[dtask.name]
-        self.logger.debug(f"PROCESS TASK {self.identity} DONE= {res}", flush=True)
+        self.logger.debug(f"PROCESS TASK {self.identity} DONE= {res}")
 
