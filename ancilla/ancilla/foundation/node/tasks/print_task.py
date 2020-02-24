@@ -127,7 +127,7 @@ class PrintTask(AncillaTask):
     self.payload = payload
     self.state.update({"name": name, "status": "pending", "model": {}})
 
-
+    self.logmessage = {"message": ""}
 
     # M105 // temp
     # M114 // cur position
@@ -157,20 +157,22 @@ class PrintTask(AncillaTask):
 
   def handle_current_commands(self):
     new_command_list = []
+    lcmd = None
     for (cmdpos, cmd) in self.current_commands:
       if self.command_active(cmd):
         new_command_list.append((cmdpos, cmd))
       else:
+        lcmd = cmd
         if cmd.status == "error":
           self.service.current_print.status = "failed"
           self.state.status = "failed"
           self.state.reason = "Could Not Execute Command: " + cmd.command
           
-        elif cmd.status == "finished":
+        elif cmd.status == "finished":          
           self.service.current_print.state["pos"] = cmdpos
 
-
-        self.parent_conn.send(("cmd", self.service.current_print, cmd))
+    if lcmd:
+      self.parent_conn.send(("cmd", self.service.current_print, lcmd))
     self.current_commands = new_command_list
 
 
@@ -194,6 +196,8 @@ class PrintTask(AncillaTask):
     if not self.service.current_print:
       return {"error": "No Print to send to Printer"}
       
+    self.logmessage = {"print_id": self.service.current_print.id, "message": ""}  
+    
     sf = self.service.current_print.print_slice
     num_commands = -1
     try:
@@ -261,7 +265,8 @@ class PrintTask(AncillaTask):
         self.current_commands = []
 
         
-        lineregex = re.compile("(([A-Z][\d]+)\s([^;]*))")
+        # lineregex = re.compile("(([A-Z][\d]+)\s([^;]*))")
+        lineregex = re.compile("(([^\s\\n\\r]+)\s?([^;]*))")
         while self.state.status == "running":
 
           cmd_start_time = time.time()
@@ -278,23 +283,41 @@ class PrintTask(AncillaTask):
           #   continue
           
           # print("Line {}, POS: {} : {}".format(cnt, pos, line))    
-          linecommands = lineregex.findall(line)
-          if len(linecommands) > 0:
-            for c in linecommands:            
-              command = self.service.add_command(self.task_id, cnt, c[0], False, print_id=self.service.current_print.id)            
-              self.current_commands.append((pos, command))
-              await sleep(0)
+          linematch = lineregex.match(line)
+          if linematch and len(linematch.groups()) > 1:
+            cmd = linematch.group(1)
+            command = self.service.add_command(self.task_id, cnt, cmd, False, print_id=self.service.current_print.id)
+            self.current_commands.append((pos, command))
+            await sleep(0)
+            self.handle_current_commands()
+            while len(self.current_commands) > 10 and self.state.status == "running":            
+              # IOLoop().current().add_callback(self.handle_current_commands)
+              await sleep(0.01)
               self.handle_current_commands()
-              while len(self.current_commands) > 10 and self.state.status == "running":            
-                # IOLoop().current().add_callback(self.handle_current_commands)
-                await sleep(0.01)
-                self.handle_current_commands()
-              cnt += 1
-          else:
-            cnt += 1
-            
-            
+          
+          cnt += 1
           line = fp.readline()
+
+
+
+
+          # linecommands = lineregex.findall(line)
+          # if len(linecommands) > 0:
+          #   for c in linecommands:            
+          #     command = self.service.add_command(self.task_id, cnt, c[0], False, print_id=self.service.current_print.id)            
+          #     self.current_commands.append((pos, command))
+          #     await sleep(0)
+          #     self.handle_current_commands()
+          #     while len(self.current_commands) > 10 and self.state.status == "running":            
+          #       # IOLoop().current().add_callback(self.handle_current_commands)
+          #       await sleep(0.01)
+          #       self.handle_current_commands()
+          #     cnt += 1
+          # else:
+          #   cnt += 1
+            
+            
+          # line = fp.readline()
           # cnt += 1
 
           # is_comment = line.startswith(";")
@@ -339,30 +362,44 @@ class PrintTask(AncillaTask):
       # device.current_print.save()
       self.state.status = "failed"
       self.state.reason = str(e)
-      print(f"Print Exception: {str(e)}", flush=True)
+      self.service.logger.error(f"Print Exception: {str(e)}")
+      # print(f"Print Exception: {str(e)}", flush=True)
     
-    print(f'Stop Print Task', flush=True)
+    self.service.logger.debug('Stop Print Task')
 
-    print(f'PT: Current Queue = {self.service.command_queue.queue}')
-    print(f'PT: Current Commands = {self.current_commands}')
+
+    self.service.logger.debug(f'PT: Current Queue = {self.service.command_queue.queue}')
+    self.service.logger.debug(f'PT: Current Commands = {self.current_commands}')
     
-    # Wait for current commands to finish unless the status wasn't finished
+
+    # Wait for command queue to finish unless the status wasn't finished
+    # If the status was cancelled or failed we just want to clear the pending queue
+    timeout = time.time()
     while self.state.status == "finished" and len(self.current_commands) > 0:
         await sleep(0.1)
         self.handle_current_commands()
+        if time.time() - timeout > 10:
+          self.logmessage["message"] = f"PrintQueueTimeout: PendingQueue: {self.service.command_queue.queue}, SentQueue: {self.current_commands}"
+          self.service.logger.info(self.logmessage)
+          break
 
-    
 
     self.service.command_queue.queue.clear()
     self.current_commands = [(pos, cmd) for (pos, cmd) in self.current_commands if cmd.status != "pending"]
 
-    print(f'Current Commands = {self.service.command_queue.queue}')
-    
+    self.service.logger.debug(f'Current Commands = {self.service.command_queue.queue}')
+
+    # print(f'Current Commands = {self.service.command_queue.queue}')
+
+
     timeout = time.time()
     while len(self.current_commands) > 0:
         await sleep(0.05)
-        IOLoop().current().add_callback(self.handle_current_commands)
+        self.handle_current_commands()
         if time.time() - timeout > 10:
+          self.logmessage["message"] = f"PrintQueueTimeout: PendingQueue: {self.service.command_queue.queue}, SentQueue: {self.current_commands}"
+          self.service.logger.info(self.logmessage)
+
           self.service.command_queue.clear()
           break
     # self.service.command_queue.clear()
@@ -402,7 +439,9 @@ class PrintTask(AncillaTask):
     self.service.fire_event(Printer.print.state.changed, self.state)
     self.service.state.printing = False
     self.service.fire_event(Printer.state.changed, self.service.state)
-    print(f"FINISHED PRINT {self.state}", flush=True)
+    # print(f"FINISHED PRINT {self.state}", flush=True)
+    self.logmessage["message"] = f"PrintFinished: {self.state.to_json()}"
+    self.service.logger.info(self.logmessage)
     return {"state": self.state}
                 
               

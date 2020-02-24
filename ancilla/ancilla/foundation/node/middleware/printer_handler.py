@@ -20,6 +20,10 @@ class PrinterHandler(DataHandler):
   def __init__(self, service, *args):
       super().__init__(service, *args)
 
+      # self.pos_regex = re.compile('(?:ok\s)*\s*([X|Y|Z]):([\d\.]*)\s*([X|Y|Z]):([\d\.]*\s*).*')
+      self.pos_regex = re.compile('(?:ok\s)*\s*(([X|Y|Z|E]):([\d\.]*)\s*)')
+      # self.pos_regex = re.compile('(?:ok\s)*\s*X:[\d\.]+\s*Y:[\d\.]+\s*Z:[\d\.]+.*')
+
       ## Test if data is a temperature result
       self.temp_regex = re.compile('(?:ok\s)*\s*([T|B|C]\d*:[^\s\/]+\s*\/.*)')
 
@@ -74,6 +78,12 @@ class PrinterHandler(DataHandler):
         cmdkey = next((item for item in active_commands if item.startswith("M105")), None)
         if cmdkey:
           cmd = self.service.command_queue.current_commands[cmdkey]
+      elif self.printer_pos(newmsg):
+        active_commands = self.service.command_queue.current_commands.keys()
+        cmdkey = next((item for item in active_commands if item.startswith("M114")), None)
+        if cmdkey:
+          cmd = self.service.command_queue.current_commands[cmdkey]
+
       else:
         cmd = self.service.command_queue.get_active_command()
       
@@ -145,6 +155,13 @@ class PrinterHandler(DataHandler):
       self.service.state.temp = tempstr
       return True
     return False
+
+  def printer_pos(self, msg):
+    m = self.pos_regex.findall(msg)
+    if m and len(m) > 3:
+      self.service.state.position = msg
+      return True
+    return False  
 
   def log_printer_output(self, level, msg):
     d = {"message": json.dumps(msg)}

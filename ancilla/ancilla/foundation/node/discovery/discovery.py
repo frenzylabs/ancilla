@@ -25,6 +25,7 @@ import json
 
 import socket
 import netifaces
+from functools import partial
 
 from .udp import UDP 
 
@@ -63,6 +64,7 @@ class Discovery(object):
         self._current_address = None
         self.cached_peers = [] 
         self.node = node
+        self.update_beacon_timeout = None
 
         self.current_address, self.broadcast = self.check_interface_addresses()
         self.beacon = Beacon(self.node.name, port=self.node.api_port, address=self.current_address)
@@ -94,6 +96,8 @@ class Discovery(object):
         print(f"Stop Discovery", flush=True)
         self.stop_checking()
         self.networkcb.stop()
+        if self.update_beacon_timeout:
+            self.update_beacon_timeout.cancel()
         self.cached_peers = []
         if self.beacon:
             self.beacon.close()
@@ -241,25 +245,36 @@ class Discovery(object):
     def check_network(self):
         # print(f"CHECK NETWORK {threading.currentThread()}", flush=True)
         adr, bcast = self.check_interface_addresses()
-        if self.agent and self.agent.udp.broadcast != bcast:
-            self.broadcast = bcast or '255.255.255.255'
-            print(f"broadcast change = {self.broadcast}", flush=True)
+        self.broadcast = bcast or '255.255.255.255'
+        if self.agent and self.agent.udp.broadcast != self.broadcast:
+            
+            print(f"broadcast change: bcast udp: {self.agent.udp.broadcast} to: {self.broadcast}", flush=True)
             self.agent.udp.broadcast = self.broadcast 
             
         if self.current_address != adr or (self.beacon and self.beacon.address != adr):
-            
+            self.current_address = adr
             if self.beacon:
                 self.beacon.close()
                 self.beacon = None
-            if self.current_address:
-                try:
-                    self.beacon = Beacon(self.node.name, address=adr)
-                    self.beacon.update_network(self.node.settings.discovery, self.node.settings.discoverable)
-                    self.current_address = adr
-                except Exception as e:
-                    print(f'BeaconUpdate Exception: {str(e)}')
+
+            self._update_timeout = time.time() + 3.0
+            if self.update_beacon_timeout:
+                self.update_beacon_timeout.cancel()
+
+            self.update_beacon_timeout = IOLoop.current().add_timeout(self._update_timeout, partial(self.update_beacon, adr))
+
+
         
-        
+    def update_beacon(self, adr):
+        try:
+            print(f'Updating Beacon {self.current_address}, New: {adr}')
+            self.beacon = Beacon(self.node.name, address=adr)
+            self.beacon.update_network(self.node.settings.discovery, self.node.settings.discoverable)
+            self.current_address = adr
+        except Exception as e:
+            print(f'BeaconUpdate Exception: {str(e)}')
+
+
 
 
 

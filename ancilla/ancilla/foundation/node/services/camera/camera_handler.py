@@ -66,7 +66,8 @@ class CameraHandler():
       if self.connector and self.connector.alive:
         return {"status": "connected"}
 
-      self.connector = CameraConnector(self.process.ctx, self.process.identity, endpoint)
+      cam_settings = data.get("settings") or {}
+      self.connector = CameraConnector(self.process.ctx, self.process.identity, endpoint, cam_settings)
       self.connector.open()
       
       self.connector.run()

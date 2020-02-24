@@ -32,10 +32,11 @@ class CameraConnector(object):
     ping_at = 0             # Next ping at this time
     expires = 0             # Expires at this time
 
-    def __init__(self, ctx, identity, endpoint, **kwargs):  
+    def __init__(self, ctx, identity, endpoint, settings, **kwargs):  
       self.thread_read = None
       self.identity = identity
       self.endpoint = endpoint
+      self.settings = settings
 
       if isinstance(self.endpoint, str) and self.endpoint.isnumeric():
         self.endpoint = int(self.endpoint)
@@ -67,14 +68,33 @@ class CameraConnector(object):
     def create_camera(self):
       print("create camera", flush=True)
       self.video = VideoCapture(self.endpoint)
-      self.video.set(cv2.CAP_PROP_FOURCC,cv2.VideoWriter_fourcc('M','J','P','G'))
+      self.video.set(cv2.CAP_PROP_FOURCC,cv2.VideoWriter_fourcc(*'MJPG'))
+      for prop, val in self.settings.items():
+        if prop.startswith('CAP_PROP'):
+          self.set_capture_prop(prop, val)
+
+      # self.video.set(cv2.CAP_PROP_FPS, 10)
       time.sleep(0.5)
       if not self.video.isOpened():
         self.video.release()
         self.video = None
         raise Exception(f"Could Not Open Video with Endpoint {self.endpoint}")
       
+    def set_capture_prop(self, prop, val):
+      try:
+        self.video.set(getattr(cv2, prop), val)
+      except: 
+        pass
 
+
+    def list_supported_capture_properties(self):
+      """ List the properties supported by the capture device.
+      """
+      supported = list()
+      for attr in dir(cv2):
+          if attr.startswith('CAP_PROP'):
+            supported.append(attr)              
+      return supported
     
     def run(self):
       self.alive = True

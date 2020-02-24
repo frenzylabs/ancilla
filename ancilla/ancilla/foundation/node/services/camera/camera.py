@@ -86,7 +86,7 @@ class Camera(BaseService):
       if not self.connector or not self.connector.is_alive():
         self.start()
 
-      request = Request({"action": "connect", "body": {"endpoint": self.model.model.endpoint}})
+      request = Request({"action": "connect", "body": {"endpoint": self.model.model.endpoint, "settings": self.model.model.settings}})
       try:
         res =  await self.make_request(request)
         self.state.connected = True
