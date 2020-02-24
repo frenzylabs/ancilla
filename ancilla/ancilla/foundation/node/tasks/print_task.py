@@ -266,7 +266,7 @@ class PrintTask(AncillaTask):
 
         
         # lineregex = re.compile("(([A-Z][\d]+)\s([^;]*))")
-        lineregex = re.compile("(([^\s\\n\\r]+)\s?([^;]*))")
+        lineregex = re.compile("(([^;\s\\n\\r]+)\s?([^;]*))")
         while self.state.status == "running":
 
           cmd_start_time = time.time()
