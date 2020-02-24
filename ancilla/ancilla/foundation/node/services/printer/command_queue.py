@@ -35,7 +35,7 @@ from collections import OrderedDict
 class CommandQueue(object):
 
     def __init__(self):
-        self.max_send_queue_length = 2
+        self.max_send_queue_length = 5
         self.queue = OrderedDict()
         self.current_command = None
         self.current_expiry = None

@@ -142,8 +142,6 @@ class PrinterHandler(DataHandler):
     m = self.temp_regex.match(msg)
     if m and len(m.groups()) > 0:
       tempstr = m.group(1)
-      if self.service.current_print:
-        self.service.current_print.state["temp"] = tempstr
       self.service.state.temp = tempstr
       return True
     return False

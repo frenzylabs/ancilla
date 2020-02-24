@@ -34,6 +34,8 @@ class PrinterApi(Api):
     self.service.route('/prints/<print_id>/sync_layerkeep', 'POST', self.sync_print_to_layerkeep)
     self.service.route('/prints/<print_id>/unsync_layerkeep', 'POST', self.unsync_print_from_layerkeep)
     self.service.route('/prints/<print_id>/recordings', 'GET', self.get_print_recordings)
+    self.service.route('/prints/<print_id>/cancel', 'POST', self.cancel_print)
+    self.service.route('/prints/<print_id>/pause', 'POST', self.pause_print)
     self.service.route('/prints/<print_id>', 'GET', self.get_print)
     self.service.route('/prints/<print_id>', 'DELETE', self.delete_print)
     self.service.route('/prints/<print_id>', 'PATCH', self.update_print)
@@ -131,7 +133,19 @@ class PrinterApi(Api):
 
     return {"data": prnt}
     
+  async def cancel_print(self, request, print_id, *args):
+    # prnt = Print.get_by_id(print_id)
+    resp = await self.service.cancel_print({"data": {"print_id": print_id}})
+    data = resp.body
+    prnt = data.get("print")
+    return {"data": prnt}
 
+  async def pause_print(self, request, print_id, *args):
+    # prnt = Print.get_by_id(print_id)
+    resp = await self.service.pause_print({"data": {"print_id": print_id}})
+    data = resp.body
+    prnt = data.get("print")
+    return {"data": prnt}  
   
   def prints(self, request, *args):
     page = int(request.params.get("page") or 1)

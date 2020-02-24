@@ -170,16 +170,30 @@ class Printer(BaseService):
     async def cancel_print(self, msg):
       # print(f"STOP RECORDING {msg}", flush=True)
       try:
+        
         if not self.connector:
           self.state.printing = False
-        request = Request({"action": "cancel_print", "body": msg})
-        res =  await self.make_request(request)
-        self.state.printing = False
-        return res
+          print_id = msg.get("data", {}).get("print_id")
+          if print_id:
+            prnt = Print.get_by_id(print_id)
+            prnt.status = "cancelled"
+            prnt.save()
+            return AncillaResponse({"print": prnt.to_json()})
+          return AncillaError(404, {"error": "Print Not Found"})
+        else:
+          request = Request({"action": "cancel_print", "body": msg})
+          res =  await self.make_request(request)
+          self.state.printing = False
+          return res
 
+      except AncillaResponse as e:
+        raise e
       except Exception as e:
-        print(f"Cant cancel print task {str(e)}", flush=True)
-        return {"status": "error", "error": f"Could not cancel task {str(e)}"}
+        raise AncillaError(400, {"error": f"Cant Cancel Print {str(e)}"})
+
+      # except Exception as e:
+      #   print(f"Cant cancel print task {str(e)}", flush=True)
+      #   return {"status": "error", "error": f"Could not cancel print {str(e)}"}
 
 
 

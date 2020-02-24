@@ -100,9 +100,11 @@ class PrinterHandler():
           cmd.response.append(err)
           self.command_queue.finish_command(cmd, status="error")
         elif cmd.nowait:
+          self.logger.debug(f"NoWaitFinishCommand: {cmd.command}")
           self.command_queue.finish_command(cmd)
+          IOLoop.current().add_callback(self.process_commands)
       elif cmd.status != "running":
-        self.command_queue.finish_command(cmd, status=cmd.status)     
+        self.command_queue.finish_command(cmd, status=cmd.status)
       # else:
         # print(f"CMD is Running {cmd.command}", flush=True)
         # IOLoop.current().add_callback(self.process_commands)
@@ -186,14 +188,30 @@ class PrinterHandler():
     def cancel_print(self, msg):
 
       try:
+        print(f'Cancel Print {msg}', flush=True)
         payload = msg.get('data') or {}
+        print_id = int(payload.get("print_id") or 0)
         task_name = payload.get("task_name")
+        if self.current_print:
+          print(f'PrintId = {self.current_print.id} and print_id = {print_id}')
 
-        task_name = self.current_print.name #"print"        
-        if self.process.current_tasks.get(task_name):
-          self.process.current_tasks[task_name].cancel()
-          
-          return {"status": "success"}
+
+        if self.current_print and (not print_id or self.current_print.id == print_id):
+          task_name = self.current_print.name #"print"        
+          if self.process.current_tasks.get(task_name):
+            self.process.current_tasks[task_name].cancel()
+          else:
+            print(f'Canceled print no task')
+            self.current_print.status = "cancelled"
+            self.current_print.save()
+            
+          return {"print": self.current_print.to_json()}
+        elif print_id:
+          print(f'Canceled print update status')
+          prnt = Print.get_by_id(print_id)
+          prnt.status = "cancelled"
+          prnt.save()
+          return {"print": prnt.to_json()}
         else:
           raise AncillaError(404, {"error": "Task Not Found"})
 
