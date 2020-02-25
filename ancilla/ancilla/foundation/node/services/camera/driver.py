@@ -77,9 +77,12 @@ class CameraConnector(object):
       fourcc = videosettings.get("CAP_PROP_FOURCC")
       if fourcc == None:
         fourcc = 'MJPG'
+      else:
+        del videosettings["CAP_PROP_FOURCC"]
+        
       if len(fourcc) == 4:
         self.video.set(cv2.CAP_PROP_FOURCC,cv2.VideoWriter_fourcc(*fourcc))
-        del videosettings["CAP_PROP_FOURCC"]
+        # del videosettings["CAP_PROP_FOURCC"]
 
       for prop, val in videosettings.items():
         if prop.startswith('CAP_PROP') and val != "":
