@@ -54,6 +54,10 @@ class CameraApi(Api):
             kval = request.params.get(k)
             if kval:
               model.__setattr__(k, kval)
+          
+          model_settings = request.params.get("model_settings")
+          if model_settings:
+            model.settings = model_settings
 
           if not model.is_valid:
             raise AncillaError(400, {"errors": model.errors})

@@ -32,11 +32,14 @@ class CameraConnector(object):
     ping_at = 0             # Next ping at this time
     expires = 0             # Expires at this time
 
-    def __init__(self, ctx, identity, endpoint, settings, **kwargs):  
+    def __init__(self, ctx, identity, camera, **kwargs):  
       self.thread_read = None
       self.identity = identity
-      self.endpoint = endpoint
-      self.settings = settings
+      self.camera = camera
+      self.endpoint = camera.get("endpoint")
+      self.settings = camera.get("settings")
+
+      self.logger = logging.getLogger(camera.get("name"))
 
       if isinstance(self.endpoint, str) and self.endpoint.isnumeric():
         self.endpoint = int(self.endpoint)
@@ -63,17 +66,26 @@ class CameraConnector(object):
       os.dup2(to_fd, original_stderr_fd)
       sys.stderr = os.fdopen(original_stderr_fd)
 
-    
-              
+
     def create_camera(self):
-      print("create camera", flush=True)
+      self.logger.debug("CREATE CAMERA HERE")
       self.video = VideoCapture(self.endpoint)
-      self.video.set(cv2.CAP_PROP_FOURCC,cv2.VideoWriter_fourcc(*'MJPG'))
-      for prop, val in self.settings.items():
-        if prop.startswith('CAP_PROP'):
+      
+      videosettings = self.settings.get("video", {})
+
+
+      fourcc = videosettings.get("CAP_PROP_FOURCC")
+      if fourcc == None:
+        fourcc = 'MJPG'
+      if len(fourcc) == 4:
+        self.video.set(cv2.CAP_PROP_FOURCC,cv2.VideoWriter_fourcc(*fourcc))
+        del videosettings["CAP_PROP_FOURCC"]
+
+      for prop, val in videosettings.items():
+        if prop.startswith('CAP_PROP') and val != "":
           self.set_capture_prop(prop, val)
 
-      # self.video.set(cv2.CAP_PROP_FPS, 10)
+
       time.sleep(0.5)
       if not self.video.isOpened():
         self.video.release()

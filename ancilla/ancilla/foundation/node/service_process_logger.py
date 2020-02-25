@@ -55,12 +55,14 @@ class ServiceProcessLogger(getLoggerClass()):
 
 
     log_config = self.model.configuration.get("logging", {})
-    log_dir     = log_config.get("directory", None) 
+    log_dir     = log_config.get("directory", None)
+
+    default_file_config = {"on": True, "level": "INFO", "maxBytes": 64_000_000, "backupCount": 1}
 
     log_settings  = self.model.settings.get("logging", {})
     log_level     = log_settings.get("level", "INFO")
     stdout_log    = log_settings.get("stdout", {})
-    file_log      = log_settings.get("file", {})
+    file_log      = log_settings.get("file", default_file_config)
 
 
     log_to_stdout  = stdout_log.get("on", False)

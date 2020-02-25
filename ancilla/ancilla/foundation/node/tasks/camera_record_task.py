@@ -73,7 +73,7 @@ class CameraRecordTask(AncillaTask):
     print(f"CR root path = {self.root_path}")
 
     
-    processor = self.service.get_or_create_video_processor()
+    processor = self.service.get_or_create_video_processor({"camera": self.camera_model})
     if not processor:
       return 
 

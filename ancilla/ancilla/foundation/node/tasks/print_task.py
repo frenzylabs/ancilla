@@ -275,7 +275,7 @@ class PrintTask(AncillaTask):
           
           if pos == endfp:            
             # print("End File POS: ", pos)
-            self.state.status = "finished"            
+            self.state.status = "finished"
             break
 
           # if not line.strip():

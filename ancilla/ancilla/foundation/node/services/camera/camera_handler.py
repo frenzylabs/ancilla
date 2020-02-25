@@ -62,12 +62,12 @@ class CameraHandler():
     
 
     def connect(self, data):
-      endpoint = data.get("endpoint")
+      camera = data.get("camera")
+      
       if self.connector and self.connector.alive:
         return {"status": "connected"}
 
-      cam_settings = data.get("settings") or {}
-      self.connector = CameraConnector(self.process.ctx, self.process.identity, endpoint, cam_settings)
+      self.connector = CameraConnector(self.process.ctx, self.process.identity, camera)
       self.connector.open()
       
       self.connector.run()
@@ -77,18 +77,17 @@ class CameraHandler():
       return {"status": "connected"}
 
 
-    def get_or_create_video_processor(self, *args):
+    def get_or_create_video_processor(self, data):
       # if not self.state.connected:
       #   raise AncillaError(400, {"error": "Camera Not Connected"})
-      
+
       if self.video_processor:
           for k, v in self.process.current_tasks.items():
             if isinstance(v, CameraProcessVideoTask):    
               return {"stream": v.processed_stream}
               # return v
 
-      payload = {"settings": {}}
-      self.video_processor = CameraProcessVideoTask("process_video", self, payload)
+      self.video_processor = CameraProcessVideoTask("process_video", self, data)
       self.process.add_task(self.video_processor)
 
       return {"stream": self.video_processor.processed_stream}

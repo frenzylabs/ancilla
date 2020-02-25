@@ -86,7 +86,9 @@ class Camera(BaseService):
       if not self.connector or not self.connector.is_alive():
         self.start()
 
-      request = Request({"action": "connect", "body": {"endpoint": self.model.model.endpoint, "settings": self.model.model.settings}})
+
+      # request = Request({"action": "connect", "body": {"endpoint": self.model.model.endpoint, "settings": self.model.model.settings}})
+      request = Request({"action": "connect", "body": {"camera": self.camera_model.to_json()}})
       try:
         res =  await self.make_request(request)
         self.state.connected = True
@@ -244,8 +246,7 @@ class Camera(BaseService):
       if not self.state.connected:
         raise AncillaError(400, {"error": "Camera Not Connected"})
       
-      # request = {"action": "get_or_create_video_processor", "body": {"endpoint": self.model.model.endpoint}}
-      request = Request({"action": "get_or_create_video_processor", "body": {"endpoint": self.model.model.endpoint}})
+      request = Request({"action": "get_or_create_video_processor", "body": {"camera": self.camera_model.to_json()}})
       res =  await self.make_request(request)
       return res
 

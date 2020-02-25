@@ -45,16 +45,11 @@ class CameraProcessVideoTask(AncillaTask):
     self.current_frame = None
     self.current_framenum = None
     self.payload = payload
-    self.task_settings = self.payload.get("settings") or {}
-    self.settings = self.task_settings.get("settings") or {"size": [640, 480]}
-    width, height = self.settings.get("size") or [640, 480]
+    self.camera_model = self.payload.get("camera") or {}
+    self.camera_settings = self.camera_model.get("settings") or {}
+    self.video_settings = self.camera_settings.get("video") or {"size": [640, 480]}
+    width, height = self.video_settings.get("size") or [640, 480]
     self.video_size = (width, height)
-
-    # self.timelapse = int(self.task_settings.get("timelapse") or 2) * 1000
-    
-    # self.video_settings = self.task_settings.get("videoSettings") or {"format": "mp4v"}
-    # self.video_format = self.video_settings.get("format") or "mp4v"      
-    # self.video_fps = int(self.video_settings.get("fps") or 10)
 
     self.service = service
     self.state.update({"name": name, "status": "pending", "model": {}})
