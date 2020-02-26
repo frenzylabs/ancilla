@@ -9,6 +9,7 @@
 from .data_handler import DataHandler
 from ..events.printer import Printer
 import json, time, re, os
+import time
 import logging
 from logging.handlers import RotatingFileHandler
 
@@ -153,6 +154,7 @@ class PrinterHandler(DataHandler):
     if m and len(m.groups()) > 0:
       tempstr = m.group(1)
       self.service.state.temp = tempstr
+      self.service.state.temp_updated = time.time()
       return True
     return False
 

@@ -180,6 +180,9 @@ class PrintTask(AncillaTask):
   async def get_temp(self, payload):
     cnt = 0
     try:
+      if self.service.state.temp_updated:
+        if time.time() - self.service.state.temp_updated < 3:
+          return
       cmd = payload.get("command")
       self.service.add_command(self.task_id, cnt, cmd, False, skip_queue=True, print_id=self.service.current_print.id)
       # self.curcommand = self.service.add_command(self.task_id, cnt, cmd, is_comment, print_id=self.service.current_print.id)
