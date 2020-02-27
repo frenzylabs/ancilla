@@ -22,6 +22,8 @@ class PrinterHandler(DataHandler):
       super().__init__(service, *args)
 
       # self.pos_regex = re.compile('(?:ok\s)*\s*([X|Y|Z]):([\d\.]*)\s*([X|Y|Z]):([\d\.]*\s*).*')
+      self.coord_regex = re.compile('\\s*(?:([F|X|Y|Z])(\\d+\\.?\\d*))')
+      # self.coord_regex = re.compile('(?:G[0|1]\s).*Z(\d+\.?\d+)):([\d\.]*)\s*)')
       self.pos_regex = re.compile('(?:ok\s)*\s*(([X|Y|Z|E]):([\d\.]*)\s*)')
       # self.pos_regex = re.compile('(?:ok\s)*\s*X:[\d\.]+\s*Y:[\d\.]+\s*Z:[\d\.]+.*')
 
@@ -137,6 +139,7 @@ class PrinterHandler(DataHandler):
           if newmsg.startswith("ok") or newmsg == "k\n":
             cmdstatus = "finished"
             log_level = logging.INFO
+            self.print_coords(cmd.command)
             self.service.command_queue.finish_command(cmd)
             IOLoop.current().add_callback(self.service.process_commands)
           
@@ -165,7 +168,15 @@ class PrinterHandler(DataHandler):
     if m and len(m) > 3:
       self.service.state.position = msg
       return True
-    return False  
+    return False 
+
+  def print_coords(self, cmd):
+    if self.service.current_print:
+      if cmd[:2] == "G0" or cmd[:2] == "G1":
+        res = self.coord_regex.findall(cmd)
+        if not self.service.current_print.state.get("coords"):
+          self.service.current_print.state["coords"] = {}
+        self.service.current_print.state["coords"].update({k: v for k, v in res})
 
   def log_printer_output(self, level, msg):
     d = {"message": json.dumps(msg)}
