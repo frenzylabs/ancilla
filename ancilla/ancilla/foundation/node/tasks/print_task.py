@@ -175,16 +175,20 @@ class PrintTask(AncillaTask):
       self.parent_conn.send(("cmd", self.service.current_print, lcmd))
     self.current_commands = new_command_list
 
-
-
   async def get_temp(self, payload):
     cnt = 0
     try:
       if self.service.state.temp_updated:
         if time.time() - self.service.state.temp_updated < 3:
           return
+      if self.service.state.temp_sent_at:
+        if not self.service.state.temp_updated or self.service.state.temp_sent_at > self.service.state.temp_updated:
+          return
+
       cmd = payload.get("command")
+      self.service.state.temp_sent_at = time.time()
       self.service.add_command(self.task_id, cnt, cmd, False, skip_queue=True, print_id=self.service.current_print.id)
+      
       # self.curcommand = self.service.add_command(self.task_id, cnt, cmd, is_comment, print_id=self.service.current_print.id)
       # current_command = service.add_command(self.task_id, cnt, cmd.encode('ascii'))
       await sleep(0.1)

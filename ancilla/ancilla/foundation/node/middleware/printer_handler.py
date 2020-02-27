@@ -155,6 +155,8 @@ class PrinterHandler(DataHandler):
       tempstr = m.group(1)
       self.service.state.temp = tempstr
       self.service.state.temp_updated = time.time()
+      if self.service.current_print:
+        self.service.current_print.state["temp"] = tempstr
       return True
     return False
 
