@@ -22,7 +22,7 @@ import functools
 from functools import partial
 from asyncio       import sleep
 
-from .ancilla_task import AncillaTask, PeriodicTask
+from .ancilla_task import AncillaTask
 from ..events.printer import Printer
 from ...data.models import Print, PrintSlice, PrinterCommand
 
@@ -230,13 +230,6 @@ class PrintTask(AncillaTask):
     self.state_callback = PeriodicCallback(self.get_state, 3000, 0.1)
     self.state_callback.start()
 
-    data = {
-      "command": "M105"
-    }
-    self.temp_task = PeriodicTask(f"temp-{self.service.current_print.name}", self.service, data, interval=6000)
-    self.temp_task.run_callback = self.get_temp
-    self.service.process.add_task(self.temp_task)
-
 
     ctx = mp.get_context('spawn')
     # cmd_queue = ctx.Queue()
@@ -434,8 +427,6 @@ class PrintTask(AncillaTask):
     elif self.state.status == "paused":
       self.service.fire_event(Printer.print.paused, self.state)  
 
-    
-    self.temp_task.stop()
     self.state_callback.stop()
 
     self.service.print_queued = False

@@ -22,6 +22,7 @@ from .driver import SerialConnector
 from ....data.models import PrinterCommand, PrintSlice, Print
 
 from ...tasks.print_task import PrintTask
+from ...tasks.periodic_printer_temp_task import PeriodicPrinterTempTask
 from ...events.printer import Printer as PrinterEvent
 
 from ...middleware.printer_handler import PrinterHandler as PrinterDataHandler
@@ -46,17 +47,30 @@ class PrinterHandler():
     connector = None
     current_print = None
 
-    def __init__(self, process, **kwargs): 
-      self.process = process
-      self.data_handler = PrinterDataHandler(self)
-      self.process.register_data_handlers(self.data_handler)
-      self.command_queue = CommandQueue()
-        
     logger = DelegatedAttribute('process', 'logger')
     state = DelegatedAttribute('process', 'state')
     model = DelegatedAttribute('process', 'model')
     identity = DelegatedAttribute('process', 'identity')
     fire_event = DelegatedAttribute('process', 'fire_event')
+
+    def __init__(self, process, **kwargs): 
+      self.process = process
+      self.data_handler = PrinterDataHandler(self)
+      self.process.register_data_handlers(self.data_handler)
+      self.command_queue = CommandQueue()
+      
+        
+    
+    def setup(self):
+      self.poll_temp({})
+
+    def model_updated(self):
+      pass
+      # poll_temp_settings = self.model.settings.get("poll_temp", {})
+      # if poll_temp_settings.get("poll"):
+      #   self.poll_temp({"data": poll_temp_settings})
+      # else:
+      #   self.stop_polling_temp()
 
     def close(self):
       if self.connector:
@@ -238,6 +252,42 @@ class PrinterHandler():
       except Exception as e:
         raise AncillaError(400, {"error": f"Could not pause print {str(e)}"})
 
+
+    def poll_temp(self, msg, *args):
+      try:
+        payload = {
+          "command": "M105",
+          "interval": 6000
+        }
+        task_name = "poll_temp"
+        data = msg.get("data", {})
+        payload.update(data)
+        
+        curtask = self.process.current_tasks.get(task_name)
+        if curtask:
+          curtask.payload = payload
+          return {"polling": True}
+          
+        
+        pt = PeriodicPrinterTempTask(task_name, self, payload)
+        self.process.add_task(pt)
+
+        return {"polling": True}
+
+      except Exception as e:
+        raise AncillaError(400, {"status": "error", "error": f"Could not Poll Temp {str(e)}"}, exception=e)
+
+    def stop_polling_temp(self, *args):
+      try:
+        task_name = "poll_temp"
+        curtask = self.process.current_tasks.get(task_name)
+        if curtask:
+          curtask.cancel()
+          
+        return {"polling": False}
+
+      except Exception as e:
+        raise AncillaError(400, {"status": "error", "error": f"Could Not Stop Polling Temp {str(e)}"}, exception=e)
     
     def delete_print_log(self, msg, *args):
       try:

@@ -139,13 +139,17 @@ class ServiceProcess():
       self.state._add_change_listener(partial(self.state_changed, 'state'))
       self.task_queue = Queue()
       self.current_tasks = {}
-      self.video_processor = None
+      if hasattr(self.handler, "setup"):
+        self.handler.setup()
+
 
     def model_updated(self):
       self.logger.debug(f"ServiceProcess POST SAVE HANDLER")
       
       self.model = Service.get_by_id(self.model.id)
       self.logger.setup_logger(self.model)
+      if hasattr(self.handler, "model_updated"):
+        self.handler.model_updated()
 
 
     def setup_event_loop(self):

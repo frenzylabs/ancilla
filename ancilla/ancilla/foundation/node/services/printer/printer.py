@@ -22,7 +22,7 @@ from ....data.models import PrinterCommand, PrintSlice, Print
 from tornado.queues     import Queue
 
 
-from ...tasks.ancilla_task import PeriodicTask
+from ...tasks.periodic_task import PeriodicTask
 
 from ...events.printer import Printer as PrinterEvent
 from ...api.printer import PrinterApi

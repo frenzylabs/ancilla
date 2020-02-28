@@ -136,7 +136,7 @@ class PrinterHandler(DataHandler):
             log_level = logging.INFO
             cmd.response.append(newmsg)
 
-          if newmsg.startswith("ok") or newmsg == "k\n":
+          if newmsg.startswith("ok"):
             cmdstatus = "finished"
             log_level = logging.INFO
             self.print_coords(cmd.command)

@@ -48,7 +48,6 @@ import string, random
 
 
 
-# from ..tasks.device_task import PeriodicTask
 from ...tasks.camera_record_task import CameraRecordTask
 from ...tasks.camera_process_video_task import CameraProcessVideoTask
 
