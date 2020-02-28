@@ -16,14 +16,16 @@ from peewee import (
   IntegerField
 )
 
-class Printer(BaseModel):
-  name      = CharField(unique=True)
-  port      = CharField()
-  baud_rate = CharField()
-  model     = CharField(null=True)
-  description = CharField(null=True)
+from playhouse.sqlite_ext import JSONField
 
-  service    = ForeignKeyField(Service, null=True, default=None, on_delete="SET NULL", backref="camera")
+class Printer(BaseModel):
+  name         = CharField(unique=True)
+  port         = CharField()
+  baud_rate    = CharField()
+  model        = CharField(null=True)
+  description  = CharField(null=True)
+  meta         = JSONField(default=dict)
+  service      = ForeignKeyField(Service, null=True, default=None, on_delete="SET NULL", backref="camera")
   
   layerkeep_id = IntegerField(null=True)
 
@@ -34,7 +36,6 @@ class Printer(BaseModel):
       'name':       self.name,
       'baud_rate':  self.baud_rate
     }
-
 
   def __repr__(self):
     return "{}, {}, {}".format(

@@ -166,11 +166,11 @@ class NodeApi(Api):
     
     with Service._meta.database.atomic() as transaction:
       try:
-        
+        model = s.model
         newname = request.params.get("name")
         if newname:   
           s.service_name = newname
-          model = s.model
+          
 
           if model:
             model.name = newname
@@ -186,7 +186,10 @@ class NodeApi(Api):
 
         s.event_listeners = request.params.get('event_listeners') or s.event_listeners
         s.save()
-        return {"service_model": s.json}
+        smodel = s.json
+        if model:
+          smodel.update(model=model.to_json(recurse=False))
+        return {"service_model": smodel}
       except Exception as e:
         # Because this block of code is wrapped with "atomic", a
         # new transaction will begin automatically after the call

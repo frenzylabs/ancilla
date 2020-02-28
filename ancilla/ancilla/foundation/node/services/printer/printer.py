@@ -57,6 +57,16 @@ class Printer(BaseService):
 
         self.printer = PrinterModel.get(PrinterModel.service == model)
 
+        temp_settings = self.model.settings.get("tempReporting")
+        if not temp_settings:
+          self.model.settings["tempReporting"] = {
+            "enabled": True,
+            "strategy": "poll",
+            "interval": "5"
+          }
+          self.model.save()
+          self.settings.load_dict(self.model.settings)
+
         self.record = self.printer.json
         self.api = PrinterApi(self)
         self.event_class = PrinterEvent

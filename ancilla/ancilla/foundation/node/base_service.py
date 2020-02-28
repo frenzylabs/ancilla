@@ -43,16 +43,27 @@ class BaseService(App):
         self.model = model
 
         # if not (self.config.logging and self.config.logging.directory):
+        model_changed = False
         logging_config = self.model.configuration.get("logging", {})
         if not logging_config.get("directory"):
           logging_config["directory"] = "/".join([self.model.directory, 'logs'])
           self.model.configuration["logging"] = logging_config
-          self.model.save()
+          model_changed = True
+          
           # self.config.update(self.model.configuration)
+
+        logsettings = self.model.settings.get("logging")
+        if not logsettings:
+          default_log_settings = {"stdout": {"on": False, "level": "WARNING"}, "file": {"on": True, "level": "INFO", "maxBytes": 16_000_000, "backupCount": 5}}
+          self.model.settings["logging"] = default_log_settings
+          model_changed = True
+
+        if model_changed:
+          self.model.save()    
         
 
         
-        self.load_config(model.configuration)
+        self.load_config(self.model.configuration)
         self.config._add_change_listener(
             functools.partial(self.config_changed, 'config'))
         # self.add_hook("config", functools.partial(self.settings_changed, "config"))

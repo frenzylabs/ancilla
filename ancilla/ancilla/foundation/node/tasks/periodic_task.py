@@ -25,9 +25,7 @@ class PeriodicTask(AncillaTask):
     self.service = service
     self.payload = payload
 
-    # self.interval = payload.get("interval") or 3000
-    # self.max_runs = payload.get("max_runs") or -1
-    # self.request_id = request_id
+
     self.io_loop = IOLoop.current()    
     self.state = "initialized"    
 
@@ -42,14 +40,21 @@ class PeriodicTask(AncillaTask):
   @payload.setter
   def payload(self, value):
     self._payload = value
-    self.interval = value.get("interval") or 3000
-    self.max_runs = value.get("max_runs") or -1
+    try:
+      self.interval = int(value.get("interval", 3))
+    except:
+      self.interval = 3
+
+    try:  
+      self.max_runs = value.get("max_runs", -1)
+    except:
+      self.max_runs = -1
 
     
   async def run(self, *args):
     # print(f"RUN PERIODIC TASK {self.name}", flush=True)
     if self.state == "initialized":
-      self._next_timeout = time.time() + self.interval / 1000.0
+      self._next_timeout = time.time() + self.interval
       self.run_timeout = self.io_loop.add_timeout(self._next_timeout, partial(self.run_task, args))
       self.state = "pending"
       while self.state != "finished":
@@ -75,7 +80,7 @@ class PeriodicTask(AncillaTask):
         return 
       if self.state != "finished":
         self.state = "pending"
-        self._next_timeout = time.time() + self.interval / 1000.0
+        self._next_timeout = time.time() + self.interval
         self.run_timeout = self.io_loop.add_timeout(self._next_timeout, partial(self.run_task, args))
     else:
       self.run_timeout.cancel()

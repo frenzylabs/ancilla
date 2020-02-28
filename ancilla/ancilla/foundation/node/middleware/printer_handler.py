@@ -75,12 +75,19 @@ class PrinterHandler(DataHandler):
       status = status.decode('utf-8')
 
       cmd = None
+      log_level = logging.INFO
+      cmdstatus = None
+
       if self.printer_temp(newmsg):
       #   return
+        
+        
         active_commands = self.service.command_queue.current_commands.keys()
         cmdkey = next((item for item in active_commands if item.startswith("M105")), None)
         if cmdkey:
           cmd = self.service.command_queue.current_commands[cmdkey]
+        else:
+          log_level = logging.DEBUG
       elif self.printer_pos(newmsg):
         active_commands = self.service.command_queue.current_commands.keys()
         cmdkey = next((item for item in active_commands if item.startswith("M114")), None)
@@ -98,8 +105,7 @@ class PrinterHandler(DataHandler):
       #     os.makedirs(logdir)
       #   self.logfp = open(logpath, 'a')
       
-      log_level = logging.INFO
-      cmdstatus = None
+      
       
 
       if status == 'error':
@@ -133,12 +139,10 @@ class PrinterHandler(DataHandler):
             IOLoop.current().add_callback(self.service.process_commands)
           else:
             cmdstatus = "running"
-            log_level = logging.INFO
             cmd.response.append(newmsg)
 
           if newmsg.startswith("ok"):
             cmdstatus = "finished"
-            log_level = logging.INFO
             self.print_coords(cmd.command)
             self.service.command_queue.finish_command(cmd)
             IOLoop.current().add_callback(self.service.process_commands)

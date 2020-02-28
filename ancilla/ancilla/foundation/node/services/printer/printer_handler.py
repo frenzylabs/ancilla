@@ -60,17 +60,25 @@ class PrinterHandler():
       self.command_queue = CommandQueue()
       
         
-    
-    def setup(self):
-      self.poll_temp({})
+
+
+    def setup_temp_reporting(self):
+      poll_temp_settings = self.model.settings.get("tempReporting", {})
+      if poll_temp_settings.get("enabled", False):
+        if poll_temp_settings.get("strategy") == "auto":
+          self.stop_polling_temp()
+          self.send_command({"data": {"cmd": "M155 S1"}})
+        else:
+          self.send_command({"data": {"cmd": "M155 S0"}})
+          self.poll_temp({"data": poll_temp_settings})
+      else:
+        if poll_temp_settings.get("strategy") == "auto":
+          self.send_command({"data": {"cmd": "M155 S0"}})
+        self.stop_polling_temp()
 
     def model_updated(self):
-      pass
-      # poll_temp_settings = self.model.settings.get("poll_temp", {})
-      # if poll_temp_settings.get("poll"):
-      #   self.poll_temp({"data": poll_temp_settings})
-      # else:
-      #   self.stop_polling_temp()
+      self.setup_temp_reporting()
+      
 
     def close(self):
       if self.connector:
@@ -91,6 +99,10 @@ class PrinterHandler():
       self.connector.run()
       self.process.state.connected = True
       self.fire_event(PrinterEvent.connection.opened, {"status": "success"})
+
+      self._next_timeout = time.time() + 5
+      self.run_timeout = IOLoop.current().add_timeout(self._next_timeout, self.setup_temp_reporting)
+      
       return {"status": "connected"}
 
 
@@ -257,7 +269,7 @@ class PrinterHandler():
       try:
         payload = {
           "command": "M105",
-          "interval": 6000
+          "interval": "6"
         }
         task_name = "poll_temp"
         data = msg.get("data", {})
@@ -282,8 +294,8 @@ class PrinterHandler():
         task_name = "poll_temp"
         curtask = self.process.current_tasks.get(task_name)
         if curtask:
-          curtask.cancel()
-          
+          curtask.stop()
+
         return {"polling": False}
 
       except Exception as e:
