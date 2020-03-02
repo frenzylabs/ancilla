@@ -179,6 +179,7 @@ class Beacon(object):
 
   def close(self):
     self.unregister()
+    self.conf.close()
     if hasattr(self, 'sb'):
       self.sb.cancel()
     self.is_running = False

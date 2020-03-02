@@ -2,10 +2,28 @@ version: '3.2'
 services:
   ancilla:
     container_name: ancilla
-    build: ./ancilla  
+    build: 
+      context: ./ancilla  
+      dockerfile: Dockerfile
     image: "localhost/ancilla:${ANCILLA_COMMIT:-latest}"
     ports:
       - "5000:5000"
+  ancilla-rpi3:
+    container_name: ancilla
+    build: 
+      context: ./ancilla  
+      dockerfile: Dockerfile_pi3
+    image: "localhost/ancilla:rpi3-${ANCILLA_COMMIT:-latest}"
+    ports:
+      - "5000:5000"         
+  ancilla-rpi4:
+    container_name: ancilla
+    build: 
+      context: ./ancilla  
+      dockerfile: Dockerfile_pi4
+    image: "localhost/ancilla:rpi4-${ANCILLA_COMMIT:-latest}"
+    ports:
+      - "5000:5000"      
     # volumes:
     #   - ./ancilla/app:/var/www/layerkeep/app
       

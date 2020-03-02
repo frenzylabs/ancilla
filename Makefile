@@ -15,7 +15,7 @@ update-ui:
 build-ui: update-ui package_ui
 
 
-build-web:
+build-rpi:
 	$(eval LK_COMMIT=$(shell git --git-dir=./.git rev-parse --short HEAD))
 	ANCILLA_COMMIT=${LK_COMMIT} docker-compose build ancilla
 
@@ -25,6 +25,28 @@ push_staging:
 	docker tag localhost/ancilla:${LK_COMMIT} layerkeep/ancilla:staging-latest
 	docker push layerkeep/ancilla:staging-${LK_COMMIT}
 	docker push layerkeep/ancilla:staging-latest
+
+build-rpi3:
+	$(eval LK_COMMIT=$(shell git --git-dir=./.git rev-parse --short HEAD))
+	ANCILLA_COMMIT=${LK_COMMIT} docker-compose build ancilla-rpi3
+
+push_rpi3:
+	$(eval LK_COMMIT=$(shell git --git-dir=./.git rev-parse --short HEAD))
+	docker tag localhost/ancilla:rpi3-${LK_COMMIT} layerkeep/ancilla:staging-rpi3-${LK_COMMIT}
+	docker tag localhost/ancilla:rpi3-${LK_COMMIT} layerkeep/ancilla:staging-rpi3-latest
+	docker push layerkeep/ancilla:staging-rpi3-${LK_COMMIT}
+	docker push layerkeep/ancilla:staging-rpi3-latest
+
+build-rpi4:
+	$(eval LK_COMMIT=$(shell git --git-dir=./.git rev-parse --short HEAD))
+	ANCILLA_COMMIT=${LK_COMMIT} docker-compose build ancilla-rpi4	
+
+push_rpi4:
+	$(eval LK_COMMIT=$(shell git --git-dir=./.git rev-parse --short HEAD))
+	docker tag localhost/ancilla:rpi4-${LK_COMMIT} layerkeep/ancilla:staging-rpi4-${LK_COMMIT}
+	docker tag localhost/ancilla:rpi4-${LK_COMMIT} layerkeep/ancilla:staging-rpi4-latest
+	docker push layerkeep/ancilla:staging-rpi4-${LK_COMMIT}
+	docker push layerkeep/ancilla:staging-rpi4-latest
 	
 
 all: run
@@ -32,7 +54,7 @@ all: run
 
 clean-docker:
 	docker rm $(shell docker ps -a -q)
-	docker rmi $(shell docker images | grep '^<none>' | awk '{print $$3}')
+	docker rmi $(shell docker images | grep '<none>' | awk '{print $$3}')
 
 clean-ui:
 	@rm -rf ancilla/ui
