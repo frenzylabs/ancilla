@@ -27,6 +27,8 @@ from .foundation.data.models  import (
 )
 
 from tornado.ioloop import IOLoop
+import asyncio
+from tornado.platform.asyncio import AnyThreadEventLoopPolicy
 
 import atexit
 
@@ -39,9 +41,10 @@ class Application():
     self.setup_env()
     self.start_db()    
     self.document_store = Document()
+    asyncio.set_event_loop_policy(AnyThreadEventLoopPolicy())
+
     if not IOLoop.current(instance=False):
       loop = IOLoop().initialize(make_current=True)  
-
     
     atexit.register(self.stop)
     

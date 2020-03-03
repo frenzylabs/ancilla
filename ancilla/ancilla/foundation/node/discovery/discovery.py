@@ -294,11 +294,31 @@ class Peer(object):
     ip   = None
     expires_at = None
 
-    def __init__(self, uuid, name, ip):
-        self.uuid = uuid
+    def __init__(self, agent, uuid, name, ip, port):
+        self.agent = agent
+        self.uuid = uuid        
         self.name = name
         self.ip = ip
+        self.port = port
         self.is_alive()
+        # self.ctx = zmq.Context()
+        # self.setup_dealer()
+
+
+    def setup_dealer(self):
+        peer = self.ctx.socket(zmq.DEALER)    # DEALER
+        
+        target_identity = self.uuid.encode('ascii')
+        peer.setsockopt(zmq.IDENTITY, self.agent.uuid.encode('ascii')) 
+        connect_address = f'tcp://{self.ip}:{self.port}'
+        print(f'Peer Connect Address = {connect_address}')
+        self.peer = ZMQStream(peer)
+        self.peer.connect(connect_address)
+        self.peer.on_send(self.peer_message)
+        
+        
+        self.peer.send_multipart([target_identity, b"state", b'blah'])
+        self.peer.send_multipart([target_identity, b"ICANHAZ?", b'tada'])
 
     def is_alive(self, *args):
         """Reset the peers expiry time
@@ -306,11 +326,14 @@ class Peer(object):
         Call this method whenever we get any activity from a peer.
         """
         if len(args) > 0:
-            uuid, name, ip, *rest = args
+            uuid, name, port, ip, *rest = args
             self.name = name
             self.ip = ip
         self.expires_at = time.time() + PEER_EXPIRY
     
+    def peer_message(self, msg, other):
+        print(f'Receieved Peer Message', flush=True)
+
     def to_json(self):
         return {"uuid": self.uuid, "name": self.name, "ip": self.ip}
 
@@ -357,10 +380,11 @@ class DiscoveryAgent(object):
             pass
 
     def start(self):
-        asyncio.set_event_loop_policy(AnyThreadEventLoopPolicy())
+        
+        # asyncio.set_event_loop_policy(AnyThreadEventLoopPolicy())
 
         if self.loop is None:
-            if not IOLoop.current(instance=False):
+            if not IOLoop.current(instance=False):                
                 self.loop = IOLoop()
             else:
                 self.loop = IOLoop.current()
@@ -376,10 +400,11 @@ class DiscoveryAgent(object):
         loop.start()
 
     def send_ping(self, *a, **kw):
+        # print(f'Send Ping here ', flush=True)
         if not self.node.settings.discoverable:
             return
         try:
-            packet = json.dumps([self.uuid, self.node.name]).encode('utf-8')
+            packet = json.dumps([self.uuid, self.node.name, self.node.router_port]).encode('utf-8')
             self.udp.send(packet)
         except Exception as e:
             print(f'Ping Exception = {str(e)}')
@@ -404,15 +429,21 @@ class DiscoveryAgent(object):
         pack = packet.decode('utf-8')
         try:
             res = json.loads(pack)
+
             uuid = res[0]
             name = res[1]
+            port = res[2]
+            
 
             if uuid in self.peers:
-                
+                # print(f'Beacon: {res}')
                 self.peers[uuid].is_alive(*res, ip)
             else:
+                # if uuid == self.uuid:
+                #     print(f'Same Node')
+                #     return
                 print("Found peer %s, %s, %s" % (uuid, name, ip))
-                self.peers[uuid] = Peer(uuid, name, ip)
+                self.peers[uuid] = Peer(self, uuid, name, ip, port)
                 self.pipe.send_multipart([b'JOINED', uuid.encode('utf-8')])
         except Exception as e:
             print(f'handle beacon exception = {str(e)}')

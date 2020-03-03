@@ -96,8 +96,8 @@ class ServiceProcess():
       inst.run()
 
   
-    def _hangle_sig_memory(self, signum, stack):
-      self.logger.debug("handle memory sig")
+    def _hangle_sig_memory(self, signum, stack):      
+      self.logger.warning("Memory Warning")
       gc.collect()
 
     def limit_memory(self): 

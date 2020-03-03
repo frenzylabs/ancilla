@@ -62,8 +62,9 @@ class ZMQNodePubSub(object):
     def connect(self):
         # print("Node PUbsub connect", flush=True)
         self.context = zmq.Context()
-        self.socket = self.context.socket(zmq.ROUTER)
-
+        self.socket = self.context.socket(zmq.DEALER)
+        # self.socket.identity = b'tada123'
+        # print(f'ConnecT to Router {self.node.router_address}')
         self.socket.connect(self.node.router_address)
 
         self.stream = ZMQStream(self.socket)
@@ -111,13 +112,16 @@ class ZMQNodePubSub(object):
       
 
     def make_request(self, target, action, msg = None):
-
       kind, *cmds = action.split(".")
       method = action
       if len(cmds) > 0:
         method = cmds[0]
 
       wrapped = {"data": msg}
+      # send_to_socket = [self.node.identity, method.encode('ascii'), json.dumps(wrapped).encode('ascii')]
+      # print(f'Sending {send_to_socket}')
+      # self.stream.send_multipart(send_to_socket)
+      # self.socket.send_multipart([method.encode('ascii'), json.dumps(wrapped).encode('ascii'), target.encode('ascii')])
       
       return self.node.run_action(method, wrapped, target) 
 

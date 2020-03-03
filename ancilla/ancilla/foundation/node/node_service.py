@@ -112,7 +112,7 @@ class NodeService(App):
 
 
     def _hangle_sig_memory(self, signum, stack):
-      print("node service handle memory sig")
+      print("Memory Warning: Node Service")
       gc.collect()
 
 
@@ -134,11 +134,11 @@ class NodeService(App):
         # soft, hard = p.rlimit(resource.RLIMIT_AS) 
         print(f'Node MEM limit = {soft}, {hard}: {h}')
         
-        p.rlimit(resource.RLIMIT_AS, (s, h))
+        p.rlimit(resource.RLIMIT_AS, (s, hard))
       else:
         
         print(f'Node MEM limit = {soft}, {hard}:  {h}')
-        resource.setrlimit(resource.RLIMIT_AS, (s, h))
+        resource.setrlimit(resource.RLIMIT_AS, (s, hard))
       self._old_usr1_hdlr = signal.signal(signal.SIGUSR1, self._hangle_sig_memory)
 
     
@@ -170,27 +170,26 @@ class NodeService(App):
     def setup_router(self):
       trybind = 30
       bound = False
-      self.router_port = 5556
-      self.bind_address = "tcp://*:5556"
-      self.router_address = "tcp://127.0.0.1:5556"
+      self.router_port = 5555
+      self.bind_address = f"tcp://*:{self.router_port}"
+      self.router_address = f"tcp://127.0.0.1:{self.router_port}"
 
-      zrouter = self.ctx.socket(zmq.ROUTER)
-      zrouter.identity = self.identity
+      self.zrouter = self.ctx.socket(zmq.ROUTER)
+      self.zrouter.identity = self.identity
 
       while not bound and trybind > 0:
         try:
           self.bind_address = f"tcp://*:{self.router_port}"
           
-          zrouter.bind(self.bind_address)
+          self.zrouter.bind(self.bind_address)
           self.router_address = f"tcp://127.0.0.1:{self.router_port}"
           print(f"Node Bound to {self.bind_address}")
           bound = True
         except zmq.error.ZMQError:
           trybind -= 1
           self.router_port += 1
-      
 
-      self.zmq_router = ZMQStream(zrouter, IOLoop.current())
+      self.zmq_router = ZMQStream(self.zrouter, IOLoop.current())
       self.zmq_router.on_recv(self.router_message)
       self.zmq_router.on_send(self.router_message_sent)
 
