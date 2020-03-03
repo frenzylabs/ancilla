@@ -159,7 +159,7 @@ class Camera(BaseService):
           if os.path.exists(recording.image_path):
             shutil.rmtree(recording.image_path)
           if os.path.exists(recording.video_path):
-            shutil.rmtree(recording.video_path)
+            os.remove(recording.video_path)
 
           res = recording.delete_instance()
           return {"success": True}
