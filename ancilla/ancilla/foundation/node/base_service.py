@@ -91,11 +91,13 @@ class BaseService(App):
         self.pusher = self.ctx.socket(zmq.PUSH)
         self.pusher.connect(f"ipc://collector.ipc")
 
-        event_stream = self.ctx.socket(zmq.SUB)
-        event_stream.connect("ipc://publisher.ipc")
-        self.event_stream = ZMQStream(event_stream)
-        self.event_stream.linger = 0
-        self.event_stream.on_recv(self.on_message)
+        publisher_address = kwargs.get("publisher_address")
+        if publisher_address:
+          event_stream = self.ctx.socket(zmq.SUB)
+          event_stream.connect(publisher_address)
+          self.event_stream = ZMQStream(event_stream)
+          self.event_stream.linger = 0
+          self.event_stream.on_recv(self.on_message)
 
         self.settings._add_change_listener(
             functools.partial(self.settings_changed, 'settings'))

@@ -56,6 +56,7 @@ class NodeService(App):
           nodemodel.save(force_insert=True)
         self.model = nodemodel
         self.identity = self.model.uuid.encode('utf-8')
+
         self.name = self.model.name #identity.decode('utf-8')
 
         self.config.update({
@@ -79,11 +80,13 @@ class NodeService(App):
         # self.pubsocket = self.ctx.socket(zmq.PUB)
         # self.pubsocket.bind("ipc://publisher")
         # self.publisher = ZMQStream(self.pubsocket)
-        publisher = self.ctx.socket(zmq.PUB)
-        publisher.setsockopt( zmq.LINGER, 0 )
-        # publisher.setsockopt(zmq.DONTWAIT, True)
-        publisher.bind("ipc://publisher.ipc")
-        self.publisher = ZMQStream(publisher)
+        self.setup_publisher()
+        
+        # publisher = self.ctx.socket(zmq.PUB)
+        # publisher.setsockopt( zmq.LINGER, 0 )
+        # # publisher.setsockopt(zmq.DONTWAIT, True)
+        # publisher.bind("ipc://publisher.ipc")
+        # self.publisher = ZMQStream(publisher)
         
 
         collector = self.ctx.socket(zmq.PULL)
@@ -194,6 +197,32 @@ class NodeService(App):
       self.zmq_router.on_send(self.router_message_sent)
 
 
+    def setup_publisher(self):
+      trybind = 30
+      bound = False
+      self.publisher_port = 5556
+      self.bind_address = f"tcp://*:{self.publisher_port}"
+      self.publisher_address = f"tcp://127.0.0.1:{self.publisher_port}"
+
+      publisher = self.ctx.socket(zmq.PUB)
+      publisher.setsockopt( zmq.LINGER, 0 )
+        # publisher.setsockopt(zmq.DONTWAIT, True)
+
+      while not bound and trybind > 0:
+        try:
+          self.pub_bind_address = f"tcp://*:{self.publisher_port}"
+          
+          publisher.bind(self.pub_bind_address)
+          self.publisher_address = f"tcp://127.0.0.1:{self.publisher_port}"
+          print(f"Node Pub Bound to {self.pub_bind_address}")
+          bound = True
+        except zmq.error.ZMQError:
+          trybind -= 1
+          self.publisher_port += 1
+
+      self.publisher = ZMQStream(publisher)
+
+
     def list_actions(self, *args):
       return self.__actions__
 
@@ -205,13 +234,14 @@ class NodeService(App):
         __import__(module[:-3], locals(), globals())
 
     def mount_service(self, model):
+      kwargs = {"publisher_address": self.publisher_address}
       prefix = model.api_prefix #f"/services/{model.kind}/{model.id}/"
       res = next((item for item in self._mounts if item.config['_mount.prefix'] == prefix), None)
       if res:
         return ["exist", res]
       LayerkeepCls = getattr(importlib.import_module("ancilla.foundation.node.plugins"), "LayerkeepPlugin")    
       ServiceCls = getattr(importlib.import_module("ancilla.foundation.node.services"), model.class_name)  
-      service = ServiceCls(model)
+      service = ServiceCls(model, **kwargs)
       service.install(LayerkeepCls())
       self._services.append(model)
       self.mount(prefix, service)
@@ -354,23 +384,24 @@ class NodeService(App):
       if not filemodel:
         self.__create_file_service()
       
+      kwargs = {"publisher_address": self.publisher_address}
 
       for s in Service.select():
         self._services.append(s)
         if s.kind == "file":
           ServiceCls = getattr(importlib.import_module("ancilla.foundation.node.services"), s.class_name)  
-          service = ServiceCls(s)      
+          service = ServiceCls(s, **kwargs)
           service.install(LayerkeepCls())
           self.file_service = service
           self.mount(f"/api/services/{s.kind}/{s.id}/", service)
         elif s.kind == "layerkeep":          
           ServiceCls = getattr(importlib.import_module("ancilla.foundation.node.services"), s.class_name)  
-          service = ServiceCls(s) 
+          service = ServiceCls(s, **kwargs)
           self.layerkeep_service = service
           self.mount(f"/api/services/{s.kind}/{s.id}/", service)
         else:
           ServiceCls = getattr(importlib.import_module("ancilla.foundation.node.services"), s.class_name)  
-          service = ServiceCls(s)      
+          service = ServiceCls(s, **kwargs)
           service.install(LayerkeepCls())
           self.mount(f"/api/services/{s.kind}/{s.id}/", service)
           
@@ -492,44 +523,64 @@ class NodeService(App):
     def router_message_sent(self, msg, status):
       print("NODE INSIDE ROUTE MESSageSEND", flush=True)
 
+
     def router_message(self, msg):
-      print("NOde Unpack here", flush=True)
-      print(f"Router Msg = {msg}", flush=True)
+      # print(f"Router Msg = {msg}", flush=True)
       
-      replyto, method, path, *args = msg
-      method = method.decode('utf-8')
-      path = path.decode('utf-8')
-      params = {}
-      if len(args):
-        try:
-          params = json.loads(args.pop().decode('utf-8'))
-        except Exception as e:
-          print(f"Could not load params: {str(e)}", flush=True)
-      
-      environ = {"REQUEST_METHOD": method.upper(), "PATH": path, "params": params}
-      res = self._handle(environ)
-      # print(typing.co, flush=True)
+      replyto, seq_s, brequest, *args = msg
+      # seq = struct.unpack('!q',seq_s)[0]
+      # action = action.decode('utf-8')
+      request = brequest.decode('utf-8')
+      try:
+        req = json.loads(request)
+        classname = req.get('__class__')
 
-      if yields(res):
-        future = asyncio.run_coroutine_threadsafe(res, asyncio.get_running_loop())
+        module_name, class_name = classname.rsplit(".", 1)
+        MyClass = getattr(importlib.import_module(module_name), class_name)
+
+        instance = MyClass(**req.get('data', {}))
+        self.handle_route(replyto, seq_s, instance)
+      except Exception as e:
+        self.logger.error(f'Node Router Exception: {str(e)}')
+
+    # def router_message(self, msg):
+    #   print("NOde Unpack here", flush=True)
+    #   print(f"Router Msg = {msg}", flush=True)
+      
+    #   replyto, method, path, *args = msg
+    #   method = method.decode('utf-8')
+    #   path = path.decode('utf-8')
+    #   params = {}
+    #   if len(args):
+    #     try:
+    #       params = json.loads(args.pop().decode('utf-8'))
+    #     except Exception as e:
+    #       print(f"Could not load params: {str(e)}", flush=True)
+      
+    #   environ = {"REQUEST_METHOD": method.upper(), "PATH": path, "params": params}
+    #   res = self._handle(environ)
+    #   # print(typing.co, flush=True)
+
+    #   if yields(res):
+    #     future = asyncio.run_coroutine_threadsafe(res, asyncio.get_running_loop())
         
-        zmqrouter = self.zmq_router
-        def onfinish(fut):
-          newres = fut.result(1)
-          status = b'success'
-          if "error" in newres:
-            status = b'error'
-          zmqrouter.send_multipart([replyto, status, json.dumps(newres).encode('ascii')])
+    #     zmqrouter = self.zmq_router
+    #     def onfinish(fut):
+    #       newres = fut.result(1)
+    #       status = b'success'
+    #       if "error" in newres:
+    #         status = b'error'
+    #       zmqrouter.send_multipart([replyto, status, json.dumps(newres).encode('ascii')])
 
-        future.add_done_callback(onfinish)
+    #     future.add_done_callback(onfinish)
 
-      else:
-        status = b'success'
-        if "error" in res:
-          status = b'error'
-        self.zmq_router.send_multipart([replyto, status, json.dumps(res).encode('ascii')])
-      # node_identity, request_id, device_identity, action, *msgparts = msg
-      return "Routed"
+    #   else:
+    #     status = b'success'
+    #     if "error" in res:
+    #       status = b'error'
+    #     self.zmq_router.send_multipart([replyto, status, json.dumps(res).encode('ascii')])
+    #   # node_identity, request_id, device_identity, action, *msgparts = msg
+    #   return "Routed"
 
 
     # def request(self, request):
@@ -537,13 +588,13 @@ class NodeService(App):
 
     def handle_collect(self, msg):
       # print(f'HandleCol Pub to {msg}', flush=True)
-      self.publisher.send_multipart(msg)
+      # self.publisher.send_multipart(msg)
       if len(msg) >= 3:
           topic, service, *other = msg
           # topic, device, payload, *other = msg
-          if topic.startswith(b'events.'):
-              # print(f"INSIDE HERE, {topic} and {device}", flush=True)
-              self.publisher.send_multipart([service + b'.' + topic, service] + other)
+          # if topic.startswith(b'events.'):
+          # print(f"HandleCol inside, {topic} and {service}", flush=True)
+          self.publisher.send_multipart([self.identity + b'.' + service + b'.' + topic, service] + other)
       pass
 
 

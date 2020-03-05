@@ -72,7 +72,7 @@ class ZMQNodePubSub(object):
         self.stream.on_recv(self.callback)
 
         self.subscriber = self.context.socket(zmq.SUB)
-        self.subscriber.connect('ipc://publisher.ipc')
+        self.subscriber.connect(self.node.publisher_address)
 
         self.subscriber = ZMQStream(self.subscriber)
         self.subscriber.setsockopt( zmq.LINGER, 0 )
@@ -87,7 +87,7 @@ class ZMQNodePubSub(object):
       subscribeto = to
       if len(topic) > 0:
         subscribeto = f"{subscribeto}.{topic}"
-      subscribeto = subscribeto.encode('ascii')
+      subscribeto = self.node.identity + b'.' + subscribeto.encode('ascii')
 
       self.subscriber.setsockopt(zmq.SUBSCRIBE, subscribeto)
     
