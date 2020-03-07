@@ -144,7 +144,7 @@ class NodeApi(Api):
       q = q.where(Service.kind == request.params.get("kind"))
 
     for service in q:
-      js = service.json
+      js = service.to_json(extra_attrs=["identity"])
       model = service.model
       if model:
         js.update(model=model.to_json(recurse=False))

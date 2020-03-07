@@ -9,6 +9,7 @@
 from .base import BaseModel
 from ...env import Env
 import re
+from playhouse.shortcuts  import model_to_dict
 
 from peewee import (
   CharField,
@@ -48,6 +49,11 @@ class Service(BaseModel):
     }
   
   @property
+  def json(self):
+    return model_to_dict(self, extra_attrs=["identity"])
+
+
+  @property
   def model(self):    
     _model = None
     if self.kind == "printer":
@@ -67,6 +73,12 @@ class Service(BaseModel):
   @property
   def directory(self):
     return "/".join([Env.ancilla, "services", f"{self.kind}-S{self.id}"])
+
+  @property
+  def identity(self):
+    if self.id:
+      return f"service{self.id}"
+    return ""
 
   def __repr__(self):
     return "{}, {}, {}".format(

@@ -594,7 +594,13 @@ class NodeService(App):
           # topic, device, payload, *other = msg
           # if topic.startswith(b'events.'):
           # print(f"HandleCol inside, {topic} and {service}", flush=True)
-          self.publisher.send_multipart([self.identity + b'.' + service + b'.' + topic, service] + other)
+          
+          if topic.startswith(service):
+            newtopic = self.identity + b'.' + topic
+          else:
+            newtopic = self.identity + b'.' + service + b'.' + topic
+          # print(f"HandleCol inside, {newtopic} and {service}", flush=True)  
+          self.publisher.send_multipart([newtopic, service] + other)
       pass
 
 

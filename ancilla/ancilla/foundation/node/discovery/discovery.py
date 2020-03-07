@@ -175,7 +175,7 @@ class Discovery(object):
 
     def stop_checking(self):
         self.nodecb.stop()
-        msg = [b'notifications.nodes_changed', b'check', b'{"nodes":"check"}']
+        msg = [self.node.identity + b'.notifications.nodes_changed', b'check', b'{"nodes":"check"}']
         if hasattr(self.node, 'publisher'):
             self.node.publisher.send_multipart(msg)
 
@@ -184,7 +184,7 @@ class Discovery(object):
         new_peers = json.loads(res)
         if self.cached_peers != new_peers:
             self.cached_peers = new_peers         
-            msg = [b'notifications.nodes_changed', b'check', b'{"nodes":"check"}']
+            msg = [self.node.identity + b'.notifications.nodes_changed', b'check', b'{"nodes":"check"}']
             self.node.publisher.send_multipart(msg)
 
     def check_interface_addresses(self):

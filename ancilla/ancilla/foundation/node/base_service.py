@@ -305,7 +305,7 @@ class BaseService(App):
         self.current_task[dtask.name] = dtask
         res = await dtask.run(self)
         rj = json.dumps(res, cls=ServiceJsonEncoder).encode('ascii')
-        self.pusher.send_multipart([self.encoded_name+b'.task', b'finished', rj])
+        self.pusher.send_multipart([self.identity+b'.task', b'finished', rj])
 
         # self.pusher.publish()
         del self.current_task[dtask.name]
@@ -319,10 +319,10 @@ class BaseService(App):
       # print(f"fire event {evtname}", flush=True)
       if isinstance(evtname, Event):
         evtname = evtname.value()
-      evtname = evtname.encode('ascii')
-      payload["device"] = self.name
+      evtname = evtname.encode('utf-8')
+      # payload["device"] = self.name
       pstring = json.dumps(payload, cls=ServiceJsonEncoder)
       # print(f"JSON DUMP = {pstring}", flush=True)
-      pstring = pstring.encode('ascii')
-      self.pusher.send_multipart([b'events.'+ evtname, self.encoded_name, pstring])
+      pstring = pstring.encode('utf-8')
+      self.pusher.send_multipart([b'events.'+ evtname, self.identity, pstring])
       

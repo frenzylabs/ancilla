@@ -80,8 +80,6 @@ class ZMQNodePubSub(object):
         self.subscriber.on_recv(self.subscribe_callback)
         
 
-        # self.request.linger = 0
-        # self.request.setsockopt(zmq.SUBSCRIBE, b"")
 
     def subscribe(self, to, topic=''):
       subscribeto = to

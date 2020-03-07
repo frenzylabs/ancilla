@@ -144,7 +144,7 @@ class ServiceConnector():
       # print(f"CAM PUBSUB Msg = {msg}", flush=True)
       topic, identity, *res = msg
       if topic.startswith(b'data'):
-        topic = self.service.encoded_name + b'.' + topic
+        topic = self.service.identity + b'.' + topic
       
       if topic.startswith(b'events.state'):
         try:
@@ -154,7 +154,7 @@ class ServiceConnector():
           pass
         
 
-      nmsg = [topic, self.service.encoded_name] + res
+      nmsg = [topic, self.service.identity] + res
       # print(f"Process evt: {nmsg}")
       self.service.pusher.send_multipart(nmsg)
 
