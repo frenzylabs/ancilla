@@ -36,6 +36,28 @@ import multiprocessing as mp
 import pickle
 import re
 
+from collections import OrderedDict
+from threading import Thread, Condition
+
+
+class SaveAgent():
+  def __init__(self, queue):
+    self.running = True
+    self.queue = queue
+    self.condition = Condition()
+
+
+  def start(self):
+    while self.running:
+      printid = 0
+      state = None
+      if len(self.queue) > 0:
+        with self.condition:
+          printid, state = self.queue.popitem(False)
+      if state:
+        Print.update(state=state).where(Print.id == printid).execute()
+
+  
 
 def run_save_command(task_id, current_print, cmd_queue):
   from ...env import Env
@@ -60,6 +82,10 @@ def run_save_command(task_id, current_print, cmd_queue):
   PrinterCommand._meta.database = conn
   Print._meta.database = conn
 
+  save_queue = OrderedDict()
+  agent = SaveAgent(save_queue)
+  agent_thread = Thread(target=agent.start, daemon=True)
+  agent_thread.start()
 
 
   start_time = time.time()
@@ -92,17 +118,19 @@ def run_save_command(task_id, current_print, cmd_queue):
           #   print(f"Save command cnt: {cnt} {time.time()}")
           if respcommand:
             # print(f"has resp command {respcommand._meta.database.__dict__}")
+            with agent.condition:
+                save_queue[prnt.id] = prnt.state
+
             if respcommand.status == "error":
-            # if respcommand["status"] == "error":
-              # respcommand.save()
               break
 
             # if respcommand["status"] == "finished":
-            if respcommand.status == "finished":
+            # if respcommand.status == "finished":
               # current_print.state["pos"] = pos
               # current_print.save()
+              
               # prnt.save()
-              Print.update(state=prnt.state).where(Print.id == prnt.id).execute()
+              # Print.update(state=prnt.state).where(Print.id == prnt.id).execute()
               # respcommand.save()
               # cmd_queue.send(('done', respcommand.id))
         elif key == "close":
@@ -113,6 +141,7 @@ def run_save_command(task_id, current_print, cmd_queue):
       # cmd_queue.put(("state", {"status": "error", "reason": str(e)}))
       cmd_queue.send(("state", {"status": "error", "reason": str(e)}))
 
+  agent.running = False
   res = conn.execute_sql("PRAGMA wal_checkpoint(TRUNCATE);").fetchall()
   print(f'WALL CHECKPOINT = {res}')
   # res = conn.execute_sql("PRAGMA wal_autocheckpoint=2000;").fetchall()
@@ -129,27 +158,6 @@ class PrintTask(AncillaTask):
 
     self.logmessage = {"message": ""}
 
-    # M105 // temp
-    # M114 // cur position
-
-    # image_collector = self.service.ctx.socket(zmq.SUB)
-    # image_collector.bind(f"ipc://printcommand{self.task_id}.ipc")
-
-    # self.image_collector = ZMQStream(image_collector)
-    # self.image_collector.linger = 0
-    # self.image_collector.on_recv(self.on_data, copy=True)
-
-    # command_url = f"tcp://printcommand{self.task_id}.ipc"
-    # a = self.service.ctx.socket(zmq.PAIR)
-    # b = self.service.ctx.socket(zmq.PAIR)
-    # url = "inproc://%s" % uuid.uuid1()
-    # a.bind(command_url)
-    # b.connect(command_url)
-    # return a, b
-    # self.state._add_change_listener(
-    #         functools.partial(self.trigger_hook, 'state'))
-
-    # ["wessender", "start_print", {"name": "printit", "file_id": 1}]
 
   def command_active(self, cmd):
     return (cmd.status == "pending" or cmd.status == "busy" or cmd.status == "running")
@@ -171,33 +179,10 @@ class PrintTask(AncillaTask):
         elif cmd.status == "finished":          
           self.service.current_print.state["pos"] = cmdpos
 
-    if lcmd:
+    if lcmd:      
       self.parent_conn.send(("cmd", self.service.current_print, lcmd))
     self.current_commands = new_command_list
 
-  async def get_temp(self, payload):
-    cnt = 0
-    try:
-      if self.service.state.temp_updated:
-        if time.time() - self.service.state.temp_updated < 3:
-          return
-      if self.service.state.temp_sent_at:
-        if not self.service.state.temp_updated or self.service.state.temp_sent_at > self.service.state.temp_updated:
-          return
-
-      cmd = payload.get("command")
-      self.service.state.temp_sent_at = time.time()
-      self.service.add_command(self.task_id, cnt, cmd, False, skip_queue=True, print_id=self.service.current_print.id)
-      
-      # self.curcommand = self.service.add_command(self.task_id, cnt, cmd, is_comment, print_id=self.service.current_print.id)
-      # current_command = service.add_command(self.task_id, cnt, cmd.encode('ascii'))
-      await sleep(0.1)
-      return {"status": "sent"}
-
-
-    except Exception as e:
-      print(f"Couldnt run task {self.name}: {str(e)}")
-      return {"status": "error", "reason": "Error Running Task"}
 
   async def run(self, device):
     if not self.service.current_print:
@@ -233,7 +218,7 @@ class PrintTask(AncillaTask):
 
     ctx = mp.get_context('spawn')
     # cmd_queue = ctx.Queue()
-    # resp_queue = ctx.Queue()
+
     self.parent_conn, child_conn = ctx.Pipe()
     self.p = ctx.Process(target=run_save_command, args=(self.task_id, self.service.current_print, child_conn,))
     self.p.daemon = True
@@ -245,11 +230,6 @@ class PrintTask(AncillaTask):
     res = Database.conn.execute_sql("PRAGMA wal_checkpoint(TRUNCATE);").fetchall()
     print(f'INITIAL WALL CHECKPOINT = {res}', flush=True)
 
-    # self.parent_conn = self.service.ctx.socket(zmq.PUSH)
-    # self.parent_conn.bind("tcp://127.0.0.1:5557")
-    # self.p = ctx.Process(target=run_save_command, args=(self.task_id, self.service.current_print,))
-    # self.p.daemon = True
-    # self.p.start()
 
     try:
       with open(sf.path, "r") as fp:
@@ -278,10 +258,7 @@ class PrintTask(AncillaTask):
             self.state.status = "finished"
             break
 
-          # if not line.strip():
-          #   line = fp.readline()
-          #   continue
-          
+
           # print("Line {}, POS: {} : {}".format(cnt, pos, line))    
           linematch = lineregex.match(line)
           if linematch and len(linematch.groups()) > 1:
@@ -290,71 +267,17 @@ class PrintTask(AncillaTask):
             self.current_commands.append((pos, command))
             await sleep(0)
             self.handle_current_commands()
-            while len(self.current_commands) > 10 and self.state.status == "running":            
-              # IOLoop().current().add_callback(self.handle_current_commands)
-              await sleep(0.01)
+            # wc = 0
+            while len(self.current_commands) > 20 and self.state.status == "running":
+              await sleep(0.001)
               self.handle_current_commands()
+              # wc += 1
+
+            # if wc > 0:
+            #   print(f'print task wait for queue {wc}', flush=True)
           
           cnt += 1
           line = fp.readline()
-
-
-
-
-          # linecommands = lineregex.findall(line)
-          # if len(linecommands) > 0:
-          #   for c in linecommands:            
-          #     command = self.service.add_command(self.task_id, cnt, c[0], False, print_id=self.service.current_print.id)            
-          #     self.current_commands.append((pos, command))
-          #     await sleep(0)
-          #     self.handle_current_commands()
-          #     while len(self.current_commands) > 10 and self.state.status == "running":            
-          #       # IOLoop().current().add_callback(self.handle_current_commands)
-          #       await sleep(0.01)
-          #       self.handle_current_commands()
-          #     cnt += 1
-          # else:
-          #   cnt += 1
-            
-            
-          # line = fp.readline()
-          # cnt += 1
-
-          # is_comment = line.startswith(";")
-          # if is_comment:
-          #   line = fp.readline()
-          #   continue
-
-          
-          # # self.current_command = self.service.add_command(self.task_id, cnt, line, is_comment, print_id=self.service.current_print.id)
-          # command = self.service.add_command(self.task_id, cnt, line, is_comment, print_id=self.service.current_print.id)
-          # # cmd_data = self.current_command.__data__
-          # # print(f"CurCmd: {self.current_command.command}", flush=True)
-          # # IOLoop().current().add_callback(self.handle_current_commands)
-          # self.handle_current_commands()
-
-          # # self.current_commands = self.handle_current_commands(current_commands)
-          # # print(f'CurCmds: {len(self.service.command_queue.current_commands)} Queu: {len(self.service.command_queue.queue)}')
-          # # print(f'CurCmds: {len(self.service.command_queue.current_commands)} Queu: {len(self.service.command_queue.queue)} Current Commands: {self.service.command_queue.current_commands}', flush=True)
-          # # await sleep(0)
-          # self.current_commands.append((pos, command))
-
-          # if len(self.current_commands) > 2:
-          #   await sleep(0)
-
-          # while len(self.current_commands) > 10:            
-          #   # IOLoop().current().add_callback(self.handle_current_commands)
-          #   await sleep(0.005)
-          #   self.handle_current_commands()
-          #   # if self.state.status != "running":
-          #   #   self.current_command.status = self.state.status
-          #   #   break
-          #   # current_commands = self.handle_current_commands(current_commands)
-
-          # # if len(current_commands) < 10:
-          # line = fp.readline()
-          # cnt += 1
-
 
         
     except Exception as e:
