@@ -123,6 +123,25 @@ Update the ssid field in wificfg.json file to be an empty string.
 This will allow the ancilla script to generate a new one. 
 
 
+# Auto Resize Partition
+
+vi /boot/cmdline.txt 
+`console=serial0,115200 console=tty1 root=PARTUUID=6c586e13-02 rootfstype=ext4 elevator=deadline fsck.repair=yes rootwait quiet init=/usr/lib/raspi-config/init_resize.sh`
+
+// Maybe
+sudo wget -qO /boot/cmdline.txt https://github.com/RPi-Distro/pi-gen/raw/master/stage1/00-boot-files/files/cmdline.txt
+wget -qO - https://github.com/RPi-Distro/pi-gen/raw/master/stage2/01-sys-tweaks/00-patches/07-resize-init.diff | sudo patch -p3 -d /boot
+
+
+#
+
+sudo wget -qO /etc/init.d/resize2fs_once https://github.com/RPi-Distro/pi-gen/raw/master/stage2/01-sys-tweaks/files/resize2fs_once
+sudo chmod +x /etc/init.d/resize2fs_once
+sudo systemctl enable resize2fs_once
+
+
+## Create Image
+
 turn off the pi take the sd card and mount it on your computer
 On Mac can use disk utility
   Select the external disk you just mounted (select the parent and not the boot partition)
@@ -132,6 +151,7 @@ On Mac can use disk utility
   
   When finished you can rename it .iso instead of .cdr
   Then you can use etcher to flash it to another memory card
+
 
 
 

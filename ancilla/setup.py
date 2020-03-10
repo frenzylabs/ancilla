@@ -49,9 +49,7 @@ setup(
             'iOS', 
             'android',
             'django',
-            'share',
-            'collector',
-            'publisher'
+            'share'
         ]
     ),
     data_files=data_files,

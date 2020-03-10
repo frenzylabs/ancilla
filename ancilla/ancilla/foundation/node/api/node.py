@@ -82,7 +82,12 @@ class NodeApi(Api):
     for r in res:
       if "ip" in r:
         ips[r["ip"]] = r
-    networkservices = self.service.discovery.beacon.listener.myservices    
+    
+    beacon = self.service.discovery.beacon
+    if beacon and beacon.listener:
+      networkservices = beacon.listener.myservices    
+    else:
+      networkservices = {}
 
     # {'addresses': ['192.168.1.129'], 'port': 5000, 'server': 'ancilla.local', 'type': '_ancilla._tcp.local.'}
     try:
