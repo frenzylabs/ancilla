@@ -134,6 +134,8 @@ wget -qO - https://github.com/RPi-Distro/pi-gen/raw/master/stage2/01-sys-tweaks/
 
 
 #
+sudo wget -qO resize2fs_once https://github.com/RPi-Distro/pi-gen/raw/master/stage2/01-sys-tweaks/files/resize2fs_once
+sudo cp resize2fs_once /etc/init.d/resize2fs_once
 
 sudo wget -qO /etc/init.d/resize2fs_once https://github.com/RPi-Distro/pi-gen/raw/master/stage2/01-sys-tweaks/files/resize2fs_once
 sudo chmod +x /etc/init.d/resize2fs_once

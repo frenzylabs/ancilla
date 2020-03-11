@@ -19,7 +19,7 @@ Using Prebuilt Raspberry PI Image
 
 
   On first boot it will expand your partition to take up all available space on your SD card.
-  This can be prevented by opening up the file `/boot/cmdline.txt` and removing the text `quiet init=/usr/lib/raspi-config/init_resize.sh`
+  This can be prevented by opening up the file `cmdline.txt` and removing the text `quiet init=/usr/lib/raspi-config/init_resize.sh`
 
   
 ## Connect To Your Wifi Network
@@ -48,8 +48,6 @@ Using Prebuilt Raspberry PI Image
     psk="Pa55w0rd1234"
   }
   ```
-
-
 
 
 # Development
