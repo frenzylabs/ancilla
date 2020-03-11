@@ -247,8 +247,6 @@ class APIServer(object):
       (r"/api/services/(.*)",   NodeApiHandler, dict(node=self.node_server)),
       (r"/api/services",   NodeApiHandler, dict(node=self.node_server)),
       (r"/api/(.*)",   NodeApiHandler, dict(node=self.node_server)),
-      (r"/node/(.*)",   NodeApiHandler, dict(node=self.node_server)),
-      (r"/node",   NodeApiHandler, dict(node=self.node_server)),
       (r"/ws",   NodeSocket, dict(node=self.node_server)),
       
       (r"/app/(.*)",  StaticFileHandler, dict(path = STATIC_FOLDER)),

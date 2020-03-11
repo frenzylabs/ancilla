@@ -38,14 +38,21 @@ load_config_vars() {
 
 load_config_vars
 
+RETRY_NETWORK_CNT=0
 check_network() {
   if ping -q -c 1 -W 1 8.8.8.8 >/dev/null; then
     NETWORK_CONNECTED=true
+    RETRY_NETWORK_CNT=0
   else
     if nc -zw1 google.com 80; then
       NETWORK_CONNECTED=true
+      RETRY_NETWORK_CNT=0
     else
-      NETWORK_CONNECTED=false
+      if [ "$RETRY_NETWORK_CNT" -gt "2" ]; then
+        NETWORK_CONNECTED=false
+      else
+        RETRY_NETWORK_CNT=$(($RETRY_NETWORK_CNT + 1))
+      fi
     fi
   fi
 }
@@ -245,6 +252,19 @@ run_wifi() {
   handle_wifi_container
 }
 
+run_wifi_docker() {
+  wpa_supplicant_file=$(jq -r '.wpa_supplicant_cfg.cfg_file' <<< $NEW_WIFI_CONFIG)
+  if [ -f "/etc/wpa_supplicant/wpa_supplicant.conf" ]; then
+    wpa="-v /etc/wpa_supplicant/wpa_supplicant.conf:$wpa_supplicant_file"
+  else
+    wpa=""
+  fi
+
+  docker run -d --name=$WIFI_CONTAINER_NAME --restart=on-failure --privileged --net host \
+  -v $WIFI_CONFIG_FILE:/cfg/wificfg.json \
+  $wpa \
+  $WIFI_DOCKER_IMAGE@$WIFI_NEW_IMAGE_DIGEST
+}
 
 handle_wifi_container() {
   if [ "$WIFI_RESTART" = "true" ] || [ "$WIFI_RECREATE_CONTAINER" = "true" ] && [ ! -z "$WIFI_CONTAINER_EXIST" ]
@@ -254,7 +274,7 @@ handle_wifi_container() {
       if [ "$WIFI_RECREATE_CONTAINER" = "true" ]
       then
         docker rm $WIFI_CONTAINER_NAME
-        docker run -d --name=wifi --restart=on-failure --privileged --net host -v $WIFI_CONFIG_FILE:/cfg/wificfg.json $WIFI_DOCKER_IMAGE@$WIFI_NEW_IMAGE_DIGEST
+        run_wifi_docker
       else
         docker start $WIFI_CONTAINER_NAME
       fi
@@ -277,7 +297,7 @@ handle_wifi_container() {
       then
         if [ -z "$WIFI_CONTAINER_EXIST" ]
         then
-          docker run -d --name=wifi --restart=on-failure --privileged --net host -v $WIFI_CONFIG_FILE:/cfg/wificfg.json $WIFI_DOCKER_IMAGE@$WIFI_NEW_IMAGE_DIGEST
+          run_wifi_docker
         else
           docker start $WIFI_CONTAINER_NAME
         fi

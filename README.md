@@ -3,7 +3,56 @@ Ancilla
 
 An application to be able to manage all your 3D printers, cameras and files from one place.   
 
-# Dev
+# 
+
+## Installation
+Using Prebuilt Raspberry PI Image
+
+  1. Download Image
+  2. Mount SD card on your computer and flash the Image to it (using something like etcher)
+      A. If you want to connect to you wifi network immediately and not have to join the access point to put in your credentials
+         
+  3. Then plug the SD card into your raspberry pi and start it up.  It will take a few minutes.  
+  4.  If you didnt manually add the wifi credentials then you'll need to connect to the Raspberry Pi access point.  
+      
+
+
+
+  On first boot it will expand your partition to take up all available space on your SD card.
+  This can be prevented by opening up the file `/boot/cmdline.txt` and removing the text `quiet init=/usr/lib/raspi-config/init_resize.sh`
+
+  
+## Connect To Your Wifi Network
+  ### Access Point:
+  1. Look for a wifi network called ancilla-setup-{....}  and Join the network with password `ancilla1134`
+  2. In your browser you should be able to go to `http://ancilla.local:5000` 
+        If for some reason that doesn't work you can go to the IP address `http://192.168.27.1:5000`
+  3.  Bottom left of the webpage you should see a gear.  Click that and modal will appear where you can add your wifi credentials. 
+        ** There is an issue where as soon as it connects it changes networks so the call to connect never returns.  If it fails try 
+        refreshing the page and if you can't access ancilla.local then try going to the IP address. 
+  4. Once connected you can switch back to your network.  
+
+
+  ### Manually
+  Before First Boot 
+  Mount SD Card on your computer and add a file named `wpa_supplicant.conf` in the root directory with the following content.
+  Be sure to replace the network ssid and psk with your wifi network. 
+  ```
+  country=us
+  ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=netdev
+  update_config=1
+
+  network={
+    scan_ssid=1
+    ssid="MyNetworkSSID"
+    psk="Pa55w0rd1234"
+  }
+  ```
+
+
+
+
+# Development
 
 ## Setup: (Mac, linux unsure)
 
