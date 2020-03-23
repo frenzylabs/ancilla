@@ -80,6 +80,7 @@ From Local Device: Copy ancilla.service, ancilla.sh, wificfg.json, config.json t
 
 scp -r /path/to/ancilla/ancilla.service pi@192.XXX.XXX.XXX:/home/pi/ancilla.service
 scp -r /path/to/ancilla/ancilla.sh pi@192.XXX.XXX.XXX:/home/pi/ancilla.sh
+scp -r /path/to/ancilla/.env pi@192.XXX.XXX.XXX:/home/pi/.env  
 
 scp -r /path/to/ancilla/ancilla/wificfg.json pi@192.XXX.XXX.XXX:/home/pi/.ancilla/wificfg.json
 scp -r /path/to/ancilla/ancilla/config.json pi@192.XXX.XXX.XXX:/home/pi/.ancilla/config.json
@@ -125,7 +126,7 @@ This will allow the ancilla script to generate a new one.
 
 # Auto Resize Partition
 
-sudo vi /boot/cmdline.txt 
+sudo vi /boot/cmdline.txt
 `console=serial0,115200 console=tty1 root=PARTUUID=6c586e13-02 rootfstype=ext4 elevator=deadline fsck.repair=yes rootwait quiet init=/usr/lib/raspi-config/init_resize.sh`
 
 // Maybe

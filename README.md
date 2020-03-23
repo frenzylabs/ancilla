@@ -26,8 +26,8 @@ Using Prebuilt Raspberry PI Image
 ## Connect To Your Wifi Network
   ### Access Point:
   1. Look for a wifi network called ancilla-setup-{....}  and Join the network with password `ancilla1134`
-  2. In your browser you should be able to go to `http://ancilla.local:5000` 
-        If for some reason that doesn't work you can go to the IP address `http://192.168.27.1:5000`
+  2. In your browser you should be able to go to `http://ancilla.local` 
+        If for some reason that doesn't work you can go to the IP address `http://192.168.27.1`
   3.  Bottom left of the webpage you should see a gear.  Click that and modal will appear where you can add your wifi credentials. 
         ** There is an issue where as soon as it connects it changes networks so the call to connect never returns.  If it fails try 
         refreshing the page and if you can't access ancilla.local then try going to the IP address. 
@@ -126,33 +126,3 @@ docker rm $(docker ps -a -q)
 docker rmi $(docker images | grep "<none>" | awk '{print $3}')
 docker rmi $(docker images | awk '{print $3}')
 
-sudo mv ancilla.service /lib/systemd/system/ancilla.service
-
-sudo vi /lib/systemd/system/ancilla.service
-sudo systemctl enable ancilla
-sudo systemctl daemon-reload
-<!-- systemctl enable ancilla -->
-
-
-sudo iptables -t nat -I PREROUTING -p tcp --dport 80 -j REDIRECT --to-port 5000
-sudo iptables -I INPUT -p tcp --dport 5000 -j ACCEPT
-
-docker run --name=ancilla -d --restart=unless-stopped --privileged --net host -v "$HOME/.ancilla":"$HOME/.ancilla" layerkeep/ancilla:staging-972ea36
-
-docker run --name=ancilla -d --restart=unless-stopped --privileged --net host -v "$HOME/.ancilla":"/root/.ancilla" layerkeep/ancilla:staging-972ea36
-
-  -v <HOST_PATH>/wpa_supplicant.conf:<CONTAINER_PATH>/wpa_supplicant.conf cjimti/iotwifi
-
-docker run -d --restart=unless-stopped --privileged --net host -v $HOME/wificfg.json:/cfg/wificfg.json cjimti/iotwifi
-  -v <HOST_PATH>/wpa_supplicant.conf:<CONTAINER_PATH>/wpa_supplicant.conf cjimti/iotwifi
-
-
-docker run -d --restart=unless-stopped --privileged --net host -v $HOME/wifinohost.json:/cfg/wificfg.json cjimti/iotwifi  
-
-
-Expand sd card
-`sudo raspi-config --expand-rootfs`
-
-Camera:
-
-v4l2-ctl -d /dev/video0 --list-formats
