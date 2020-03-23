@@ -43,7 +43,7 @@ class NodeService(App):
     # _api_port = 5000
 
 
-    def __init__(self, api_port=5000):
+    def __init__(self, api_port):
         super().__init__()        
         # self.api_port = api_port
         self.__api_port = api_port

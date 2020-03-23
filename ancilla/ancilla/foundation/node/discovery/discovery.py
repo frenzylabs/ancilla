@@ -268,7 +268,7 @@ class Discovery(object):
     def update_beacon(self, adr):
         try:
             print(f'Updating Beacon {self.current_address}, New: {adr}')
-            self.beacon = Beacon(self.node.name, address=adr)
+            self.beacon = Beacon(self.node.name, port=self.node.api_port, address=adr)
             self.beacon.update_network(self.node.settings.discovery, self.node.settings.discoverable)
             self.current_address = adr
         except Exception as e:
