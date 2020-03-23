@@ -12,10 +12,13 @@
 HOME=/home/pi
 ANCILLA_HOME="$HOME/.ancilla"
 
+
+[ -f /home/pi/.env ] && . /home/pi/.env
+
 WIFI_CONFIG_FILE=$ANCILLA_HOME/wificfg.json
 CONFIG_FILE=$ANCILLA_HOME/config.json
 
-# docker run -it --name=ancilla2 --privileged --net host -v /dev:/dev -v "$HOME/.ancilla":"$HOME/.ancilla" layerkeep/ancilla:staging-latest /bin/bash
+# docker run -it --name=ancilla2 --privileged --net host -v /dev:/dev -v "$HOME/.ancilla":"$HOME/.ancilla" layerkeep/ancilla:latest /bin/bash
 
 CONFIG=`jq '.' $CONFIG_FILE`
 WIFI_CONFIG=`jq '.' $WIFI_CONFIG_FILE`
@@ -100,7 +103,14 @@ update_node() {
 }
 
 run_ancilla_docker() {
+
+  if [[ -z "${API_PORT}" ]]; then
+    API_PORT_ENV=""
+  else
+    API_PORT_ENV="-e API_PORT=${API_PORT}"
+  fi
   docker run --name=$NODE_CONTAINER_NAME -d --restart=on-failure --privileged --net host \
+  $API_PORT_ENV \
   -v /dev:/dev \
   -v "$HOME/.ancilla":"$HOME/.ancilla" \
   $NODE_DOCKER_IMAGE@$NODE_NEW_IMAGE_DIGEST
