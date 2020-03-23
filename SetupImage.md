@@ -6,7 +6,7 @@ I used raspbian-buster-lite
 
 Flash the Image to an SD card (using etcher or whatever)
 Once flashed remount it and open up the root directory.
-Add an empty file named ssh.  This will allow you to ssh into it using:
+Add an empty file named `ssh`.  This will allow you to ssh into it using:
 pi@XXX.XXX.XXX.XXX
 password:  raspberry
 
@@ -60,10 +60,10 @@ sudo usermod -aG docker pi
 reboot (or use sudo to run docker for right now)
 
 
-apt install netcat 
+sudo apt install netcat 
 
 # For Parsing Config files
-apt install jq
+sudo apt install -y jq
 
 
 mkdir /home/pi/.ancilla

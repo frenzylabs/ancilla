@@ -90,23 +90,35 @@ $ pip install -r requirements.txt
 
 ## For the UI setup:
 
+You can work on the UI separately by cloning the UI repo:
+`git clone git@github.com:frenzylabs/ancilla-ui.git`
+
+Or you can pull the submodule down by running:
+`make update-ui`
+
+Then run it with:
+
 ```
 $ cd ancilla/ui
 $ yarn install --check-files
-$ npm start
+$ yarn start
 ```
 
 ## Running Dev
 
 ```
-$ make
+$ make run
 ```
 
 ## Packaging
 
+Updates the UI module, cleans it and packages it
+
 ```
-$ make package
+$ make build-ui
 ```
+
+
 
 # docker cleanup
 docker rm $(docker ps -a -q)
