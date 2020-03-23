@@ -125,7 +125,7 @@ This will allow the ancilla script to generate a new one.
 
 # Auto Resize Partition
 
-vi /boot/cmdline.txt 
+sudo vi /boot/cmdline.txt 
 `console=serial0,115200 console=tty1 root=PARTUUID=6c586e13-02 rootfstype=ext4 elevator=deadline fsck.repair=yes rootwait quiet init=/usr/lib/raspi-config/init_resize.sh`
 
 // Maybe
@@ -137,7 +137,7 @@ wget -qO - https://github.com/RPi-Distro/pi-gen/raw/master/stage2/01-sys-tweaks/
 sudo wget -qO resize2fs_once https://github.com/RPi-Distro/pi-gen/raw/master/stage2/01-sys-tweaks/files/resize2fs_once
 sudo cp resize2fs_once /etc/init.d/resize2fs_once
 
-sudo wget -qO /etc/init.d/resize2fs_once https://github.com/RPi-Distro/pi-gen/raw/master/stage2/01-sys-tweaks/files/resize2fs_once
+
 sudo chmod +x /etc/init.d/resize2fs_once
 sudo systemctl enable resize2fs_once
 

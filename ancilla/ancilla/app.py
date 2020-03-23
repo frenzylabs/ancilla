@@ -94,8 +94,8 @@ class Application():
     # self.th.start()        
     # self.window.show()
 
-    
-    self.node_server    = NodeService(api_port=5000) # NodeServer()
+    api_port = int(os.environ.get("API_PORT", 5000))
+    self.node_server    = NodeService(api_port=api_port)
     self.api_server     = APIServer(self.document_store, self.node_server)
     self.api_server.start()
     

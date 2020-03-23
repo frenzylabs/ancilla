@@ -8,7 +8,7 @@
   },
   "node": {
     "image": "layerkeep/ancilla",
-    "tag": "staging-latest",
+    "tag": "latest",
     "latest_image_digest": "",
     "current_image_digest": "",
     "auto_update": true

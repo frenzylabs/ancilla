@@ -7,19 +7,26 @@ VERSION_FILE 	= VERSION
 VERSION			 	= `cat $(VERSION_FILE)`
 
 
-package_ui: clean-ui bundle_js
+package-ui: clean-ui bundle-js
 
 update-ui:
 	git submodule update --remote -- ancilla-ui
 
-build-ui: update-ui package_ui
+build-ui: update-ui package-ui
 
 
 build-rpi:
 	$(eval LK_COMMIT=$(shell git --git-dir=./.git rev-parse --short HEAD))
 	ANCILLA_COMMIT=${LK_COMMIT} docker-compose build ancilla
 
-push_staging:
+push-rpi-production:
+	$(eval LK_COMMIT=$(shell git --git-dir=./.git rev-parse --short HEAD))
+	docker tag localhost/ancilla:${LK_COMMIT} layerkeep/ancilla:${LK_COMMIT}
+	docker tag localhost/ancilla:${LK_COMMIT} layerkeep/ancilla:latest
+	docker push layerkeep/ancilla:${LK_COMMIT}
+	docker push layerkeep/ancilla:latest
+
+push-rpi-staging:
 	$(eval LK_COMMIT=$(shell git --git-dir=./.git rev-parse --short HEAD))
 	docker tag localhost/ancilla:${LK_COMMIT} layerkeep/ancilla:staging-${LK_COMMIT}
 	docker tag localhost/ancilla:${LK_COMMIT} layerkeep/ancilla:staging-latest
@@ -30,7 +37,7 @@ build-rpi3:
 	$(eval LK_COMMIT=$(shell git --git-dir=./.git rev-parse --short HEAD))
 	ANCILLA_COMMIT=${LK_COMMIT} docker-compose build ancilla-rpi3
 
-push_rpi3:
+push-rpi3-staging:
 	$(eval LK_COMMIT=$(shell git --git-dir=./.git rev-parse --short HEAD))
 	docker tag localhost/ancilla:rpi3-${LK_COMMIT} layerkeep/ancilla:staging-rpi3-${LK_COMMIT}
 	docker tag localhost/ancilla:rpi3-${LK_COMMIT} layerkeep/ancilla:staging-rpi3-latest
@@ -71,7 +78,7 @@ clean-all:
 run:
 	@RUN_ENV=DEV cd ancilla && python -m ancilla
 
-bundle_js:
+bundle-js:
 	@cd ancilla-ui \
 	&& yarn install --check-files \
 	&& ./node_modules/.bin/parcel build src/index.html --public-url '/static' --out-dir ../ancilla/ancilla/ui/dist
@@ -83,5 +90,5 @@ package_python:
 	mkdir dist && \
 	mv macOS dist/
 
-package: bundle_js package_python
+package: bundle-js package_python
 # package: clean bundle_js package_python

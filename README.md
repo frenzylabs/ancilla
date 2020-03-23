@@ -10,7 +10,8 @@ Using Prebuilt Raspberry PI Image
 
   1. Download Image
   2. Mount SD card on your computer and flash the Image to it (using something like etcher)
-      A. If you want to connect to you wifi network immediately and not have to join the access point to put in your credentials
+      A. If you want to connect to you wifi network immediately and not have to join the access point to put in your credentials,
+         go to Connect Wifi Network Manually
          
   3. Then plug the SD card into your raspberry pi and start it up.  It will take a few minutes.  
   4.  If you didnt manually add the wifi credentials then you'll need to connect to the Raspberry Pi access point.  
