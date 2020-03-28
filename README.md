@@ -2,6 +2,8 @@ Ancilla
 =======
 
 An application to be able to manage all your 3D printers, cameras and files from one place.   
+Each printer and camera are launched in a separate process.  
+Communication between processes is done using ZeroMQ 
 
 # 
 
@@ -120,9 +122,8 @@ $ make build-ui
 ```
 
 
+# BUILD IMAGE:
+[Setup Instructions](SetupImage.md)
 
-# docker cleanup
-docker rm $(docker ps -a -q)
-docker rmi $(docker images | grep "<none>" | awk '{print $3}')
-docker rmi $(docker images | awk '{print $3}')
+
 
