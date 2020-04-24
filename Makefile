@@ -1,3 +1,5 @@
+SHELL := /bin/bash
+
 .PHONY: test
 
 ROOT_DIR 	   := $(abspath $(lastword $(MAKEFILE_LIST)))
