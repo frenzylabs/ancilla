@@ -19,7 +19,7 @@ greenlet==0.4.15
 idna==2.8
 ifaddr==0.1.6
 itsdangerous==1.1.0
-Jinja2==2.10.1
+Jinja2==2.11.3
 jinja2-time==0.2.0
 jmespath==0.9.4
 mac-alias==2.0.7
