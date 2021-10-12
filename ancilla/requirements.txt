@@ -28,7 +28,7 @@ MarkupSafe==1.1.1
 mock==3.0.5
 monotonic==1.5
 # numpy==1.17.3
-opencv-python-headless==4.1.0.25
+opencv-python-headless==4.2.0.32
 peewee==3.11.2
 peewee-migrate==1.1.6
 peewee-validates==1.0.7
