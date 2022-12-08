@@ -5,7 +5,7 @@ binaryornot==0.4.4
 biplist==1.0.3
 briefcase==0.2.10
 cached-property==1.5.1
-certifi==2019.9.11
+certifi==2022.12.7
 chardet==3.0.4
 Click==7.0
 cookiecutter==1.6.0
